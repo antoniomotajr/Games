@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Degraus da Salvação - Terra, Céu e Inferno</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      overflow: hidden;
+      font-family: 'Cinzel', 'Georgia', serif;
+      color: white;
+      background: linear-gradient(to top, #3a0800, #0b1530 50%, #4a7ac0);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Canvas recebe os gestos (arrastar/zoom); a interface fica acima dele */
+    #canvas-container { position: fixed; inset: 0; z-index: 0; touch-action: none; }
+    #canvas-container canvas { display: block; }
+
+    .hud { pointer-events: none; }
+
+    #info {
+      position: absolute; top: 15px; left: 15px; z-index: 10;
+      background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(40,28,0,0.8));
+      padding: 10px 20px; border-radius: 50px; border: 2px solid gold;
+      box-shadow: 0 0 20px rgba(255,215,0,0.5);
+      font-weight: 700; letter-spacing: 1px; font-size: 0.9rem;
+      text-shadow: 0 0 10px gold;
+    }
+    #status {
+      position: absolute; top: 15px; right: 15px; z-index: 10;
+      background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,20,40,0.8));
+      padding: 8px 20px; border-radius: 22px; text-align: center; line-height: 1.2; border: 2px solid #00aaff;
+      box-shadow: 0 0 20px rgba(0,170,255,0.5);
+      font-size: 0.95rem; font-weight: 700; text-shadow: 0 0 10px #00aaff;
+    }
+    #status small { display: block; font-size: 0.68rem; color: #ffcc66; text-shadow: none; letter-spacing: 1px; margin-top: 2px; }
+    .hud-title { font-size: 0.55rem; color: #ffcc66; text-align: center; letter-spacing: 1px; text-shadow: 0 0 5px #000; margin-bottom: 2px; }
+    #progress-wrap { position: absolute; top: 76px; right: 15px; width: 200px; z-index: 10; }
+    #progress-bar-container {
+      width: 100%; height: 16px; background: rgba(0,0,0,0.8);
+      border-radius: 10px; border: 2px solid rgba(255,215,0,0.5); overflow: hidden;
+    }
+    #progress-bar {
+      height: 100%; width: 50%;
+      background: linear-gradient(90deg, #ff2200, #ffaa00, #00ff88, #00aaff);
+      transition: width 0.6s ease;
+    }
+    #progress-labels {
+      display: flex; justify-content: space-between; margin-top: 3px;
+      font-size: 0.65rem; color: #ffcc66; text-shadow: 0 0 5px black;
+    }
+
+    #hud-degraus {
+      position: absolute; left: 15px; top: 70px; z-index: 10;
+      display: flex; flex-direction: column-reverse; gap: 3px;
+    }
+    .degrau-marker {
+      width: 25px; height: 14px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6);
+      transition: all 0.4s; display: flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; color: rgba(255,255,255,0.5);
+    }
+    .degrau-marker.active { background: gold; box-shadow: 0 0 15px gold; transform: scaleX(1.3); color: #000; font-weight: 700; }
+    .degrau-marker.passed { background: rgba(255,170,0,0.3); }
+
+    #question-box {
+      position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+      width: 92%; max-width: 560px; z-index: 20; text-align: center;
+      background: linear-gradient(135deg, rgba(10,10,20,0.72), rgba(35,24,10,0.72));
+      border: 1px solid rgba(255,170,0,0.85); border-radius: 12px; padding: 10px 36px 10px 14px;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      box-shadow: 0 0 18px rgba(255,170,0,0.25);
+    }
+    #question-text { font-size: 1rem; margin-bottom: 8px; text-shadow: 0 0 8px #ffaa00; font-weight: 700; line-height: 1.25; }
+    #sound-btn {
+      position: absolute; top: 106px; right: 15px; z-index: 10; width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(0,0,0,0.65); border: 1px solid rgba(255,215,0,0.6); font-size: 1rem; cursor: pointer; line-height: 1;
+    }
+    #sound-btn:hover { background: rgba(255,170,0,0.5); }
+    #toggle-q {
+      position: absolute; top: 6px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
+      background: rgba(0,0,0,0.55); border: 1px solid rgba(255,170,0,0.7); color: #ffcc66;
+      font-size: 0.8rem; line-height: 1; cursor: pointer; font-family: inherit;
+    }
+    #toggle-q:hover { background: #ffaa00; color: #000; }
+    #show-q {
+      position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); z-index: 20; display: none;
+      background: rgba(10,10,20,0.75); border: 1px solid #ffaa00; color: #ffcc66; border-radius: 50px;
+      padding: 8px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    #show-q:hover { background: #ffaa00; color: #000; }
+    .options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .option-btn {
+      background: linear-gradient(135deg, rgba(42,42,58,0.85), rgba(26,26,42,0.85));
+      border: 1px solid #ffaa00; color: white; padding: 6px 10px; border-radius: 8px;
+      font-size: 0.85rem; cursor: pointer; transition: all 0.2s; font-weight: 700; font-family: inherit;
+    }
+    .option-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #ffaa00, #ff6600); color: #000;
+      transform: translateY(-2px); box-shadow: 0 4px 15px rgba(255,170,0,0.6);
+    }
+    .option-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    .option-btn.correct { background: linear-gradient(135deg, #00aa00, #00ff44); border-color: #00ff00; color: #fff; box-shadow: 0 0 20px #00ff00; opacity: 1; }
+    .option-btn.wrong { background: linear-gradient(135deg, #aa0000, #ff2200); border-color: #ff0000; color: #fff; box-shadow: 0 0 20px #ff0000; opacity: 1; }
+    .option-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+    #message {
+      position: absolute; top: 32%; left: 50%; z-index: 30; pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.9); text-align: center;
+      font-size: 3rem; font-weight: 700; letter-spacing: 2px; opacity: 0;
+      text-shadow: 0 0 30px currentColor, 0 0 60px currentColor, 0 2px 4px #000;
+      transition: opacity 0.4s, transform 0.4s;
+    }
+    #message small { display: block; font-size: 1rem; letter-spacing: 1px; color: #fff; text-shadow: 0 2px 6px #000; margin-top: 6px; }
+    #message.show { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+
+    #flash { position: fixed; inset: 0; pointer-events: none; z-index: 25; opacity: 0; transition: opacity 0.3s; }
+    #flash.green { background: radial-gradient(circle, transparent 40%, rgba(0,255,100,0.3)); }
+    #flash.red { background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.35)); }
+
+    #end-screen {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.88); display: none; z-index: 100;
+      align-items: center; justify-content: center; flex-direction: column; text-align: center; padding: 20px;
+    }
+    #end-screen.show { display: flex; animation: fadeIn 1s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #end-title { font-size: 3rem; margin-bottom: 20px; text-shadow: 0 0 30px currentColor; letter-spacing: 4px; }
+    #end-message { font-size: 1.2rem; max-width: 600px; margin-bottom: 15px; line-height: 1.5; color: #ddd; }
+    #end-score { font-size: 1.2rem; margin-bottom: 30px; color: #ffcc66; }
+    #restart-btn {
+      background: linear-gradient(135deg, #ffaa00, #ff6600); border: none; color: #000;
+      padding: 15px 40px; font-size: 1.1rem; font-weight: 700; border-radius: 50px; cursor: pointer;
+      letter-spacing: 2px; transition: all 0.3s; font-family: inherit; box-shadow: 0 0 25px rgba(255,170,0,0.6);
+    }
+    #restart-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,170,0,0.9); }
+
+    #fallback-note {
+      position: absolute; top: 110px; left: 50%; transform: translateX(-50%); z-index: 10;
+      background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 10px; font-size: 0.8rem; display: none;
+    }
+
+    @media (max-width: 640px) {
+      #info { font-size: 0.65rem; padding: 7px 12px; top: 10px; left: 10px; }
+      #status { font-size: 0.75rem; padding: 7px 12px; top: 10px; right: 10px; }
+      #progress-wrap { width: 140px; top: 60px; right: 10px; }
+      #sound-btn { top: 90px; right: 10px; }
+      #hud-degraus { top: 52px; left: 10px; }
+      .degrau-marker { width: 20px; height: 11px; font-size: 0.5rem; }
+      #question-box { padding: 10px 12px; bottom: 8px; }
+      #question-text { font-size: 0.95rem; margin-bottom: 8px; }
+      .option-btn { font-size: 0.78rem; padding: 8px 6px; }
+      #message { font-size: 2rem; }
+      #end-title { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="info" class="hud">⚔️ DEGRAUS DA SALVAÇÃO ⚔️</div>
+  <div id="status" class="hud">Pergunta: 1 / 10</div>
+  <div id="progress-wrap" class="hud">
+    <div id="progress-bar-container"><div id="progress-bar"></div></div>
+    <div id="progress-labels"><span>🔥 Inferno</span><span>🌤️ Céu</span></div>
+  </div>
+  <div id="hud-degraus" class="hud"></div>
+  <button id="sound-btn" title="Som ligado/desligado" aria-label="Ligar ou desligar o som">🔊</button>
+  <div id="fallback-note">Gráficos 3D indisponíveis (WebGL ou conexão). O quiz continua funcionando.</div>
+
+  <div id="question-box">
+    <button id="toggle-q" title="Esconder pergunta" aria-label="Esconder pergunta">▾</button>
+    <div id="question-text">Carregando...</div>
+    <div class="options" id="options-container"></div>
+  </div>
+  <button id="show-q">📖 Mostrar pergunta</button>
+
+  <div id="message" aria-live="polite"></div>
+  <div id="flash"></div>
+
+  <div id="end-screen">
+    <div id="end-title"></div>
+    <div id="end-message"></div>
+    <div id="end-score"></div>
+    <button id="restart-btn">JOGAR NOVAMENTE</button>
+  </div>
+
+  <!-- ===== LÓGICA DO QUIZ (script comum: funciona mesmo se o 3D falhar) ===== -->
+  <script>
+  (function () {
+    const BANK = [
+      { q: "Quem construiu a arca para salvar sua família do dilúvio?", o: ["Moisés", "Noé", "Abraão", "Davi"], c: 1, ref: "Gênesis 6:14" },
+      { q: "Qual foi o primeiro milagre de Jesus, realizado em Caná?", o: ["Curar um cego", "Transformar água em vinho", "Ressuscitar Lázaro", "Multiplicar pães"], c: 1, ref: "João 2:1-11" },
+      { q: "Quantos discípulos Jesus escolheu para serem apóstolos?", o: ["7", "10", "12", "14"], c: 2, ref: "Marcos 3:14" },
+      { q: "Quem traiu Jesus por 30 moedas de prata?", o: ["Pedro", "Judas Iscariotes", "Tomé", "João"], c: 1, ref: "Mateus 26:14-15" },
+      { q: "Qual é o primeiro livro da Bíblia?", o: ["Êxodo", "Salmos", "Gênesis", "Provérbios"], c: 2, ref: "Gênesis 1:1" },
+      { q: "Quem foi engolido por um grande peixe e depois obedeceu a Deus?", o: ["Jonas", "Paulo", "Pedro", "Tiago"], c: 0, ref: "Jonas 1:17" },
+      { q: "Quantos dias e noites de chuva caíram sobre a terra no dilúvio?", o: ["7", "40", "100", "12"], c: 1, ref: "Gênesis 7:12" },
+      { q: "Quem recebeu as Tábuas da Lei no Monte Sinai?", o: ["Moisés", "Arão", "Josué", "Elias"], c: 0, ref: "Êxodo 31:18" },
+      { q: "Qual apóstolo negou Jesus três vezes antes do galo cantar?", o: ["João", "Pedro", "André", "Filipe"], c: 1, ref: "Lucas 22:61" },
+      { q: "Quem foi a mãe de Jesus, escolhida por Deus?", o: ["Marta", "Maria Madalena", "Maria", "Isabel"], c: 2, ref: "Lucas 1:30-31" },
+      { q: "Quem derrotou o gigante Golias com uma pedra?", o: ["Saul", "Davi", "Sansão", "Gideão"], c: 1, ref: "1 Samuel 17" },
+      { q: "Em que cidade Jesus nasceu?", o: ["Nazaré", "Jerusalém", "Belém", "Cafarnaum"], c: 2, ref: "Mateus 2:1" },
+      { q: "Quem foi lançado na cova dos leões, mas Deus o livrou?", o: ["Daniel", "Elias", "Jeremias", "Ezequiel"], c: 0, ref: "Daniel 6" },
+      { q: "Quem foi vendido pelos irmãos e depois governou o Egito?", o: ["Benjamim", "Judá", "José", "Rúben"], c: 2, ref: "Gênesis 37 e 41" },
+      { q: "Qual é o último livro da Bíblia?", o: ["Judas", "Apocalipse", "Malaquias", "Atos"], c: 1, ref: "Apocalipse 1:1" },
+      { q: "Quem escreveu grande parte das cartas do Novo Testamento?", o: ["Paulo", "Pedro", "Tiago", "Lucas"], c: 0, ref: "Romanos 1:1" },
+      { q: "Quem perdeu a força quando cortaram seus cabelos?", o: ["Gideão", "Jefté", "Sansão", "Samuel"], c: 2, ref: "Juízes 16" },
+      { q: "Como se chamava o jardim onde viveram Adão e Eva?", o: ["Getsêmani", "Éden", "Betânia", "Canaã"], c: 1, ref: "Gênesis 2:8" },
+      { q: "Quantos dias Deus trabalhou na criação antes de descansar?", o: ["3", "6", "7", "10"], c: 1, ref: "Gênesis 2:2" },
+      { q: "Em que jardim Jesus orou na noite em que foi preso?", o: ["Éden", "Getsêmani", "Betesda", "Siloé"], c: 1, ref: "Mateus 26:36" }
+    ];
+
+    const G = window.Game = {
+      step: 5, MAX: 10, score: 0, total: 10, index: 0,
+      gameOver: false, locked: false, questions: [], onReset: null, errors: 0
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const questionText = $('question-text'), optionsContainer = $('options-container'),
+          statusDiv = $('status'), messageDiv = $('message'), flashDiv = $('flash'),
+          progressBar = $('progress-bar'), endScreen = $('end-screen'), endTitle = $('end-title'),
+          endMessage = $('end-message'), endScore = $('end-score'), hudDegraus = $('hud-degraus'),
+          questionBox = $('question-box');
+
+    function shuffle(arr) {            // Fisher-Yates (sem viés)
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function initQuestions() {
+      G.questions = shuffle(BANK).slice(0, G.total).map(q => ({
+        text: q.q, ref: q.ref,
+        opts: shuffle(q.o.map((t, i) => ({ t, ok: i === q.c })))
+      }));
+    }
+
+    function buildHud() {
+      hudDegraus.innerHTML = '';
+      for (let i = 1; i <= G.MAX; i++) { // degraus 1..10 = 10 perguntas
+        const d = document.createElement('div');
+        d.className = 'degrau-marker';
+        d.textContent = i;
+        hudDegraus.appendChild(d);
+      }
+      const t = document.createElement('div');
+      t.className = 'hud-title'; t.textContent = 'DEGRAU';
+      hudDegraus.appendChild(t); // com column-reverse, o último filho fica no topo
+    }
+    // Pergunta e degrau são atualizados juntos, no mesmo instante
+    function updateStatus(n) {
+      statusDiv.innerHTML = `Pergunta: ${n} / ${G.total}<small>Degrau ${G.step} / ${G.MAX}</small>`;
+    }
+    function updateHud() {
+      hudDegraus.querySelectorAll('.degrau-marker').forEach((m, i) => {
+        m.classList.toggle('active', i + 1 === G.step);
+        m.classList.toggle('passed', i + 1 < G.step);
+      });
+      progressBar.style.width = ((G.step - 1) / (G.MAX - 1)) * 100 + '%';
+      updateStatus(Math.min(G.index + 1, G.total));
+    }
+
+    function loadQuestion() {
+      const q = G.questions[G.index];
+      questionText.textContent = q.text;
+      optionsContainer.innerHTML = '';
+      updateStatus(G.index + 1);
+      q.opts.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt.t;
+        btn.dataset.index = idx;
+        btn.addEventListener('click', () => handleAnswer(idx));
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    let hideTimer = null, flashTimer = null, nextTimer = null;
+    function showMessage(text, ref, color) {
+      messageDiv.innerHTML = text + (ref ? `<small>📖 ${ref}</small>` : '');
+      messageDiv.style.color = color;
+      messageDiv.classList.add('show');
+    }
+    function hideMessage() { messageDiv.classList.remove('show'); }
+    function flashScreen(type) {
+      clearTimeout(flashTimer);
+      flashDiv.className = type;
+      flashDiv.style.opacity = 1;
+      flashTimer = setTimeout(() => (flashDiv.style.opacity = 0), 450);
+    }
+
+    function handleAnswer(selected) {
+      if (G.locked || G.gameOver) return;
+      G.locked = true;
+      const q = G.questions[G.index];
+      const ok = q.opts[selected].ok;
+
+      optionsContainer.querySelectorAll('.option-btn').forEach((btn, i) => {
+        btn.disabled = true;
+        if (q.opts[i].ok) btn.classList.add('correct');
+        else if (i === selected) btn.classList.add('wrong');
+      });
+
+      if (ok) {
+        G.score++;
+        if (G.step < G.MAX) G.step++;
+        showMessage('✔️ ACERTOU!', q.ref, '#00ff66');
+        G.playSfx(G.sfx.ok);
+        flashScreen('green');
+      } else {
+        if (G.step > 1) G.step--;
+        G.errors++;
+        showMessage('❌ ERROU!', q.ref, '#ff4422');
+        G.playSfx(G.sfx.bad);
+        flashScreen('red');
+      }
+      updateHud();
+
+      nextTimer = setTimeout(() => {
+        hideMessage();
+        G.index++;
+        G.locked = false;
+        // Fim de jogo: acabaram as perguntas OU chegou ao Céu (degrau 10) OU ao fundo do Inferno (degrau 1)
+        if (G.index >= G.total || G.step >= G.MAX || G.step <= 1) endGame(); else loadQuestion();
+      }, 2200);
+    }
+
+    function endGame() {
+      G.gameOver = true;
+      questionBox.style.display = 'none';
+      $('show-q').style.display = 'none';
+      const done = G.index; // perguntas respondidas (pode ser menos que o total se o jogo acabar antes)
+      let title, message, color;
+      if (G.step >= 8) {
+        title = '🌟 SALVO! 🌟'; color = '#ffdd44';
+        message = `Você alcançou o Céu! Com ${G.score} acertos em ${done} perguntas, sua fé brilhou como o sol. "Bem está, servo bom e fiel!" (Mateus 25:21)`;
+      } else if (G.step >= 5) {
+        title = '⚖️ EM CAMINHO ⚖️'; color = '#88aaff';
+        message = `Você ficou na Terra com ${G.score} acertos. Ainda há tempo para buscar mais conhecimento da Palavra. "Buscai ao Senhor enquanto se pode achar." (Isaías 55:6)`;
+      } else {
+        title = '🔥 PERDIDO... 🔥'; color = '#ff3300';
+        message = `Você desceu ao Inferno com apenas ${G.score} acertos. Mas a misericórdia de Deus é infinita! "Arrependei-vos, pois o reino dos céus está próximo." (Mateus 3:2)`;
+      }
+      endTitle.textContent = title;
+      endTitle.style.color = color;
+      endMessage.textContent = message;
+      endScore.innerHTML = `Acertos: <strong>${G.score} / ${done}</strong> &nbsp;|&nbsp; Degrau final: <strong>${G.step} / ${G.MAX}</strong>`;
+      endScreen.classList.add('show');
+    }
+
+    function restartGame() {
+      clearTimeout(nextTimer);
+      G.step = 5; G.score = 0; G.index = 0; G.gameOver = false; G.locked = false; G.errors = 0;
+      initQuestions();
+      loadQuestion();
+      hideMessage();
+      updateHud();
+      endScreen.classList.remove('show');
+      setBoxHidden(false);
+      if (typeof G.onReset === 'function') G.onReset();
+    }
+
+    $('restart-btn').addEventListener('click', restartGame);
+
+    // ----- Efeitos sonoros (ceu.mp3 = acerto, inferno.mp3 = erro) -----
+    const sfx = { ok: new Audio('ceu.mp3'), bad: new Audio('inferno.mp3') };
+    Object.values(sfx).forEach(a => { a.preload = 'auto'; a.volume = 0.85; });
+    G.muted = false;
+    function stopSfx() { Object.values(sfx).forEach(a => { try { a.pause(); a.currentTime = 0; } catch (e) {} }); }
+    function playSfx(a) {
+      if (G.muted) return;
+      try {
+        stopSfx();
+        const p = a.play();
+        if (p && p.catch) p.catch(() => {}); // arquivo ausente ou bloqueado: ignora sem quebrar o jogo
+      } catch (e) {}
+    }
+    G.playSfx = playSfx; G.sfx = sfx;
+    $('sound-btn').addEventListener('click', () => {
+      G.muted = !G.muted;
+      $('sound-btn').textContent = G.muted ? '🔇' : '🔊';
+      if (G.muted) stopSfx();
+    });
+
+    function setBoxHidden(h) {
+      G.boxHidden = h;
+      questionBox.style.display = (h || G.gameOver) ? 'none' : 'block';
+      $('show-q').style.display = (h && !G.gameOver) ? 'block' : 'none';
+    }
+    $('toggle-q').addEventListener('click', () => setBoxHidden(true));
+    $('show-q').addEventListener('click', () => setBoxHidden(false));
+
+    // Atalhos de teclado 1-4
+    window.addEventListener('keydown', (e) => {
+      if (G.gameOver || G.locked) return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= 4) {
+        const btn = optionsContainer.querySelectorAll('.option-btn')[n - 1];
+        if (btn) btn.click();
+      }
+    });
+
+    initQuestions(); buildHud(); loadQuestion(); updateHud();
+  })();
+  </script>
+
+  <!-- ===== CENA 3D ===== -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const G = window.Game;
+
+    try {
+      // ---------- Utilidades ----------
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const hash = (x, y, z) => { const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453; return s - Math.floor(s); };
+      const smooth = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+
+      function canvasTex(w, h, draw, repeat) {
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        draw(c.getContext('2d'), w, h);
+        const t = new THREE.CanvasTexture(c);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 4;
+        if (repeat) t.repeat.set(repeat, repeat);
+        return t;
+      }
+      const glowTex = canvasTex(128, 128, (ctx, w, h) => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.5)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      });
+
+      // ---------- Renderer / cena / câmera ----------
+      const container = document.getElementById('canvas-container');
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0b1530);
+      scene.fog = new THREE.FogExp2(0x0b1530, 0.011);
+
+      const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 600);
+      camera.position.set(0, 7, 32);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.target.set(0, 2, 0);
+      controls.minDistance = 14;
+      controls.maxDistance = 50;
+      controls.minPolarAngle = Math.PI / 4;
+      controls.maxPolarAngle = Math.PI / 1.85;
+      controls.enablePan = false;
+
+      // ---------- Luzes ----------
+      const hemi = new THREE.HemisphereLight(0x9fb8ff, 0x442211, 0.9);
+      scene.add(hemi);
+
+      const sun = new THREE.DirectionalLight(0xffeedd, 2);
+      sun.position.set(22, 40, 16);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 100 });
+      sun.shadow.bias = -0.0005;
+      sun.shadow.normalBias = 0.04;
+      scene.add(sun);
+
+      const hellLight = new THREE.PointLight(0xff4400, 220, 45, 2);
+      hellLight.position.set(0, -7, 0);
+      scene.add(hellLight);
+
+      const heavenLight = new THREE.PointLight(0xfff0c0, 160, 45, 2);
+      heavenLight.position.set(0, 14, 0);
+      scene.add(heavenLight);
+
+      // ---------- Geometria da escada ----------
+      const R = 11, ANG = 0.5, RISE = 1.6;
+      const stepAngle = (i) => Math.PI / 2 + (i - 5) * ANG;
+      const stepY = (i) => (i - 5) * RISE;
+
+      // ---------- Texturas procedurais ----------
+      const lavaTex = canvasTex(512, 512, (ctx, w, h) => {
+        ctx.fillStyle = '#2a0500'; ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 260; i++) {
+          const x = Math.random() * w, y = Math.random() * h, r = 8 + Math.random() * 38;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+          const hot = Math.random();
+          g.addColorStop(0, hot > 0.7 ? 'rgba(255,220,80,0.9)' : 'rgba(255,110,10,0.8)');
+          g.addColorStop(1, 'rgba(120,10,0,0)');
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = 'rgba(15,3,0,0.85)'; ctx.lineWidth = 3;
+        for (let i = 0; i < 60; i++) {
+          ctx.beginPath(); let x = Math.random() * w, y = Math.random() * h; ctx.moveTo(x, y);
+          for (let k = 0; k < 5; k++) { x += rand(-40, 40); y += rand(-40, 40); ctx.lineTo(x, y); }
+          ctx.stroke();
+        }
+      }, 6);
+
+      const grassTex = canvasTex(256, 256, (ctx, w, h) => {
+        ctx.fillStyle = '#3f7a1c'; ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 2500; i++) {
+          ctx.fillStyle = `hsla(${rand(85, 120)},60%,${rand(20, 42)}%,0.55)`;
+          ctx.fillRect(Math.random() * w, Math.random() * h, rand(1, 3), rand(2, 6));
+        }
+      }, 4);
+
+      const rockTex = canvasTex(256, 256, (ctx, w, h) => {
+        ctx.fillStyle = '#5a4a3c'; ctx.fillRect(0, 0, w, h);
+        for (let i = 0; i < 1400; i++) {
+          const l = rand(18, 45);
+          ctx.fillStyle = `hsla(25,${rand(10, 25)}%,${l}%,0.5)`;
+          ctx.fillRect(Math.random() * w, Math.random() * h, rand(2, 10), rand(1, 5));
+        }
+      }, 3);
+
+      // ---------- Atmosfera ----------
+      const COL_HELL = new THREE.Color(0x2a0600);
+      const COL_NIGHT = new THREE.Color(0x0e1a3a);
+      const COL_DAY = new THREE.Color(0x6fa8e8);
+      const tmpCol = new THREE.Color();
+
+      // Estrelas
+      const starCount = 1800, starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = 220 + Math.random() * 60;
+        const s = Math.sqrt(1 - u * u);
+        starPos[i * 3] = r * s * Math.cos(th); starPos[i * 3 + 1] = Math.abs(r * u) * 0.8 + 10; starPos[i * 3 + 2] = r * s * Math.sin(th);
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 1, fog: false, depthWrite: false });
+      scene.add(new THREE.Points(starGeo, starMat));
+
+      // Sol (sprite luminoso)
+      const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffe9a0, transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+      sunSprite.position.set(-40, 38, -70);
+      sunSprite.scale.set(60, 60, 1);
+      scene.add(sunSprite);
+
+      // ---------- ILHA DA TERRA ----------
+      const earth = new THREE.Group();
+      scene.add(earth);
+
+      const sideMat = new THREE.MeshStandardMaterial({ map: rockTex, color: 0x8a6a4a, roughness: 1 });
+      const topMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.95 });
+      const island = new THREE.Mesh(new THREE.CylinderGeometry(8, 8.4, 1.2, 64), [sideMat, topMat, sideMat]);
+      island.position.y = -0.6; island.receiveShadow = true; island.castShadow = true;
+      earth.add(island);
+
+      // Rocha pontiaguda sob a ilha (vértices com ruído determinístico)
+      const underGeo = new THREE.ConeGeometry(8.4, 8, 28, 6);
+      const up = underGeo.attributes.position;
+      for (let i = 0; i < up.count; i++) {
+        const x = up.getX(i), y = up.getY(i), z = up.getZ(i);
+        if (y > -3.9) { // mantém a borda superior alinhada com a ilha
+          const f = (4 - y) / 8;
+          up.setX(i, x + (hash(x, y, z) - 0.5) * 1.4 * f);
+          up.setZ(i, z + (hash(z, x, y) - 0.5) * 1.4 * f);
+        }
+      }
+      underGeo.computeVertexNormals();
+      const under = new THREE.Mesh(underGeo, new THREE.MeshStandardMaterial({ map: rockTex, color: 0x7a5a40, roughness: 1, flatShading: true }));
+      under.rotation.x = Math.PI; under.position.y = -5.2; under.castShadow = true;
+      earth.add(under);
+
+      // Grama (instanciada)
+      const bladeCount = 700;
+      const blades = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.4, 4), new THREE.MeshStandardMaterial({ roughness: 0.9 }), bladeCount);
+      const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), e4 = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
+      for (let i = 0; i < bladeCount; i++) {
+        const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 7.6, sc = rand(0.6, 1.6);
+        v3.set(Math.cos(a) * r, 0.18 * sc, Math.sin(a) * r);
+        e4.set(rand(-0.2, 0.2), Math.random() * 6, rand(-0.2, 0.2)); q4.setFromEuler(e4);
+        s3.set(1, sc, 1); m4.compose(v3, q4, s3); blades.setMatrixAt(i, m4);
+        blades.setColorAt(i, tmpCol.setHSL(rand(0.22, 0.32), 0.65, rand(0.22, 0.4)));
+      }
+      earth.add(blades);
+
+      // Flores
+      const flowerCount = 90;
+      const flowers = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshStandardMaterial({ roughness: 0.6 }), flowerCount);
+      const flowerCols = [0xff5577, 0xffdd33, 0xffffff, 0xaa66ff, 0xff9933];
+      for (let i = 0; i < flowerCount; i++) {
+        const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 7.4;
+        v3.set(Math.cos(a) * r, 0.28, Math.sin(a) * r); q4.identity(); s3.set(1, 1, 1);
+        m4.compose(v3, q4, s3); flowers.setMatrixAt(i, m4);
+        flowers.setColorAt(i, tmpCol.setHex(flowerCols[i % flowerCols.length]));
+      }
+      earth.add(flowers);
+
+      // Lago
+      const pond = new THREE.Mesh(new THREE.CircleGeometry(1.9, 40), new THREE.MeshStandardMaterial({ color: 0x2f7fc4, roughness: 0.08, metalness: 0.4 }));
+      pond.rotation.x = -Math.PI / 2; pond.position.set(-3.4, 0.03, 2.6);
+      earth.add(pond);
+
+      // Árvores (evitam o lago e a cruz)
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3416, roughness: 0.95 });
+      const pineMat = new THREE.MeshStandardMaterial({ color: 0x1d6a2a, roughness: 0.85, flatShading: true });
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x3f9a32, roughness: 0.85, flatShading: true });
+      let placed = 0, tries = 0;
+      while (placed < 16 && tries++ < 200) {
+        const a = Math.random() * 6.283, r = rand(3.2, 7.2);
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (Math.hypot(x + 3.4, z - 2.6) < 2.8) continue;
+        const t = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.18, 1.1, 8), trunkMat);
+        trunk.position.y = 0.55; trunk.castShadow = true; t.add(trunk);
+        if (placed % 2) {
+          for (let k = 0; k < 3; k++) {
+            const c = new THREE.Mesh(new THREE.ConeGeometry(0.62 - k * 0.14, 0.8, 8), pineMat);
+            c.position.y = 1.1 + k * 0.5; c.castShadow = true; t.add(c);
+          }
+        } else {
+          const c = new THREE.Mesh(new THREE.IcosahedronGeometry(0.7, 1), leafMat);
+          c.position.y = 1.6; c.castShadow = true; t.add(c);
+        }
+        t.position.set(x, 0, z); const sc = rand(0.8, 1.35); t.scale.setScalar(sc); t.rotation.y = Math.random() * 6;
+        earth.add(t); placed++;
+      }
+
+      // Cruz luminosa
+      const woodMat = new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 0.8, emissive: 0xffcc66, emissiveIntensity: 0.15 });
+      const cross = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.6, 0.2), woodMat); post.position.y = 1.3;
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.2), woodMat); beam.position.y = 1.95;
+      post.castShadow = beam.castShadow = true;
+      cross.add(post, beam);
+      const hill = new THREE.Mesh(new THREE.SphereGeometry(1.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }));
+      hill.scale.y = 0.35; cross.add(hill);
+      const crossGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffdd88, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }));
+      crossGlow.position.y = 1.9; crossGlow.scale.set(4, 4, 1); cross.add(crossGlow);
+      cross.position.set(1.2, 0, -2.2);
+      earth.add(cross);
+
+      // ---------- ESCADA ----------
+      const stairs = new THREE.Group(); scene.add(stairs);
+      const stepMeshes = [];
+      const stepGeo = new THREE.BoxGeometry(2.8, 0.38, 1.8);
+      for (let i = 1; i <= G.MAX; i++) {
+        let color, emissive, ei;
+        if (i < 5) { color = 0x2d1b16; emissive = 0xff3300; ei = 0.35; }
+        else if (i === 5) { color = 0x8a8a80; emissive = 0x000000; ei = 0; }
+        else { color = 0xf4f0e6; emissive = 0xffe9a8; ei = 0.18; }
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: i > 5 ? 0.35 : 0.9, metalness: i > 5 ? 0.2 : 0.05, emissive, emissiveIntensity: ei });
+        mat.userData.baseEI = ei;
+        const mesh = new THREE.Mesh(stepGeo, mat);
+        const a = stepAngle(i);
+        mesh.position.set(Math.cos(a) * R, stepY(i) - 0.19, Math.sin(a) * R);
+        mesh.rotation.y = -a;
+        mesh.castShadow = mesh.receiveShadow = true;
+        stairs.add(mesh); stepMeshes[i] = mesh;
+
+        // Coluna de sustentação suave
+        const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.34, 2.2, 10), new THREE.MeshStandardMaterial({ color: i > 5 ? 0xd9d3c0 : 0x2a1a14, roughness: 0.8 }));
+        pil.position.set(Math.cos(a) * R, stepY(i) - 1.5, Math.sin(a) * R);
+        pil.castShadow = true; stairs.add(pil);
+      }
+
+      // ---------- CÉU ----------
+      const sky = new THREE.Group(); scene.add(sky);
+      const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x7788aa, emissiveIntensity: 0.35, roughness: 1, transparent: true, opacity: 0.8 });
+      const clouds = [];
+      function makeCloud(x, y, z, s) {
+        const g = new THREE.Group();
+        const n = 5 + Math.floor(Math.random() * 3);
+        for (let j = 0; j < n; j++) {
+          const m = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(0.6, 1.2), 2), cloudMat);
+          m.position.set(rand(-1.6, 1.6), rand(-0.3, 0.4), rand(-1, 1)); m.scale.y = 0.7; g.add(m);
+        }
+        g.position.set(x, y, z); g.scale.setScalar(s);
+        g.userData = { baseY: y, phase: Math.random() * 6.28, speed: rand(0.0004, 0.0012) };
+        sky.add(g); clouds.push(g);
+      }
+      for (let i = 0; i < 9; i++) {
+        const a = Math.random() * 6.283, r = rand(18, 28);
+        makeCloud(Math.cos(a) * r, rand(4, 16), Math.sin(a) * r, rand(0.7, 1.4));
+      }
+      // Nuvens de base sob o último degrau
+      const a10 = stepAngle(10), aG = stepAngle(11);
+      for (let k = 0; k < 3; k++) makeCloud(Math.cos(a10) * R + rand(-3, 3), stepY(10) - rand(2.5, 3.5), Math.sin(a10) * R + rand(-3, 3), rand(0.9, 1.3));
+
+      // Portal dourado
+      const gold = new THREE.MeshStandardMaterial({ color: 0xffd45a, emissive: 0xffaa00, emissiveIntensity: 0.7, metalness: 0.9, roughness: 0.25 });
+      const gate = new THREE.Group();
+      [-1.7, 1.7].forEach(x => {
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 3.4, 16), gold);
+        col.position.set(x, 1.7, 0); col.castShadow = true; gate.add(col);
+      });
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.22, 12, 40, Math.PI), gold);
+      arch.position.y = 3.4; gate.add(arch);
+      const portal = new THREE.Mesh(new THREE.CircleGeometry(1.55, 40, 0, Math.PI), new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      portal.position.y = 3.4; gate.add(portal);
+      const portalRect = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4), portal.material);
+      portalRect.position.y = 1.7; gate.add(portalRect);
+      const gateGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff0b0, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+      gateGlow.position.y = 3; gateGlow.scale.set(11, 11, 1); gate.add(gateGlow);
+      gate.position.set(Math.cos(aG) * R, stepY(10) + 0.0, Math.sin(aG) * R);
+      gate.rotation.y = -aG;
+      sky.add(gate);
+
+      // Feixe de luz celestial
+      const beamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 4.5, 22, 24, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfff0b0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      beamMesh.position.set(Math.cos(a10) * R, stepY(10) + 10, Math.sin(a10) * R);
+      sky.add(beamMesh);
+
+      // ---------- INFERNO ----------
+      const hell = new THREE.Group(); scene.add(hell);
+      const LAVA_Y = -9.8;
+      const lavaMat = new THREE.MeshStandardMaterial({ map: lavaTex, emissiveMap: lavaTex, emissive: 0xffffff, emissiveIntensity: 1.3, roughness: 0.45 });
+      const lava = new THREE.Mesh(new THREE.CylinderGeometry(26, 26, 0.6, 64), lavaMat);
+      lava.position.y = LAVA_Y - 0.3; lava.receiveShadow = true; hell.add(lava);
+
+      const rockMat = new THREE.MeshStandardMaterial({ color: 0x1c0d08, roughness: 1, flatShading: true, emissive: 0x551500, emissiveIntensity: 0.4 });
+      for (let i = 0; i < 26; i++) { // blocos de rocha
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.5, 1.4), 0), rockMat);
+        const a = Math.random() * 6.283, r = rand(2, 22);
+        rock.position.set(Math.cos(a) * r, LAVA_Y + rand(0, 0.5), Math.sin(a) * r);
+        rock.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+        rock.scale.y = rand(0.6, 1.2); rock.castShadow = true; hell.add(rock);
+      }
+      for (let i = 0; i < 16; i++) { // espinhos de obsidiana
+        const h = rand(4, 11);
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(rand(0.6, 1.4), h, 6), rockMat);
+        const a = (i / 16) * 6.283 + rand(-0.2, 0.2), r = rand(16, 23);
+        spike.position.set(Math.cos(a) * r, LAVA_Y + h / 2 - 0.3, Math.sin(a) * r);
+        spike.rotation.set(rand(-0.15, 0.15), 0, rand(-0.15, 0.15)); spike.castShadow = true; hell.add(spike);
+      }
+
+      const flames = [];
+      for (let i = 0; i < 22; i++) {
+        const f = new THREE.Group();
+        const outer = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.8, 8), new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+        outer.position.y = 0.9;
+        const inner = new THREE.Mesh(new THREE.ConeGeometry(0.26, 1.15, 8), new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+        inner.position.y = 0.58;
+        f.add(outer, inner);
+        const a = Math.random() * 6.283, r = rand(3, 20);
+        f.position.set(Math.cos(a) * r, LAVA_Y, Math.sin(a) * r);
+        const s = rand(0.9, 1.8); f.scale.set(s, s, s);
+        f.userData = { baseScale: s, phase: Math.random() * 6.28, speed: rand(4, 7) };
+        hell.add(f); flames.push(f);
+      }
+
+      // ---------- PARTÍCULAS ----------
+      function makeParticles(n, spec) {
+        const pos = new Float32Array(n * 3), vel = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * spec.radius;
+          pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = rand(spec.y0, spec.y1); pos[i * 3 + 2] = Math.sin(a) * r;
+          vel[i] = rand(spec.v0, spec.v1);
+        }
+        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const pts = new THREE.Points(geo, new THREE.PointsMaterial({ map: glowTex, color: spec.color, size: spec.size, transparent: true, opacity: spec.opacity, depthWrite: false, blending: THREE.AdditiveBlending }));
+        pts.userData = { vel, spec };
+        scene.add(pts); return pts;
+      }
+      const embers = makeParticles(350, { radius: 24, y0: -10, y1: 4, v0: 0.6, v1: 2.2, color: 0xff6622, size: 0.35, opacity: 0.95 });
+      const sparkles = makeParticles(260, { radius: 26, y0: 2, y1: 18, v0: 0.05, v1: 0.3, color: 0xffe9a0, size: 0.4, opacity: 0.8 });
+      const fireflies = makeParticles(60, { radius: 8, y0: 0.3, y1: 3, v0: 0.05, v1: 0.2, color: 0xccff88, size: 0.25, opacity: 0.9 });
+
+      function updateParticles(p, dt, t) {
+        const a = p.geometry.attributes.position, { vel, spec } = p.userData;
+        for (let i = 0; i < a.count; i++) {
+          let y = a.getY(i) + vel[i] * dt;
+          if (y > spec.y1) y = spec.y0;
+          a.setY(i, y);
+          a.setX(i, a.getX(i) + Math.sin(t * 0.8 + i) * 0.004);
+        }
+        a.needsUpdate = true;
+      }
+
+      // ---------- PERSONAGEM ----------
+      const player = new THREE.Group();
+      const avatar = new THREE.Group(); // pés em y = 0
+      player.add(avatar);
+
+      const robeMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.55 });
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xfad0b0, roughness: 0.6 });
+      const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.9 });
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.6, 6, 12), robeMat); body.position.y = 0.95;
+      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.46, 0.55, 16), robeMat); skirt.position.y = 0.38;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 20, 20), skinMat); head.position.y = 1.87;
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.275, 20, 20, 0, Math.PI * 2, 0, Math.PI / 2), hairMat); hair.position.y = 1.9; hair.rotation.x = -0.25;
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+      [-0.09, 0.09].forEach(x => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyeMat); e.position.set(x, 1.89, 0.23); avatar.add(e); });
+      const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.45, 4, 8), skinMat); armL.position.set(-0.4, 1.0, 0); armL.rotation.z = 0.2;
+      const armR = armL.clone(); armR.position.x = 0.4; armR.rotation.z = -0.2;
+      [body, skirt, head, hair, armL, armR].forEach(m => { m.castShadow = true; avatar.add(m); });
+
+      const wingMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xbbddff, emissiveIntensity: 0.6, roughness: 0.5 });
+      function makeWing(side) {
+        const w = new THREE.Group();
+        for (let i = 0; i < 5; i++) {
+          const f = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), wingMat);
+          f.scale.set(0.16, 0.95 - i * 0.12, 0.05);
+          f.position.set(side * (0.25 + i * 0.22), 0.1 - i * 0.22, 0);
+          f.rotation.z = side * (-0.7 - i * 0.18);
+          w.add(f);
+        }
+        w.position.set(side * 0.18, 1.35, -0.3); w.scale.setScalar(0); return w;
+      }
+      const wingL = makeWing(-1), wingR = makeWing(1);
+      const haloMesh = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.04, 12, 28), new THREE.MeshStandardMaterial({ color: 0xffdd00, emissive: 0xffaa00, emissiveIntensity: 1.2, metalness: 0.8 }));
+      haloMesh.position.y = 2.4; haloMesh.rotation.x = Math.PI / 2; haloMesh.scale.setScalar(0);
+      const hornMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
+      const horns = new THREE.Group();
+      [-1, 1].forEach(s => { const h = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.4, 8), hornMat); h.position.set(s * 0.16, 2.14, 0); h.rotation.z = -s * 0.4; horns.add(h); });
+      horns.scale.setScalar(0);
+      const tail = new THREE.Group();
+      const tailMesh = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0x8a0000 }));
+      tailMesh.position.set(0, -0.3, -0.1); tailMesh.rotation.x = -0.9;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.2, 3), new THREE.MeshStandardMaterial({ color: 0x8a0000 }));
+      tip.position.set(0, -0.62, -0.62); tip.rotation.x = -2.4;
+      tail.add(tailMesh, tip); tail.position.set(0, 0.7, -0.3); tail.scale.setScalar(0);
+      avatar.add(wingL, wingR, haloMesh, horns, tail);
+
+      const playerLight = new THREE.PointLight(0xffdd66, 14, 9, 2);
+      playerLight.position.y = 1.3; avatar.add(playerLight);
+      avatar.scale.setScalar(1.0);
+      scene.add(player);
+
+      // Estado interpolado do personagem
+      let curA = stepAngle(G.step), curY = stepY(G.step);
+      function placePlayer() {
+        player.position.set(Math.cos(curA) * R, curY, Math.sin(curA) * R);
+        player.rotation.y = -curA;
+      }
+      placePlayer();
+
+      G.onReset = () => {
+        curA = stepAngle(G.step); curY = stepY(G.step); placePlayer();
+        camera.position.set(0, 7, 32); controls.target.set(0, 2, 0);
+      };
+
+      // ---------- Câmera inteligente ----------
+      let interacting = false, lastInteract = -10;
+      controls.addEventListener('start', () => { interacting = true; });
+      controls.addEventListener('end', () => { interacting = false; lastInteract = clock.elapsedTime; });
+      const sph = new THREE.Spherical(), off = new THREE.Vector3();
+
+      // ---------- Loop ----------
+      const clock = new THREE.Clock();
+      const boxEl = document.getElementById('question-box');
+      let viewShift = 0; // desloca a imagem 3D para cima, centralizando-a acima da caixa de pergunta
+      const white = new THREE.Color(0xffffff), dark = new THREE.Color(0x4a0000), robeTarget = new THREE.Color();
+      const lightWarm = new THREE.Color(0xffeeaa), lightHell = new THREE.Color(0xff3300), lightNeutral = new THREE.Color(0xffdd66);
+      const sunWarm = new THREE.Color(0xffeedd), sunHell = new THREE.Color(0xff7744), sunDay = new THREE.Color(0xfff4d6);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const dt = Math.min(clock.getDelta(), 0.05);
+        const t = clock.elapsedTime;
+        const step = G.step;
+        const k = 1 - Math.exp(-4.5 * dt);
+
+        // Movimento do personagem
+        const ta = stepAngle(step), ty = stepY(step);
+        curA += (ta - curA) * k; curY += (ty - curY) * k;
+        const dist = Math.hypot((ta - curA) * R, ty - curY);
+        const lift = Math.min(dist, 3) * 0.3;
+        player.position.set(Math.cos(curA) * R, curY + lift + Math.sin(t * 2) * 0.03, Math.sin(curA) * R);
+        player.rotation.y = -curA;
+
+        // Transformação (anjo / humano / demônio)
+        const up = step > 5 ? Math.min((step - 5) / 3, 1) : 0;
+        const down = Math.min(G.errors / 3, 1); // chifres e rabo crescem a cada erro
+        const s = (o, v) => { o.scale.x += (v - o.scale.x) * 0.1; o.scale.y = o.scale.z = o.scale.x; };
+        s(wingL, up); s(wingR, up); s(haloMesh, up * (1 - down)); s(horns, down); s(tail, down);
+        robeMat.color.lerp(robeTarget.copy(white).lerp(dark, Math.min(G.errors / 5, 1)), 0.08);
+        playerLight.color.lerp(G.errors >= 2 ? lightHell : step > 5 ? lightWarm : lightNeutral, 0.08);
+        const flap = dist > 0.2 ? 9 : 3;
+        wingL.rotation.z = Math.sin(t * flap) * 0.25; wingR.rotation.z = -Math.sin(t * flap) * 0.25;
+        haloMesh.rotation.z += 0.02;
+        tail.rotation.y = Math.sin(t * 3) * 0.5;
+        armL.rotation.x = Math.sin(t * 2.4) * 0.12; armR.rotation.x = -Math.sin(t * 2.4) * 0.12;
+
+        // Degrau atual brilha
+        stepMeshes.forEach((m, i) => {
+          const base = m.material.userData.baseEI;
+          const target = i === step ? 1.3 + Math.sin(t * 4) * 0.3 : base;
+          m.material.emissiveIntensity += (target - m.material.emissiveIntensity) * 0.1;
+          if (i === step && m.material.emissive.getHex() === 0x000000) m.material.emissive.setHex(0xffffff);
+        });
+
+        // Atmosfera segue a altura
+        const h = clamp((curY + 8) / 16, 0, 1);
+        if (h < 0.5) tmpCol.copy(COL_HELL).lerp(COL_NIGHT, smooth(0.05, 0.5, h)); else tmpCol.copy(COL_NIGHT).lerp(COL_DAY, smooth(0.5, 0.95, h));
+        scene.background.copy(tmpCol); scene.fog.color.copy(tmpCol);
+        scene.fog.density = 0.011 + (1 - h) * 0.004;
+        starMat.opacity = 1 - smooth(0.55, 0.95, h);
+        sunSprite.material.opacity = smooth(0.6, 1, h) * 0.9;
+        hemi.intensity = 0.55 + h * 0.9;
+        sun.intensity = 0.8 + h * 2.0;
+        sun.color.copy(h < 0.5 ? sunHell : sunWarm).lerp(sunDay, smooth(0.6, 1, h));
+        hellLight.intensity = 90 + (1 - h) * 200 + Math.sin(t * 7) * 15;
+        heavenLight.intensity = 40 + h * 160;
+        renderer.toneMappingExposure = 1.0 + h * 0.2;
+
+        // Animações do cenário
+        lavaTex.offset.x += dt * 0.012; lavaTex.offset.y += dt * 0.006;
+        lavaMat.emissiveIntensity = 1.2 + Math.sin(t * 2) * 0.2;
+        flames.forEach(f => {
+          const d = f.userData, fl = 0.85 + Math.sin(t * d.speed + d.phase) * 0.2;
+          f.scale.set(d.baseScale * (1.05 - fl * 0.1), d.baseScale * fl * 1.1, d.baseScale * (1.05 - fl * 0.1));
+        });
+        clouds.forEach(c => {
+          c.rotation.y += c.userData.speed;
+          c.position.y = c.userData.baseY + Math.sin(t * 0.4 + c.userData.phase) * 0.25;
+        });
+        gate.children.forEach(c => { if (c.material === portal.material) c.material.opacity = 0.42 + Math.sin(t * 2) * 0.1; });
+        crossGlow.material.opacity = 0.5 + Math.sin(t * 1.5) * 0.12;
+        updateParticles(embers, dt, t); updateParticles(sparkles, dt, t); updateParticles(fireflies, dt, t);
+
+        // Câmera segue o personagem (suave) quando o usuário não está mexendo
+        const prevY = controls.target.y;
+        controls.target.y += ((curY * 0.75 + 3) - controls.target.y) * 0.04;
+        camera.position.y += controls.target.y - prevY;
+        if (!interacting && t - lastInteract > 3 && !G.gameOver) {
+          off.copy(camera.position).sub(controls.target);
+          sph.setFromVector3(off);
+          let d = (Math.PI / 2 - curA) - sph.theta;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          sph.theta += d * 0.025;
+          off.setFromSpherical(sph);
+          camera.position.copy(controls.target).add(off);
+        } else if (G.gameOver && !interacting) {
+          off.copy(camera.position).sub(controls.target); sph.setFromVector3(off);
+          sph.theta += dt * 0.15; off.setFromSpherical(sph); camera.position.copy(controls.target).add(off);
+        }
+
+        const wantShift = (G.gameOver || G.boxHidden) ? 0 : Math.min(boxEl.offsetHeight * 0.5, window.innerHeight * 0.3);
+        viewShift += (wantShift - viewShift) * 0.1;
+        camera.setViewOffset(window.innerWidth, window.innerHeight, 0, Math.round(viewShift), window.innerWidth, window.innerHeight);
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      });
+
+      animate();
+    } catch (err) {
+      console.error('Erro ao iniciar o 3D:', err);
+      const n = document.getElementById('fallback-note'); if (n) n.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
