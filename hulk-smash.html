@@ -92,6 +92,27 @@
     .pop { position: absolute; color: #ffe14d; font-size: 22px; text-shadow: 2px 2px 0 #000, 0 0 8px #f80; pointer-events: none;
         animation: popUp 0.9s ease-out forwards; transform: translate(-50%, -50%); }
     @keyframes popUp { 0% { opacity: 0; margin-top: 0; } 15% { opacity: 1; } 100% { opacity: 0; margin-top: -70px; } }
+
+/* === HULK CUSTOMIZER / GARAGE === */
+#customizer{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 35%,rgba(35,45,55,.82),rgba(2,4,8,.96));backdrop-filter:blur(10px);font-family:Arial,sans-serif;color:#eee}
+#customizer.open{display:flex}
+#customCard{width:min(960px,94vw);max-height:90vh;overflow:auto;border:1px solid #a9ef54;border-radius:18px;background:linear-gradient(145deg,rgba(14,22,19,.97),rgba(9,12,20,.98));box-shadow:0 0 55px #5cff3340;padding:22px}
+#customCard h2{font-family:Impact,Arial Black,sans-serif;letter-spacing:3px;color:#b6ff55;font-size:30px;margin-bottom:5px}
+#customCard .sub{color:#9da9a1;font-size:13px;margin-bottom:18px}
+.customGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.customField{background:#ffffff0a;border:1px solid #ffffff18;border-radius:12px;padding:12px}
+.customField label{display:block;color:#a9d68b;font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:8px}
+.customField select,.customField input[type=color]{width:100%;background:#151d1a;color:#fff;border:1px solid #52634d;border-radius:7px;padding:9px}
+.customField input[type=color]{height:40px;padding:3px}
+.customActions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:18px}
+.customActions button{border:1px solid #83c94b;border-radius:9px;padding:11px 18px;background:#263b20;color:#eaffdf;font-weight:bold;cursor:pointer}
+.customActions button.primary{background:linear-gradient(135deg,#75c832,#367d20);color:#081006}
+.customActions button:hover{filter:brightness(1.2);transform:translateY(-1px)}
+#customOpen{position:absolute;top:370px;right:20px;z-index:20;pointer-events:auto;background:#1a2917;color:#d5ffad;border:1px solid #82c94c;border-radius:9px;padding:10px 14px;font-weight:bold;cursor:pointer}
+#customHint{font-size:11px;color:#9ba99b;margin-top:12px}
+@media(max-width:700px){.customGrid{grid-template-columns:1fr 1fr}#customCard{padding:14px}.customField{padding:9px}#customOpen{top:auto;bottom:170px;right:12px}}
+@media(max-width:440px){.customGrid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -147,6 +168,28 @@
 <div id="pointerHint">
     🖱️ CLIQUE PARA JOGAR
     <small>O mouse controla a câmera. ESC para sair (o jogo pausa).</small>
+</div>
+
+
+<button id="customOpen" type="button">🧬 PERSONALIZAR HULK</button>
+<div id="customizer" aria-hidden="true">
+ <div id="customCard">
+  <h2>HULK LAB // PERSONALIZAÇÃO</h2>
+  <div class="sub">Monte seu personagem. As alterações são aplicadas em tempo real e ficam salvas neste navegador.</div>
+  <div class="customGrid">
+   <div class="customField"><label>PELE / VARIANTE</label><select id="skinChoice"><option value="#ffffff">Verde clássico</option><option value="#d83a35">Vermelho infernal</option><option value="#4b83d8">Azul titã</option><option value="#8b55bd">Roxo mutante</option><option value="#d5c7a1">Cinza colossal</option><option value="#d8a04a">Dourado</option></select></div>
+   <div class="customField"><label>COR DOS OLHOS</label><input id="eyeChoice" type="color" value="#c8ff3a"></div>
+   <div class="customField"><label>CABELO</label><select id="hairChoice"><option value="messy">Desgrenhado</option><option value="none">Careca</option><option value="mohawk">Moicano</option><option value="long">Comprido</option></select></div>
+   <div class="customField"><label>BARBA</label><select id="beardChoice"><option value="none">Sem barba</option><option value="short">Barba curta</option><option value="full">Barba cheia</option><option value="goatee">Cavanhaque</option></select></div>
+   <div class="customField"><label>ÓCULOS</label><select id="glassesChoice"><option value="none">Sem óculos</option><option value="sport">Esportivo</option><option value="dark">Escuros</option><option value="tech">Tecnológico</option></select></div>
+   <div class="customField"><label>CHAPÉU / CAPACETE</label><select id="hatChoice"><option value="none">Nenhum</option><option value="cap">Boné</option><option value="helmet">Capacete de combate</option><option value="crown">Coroa</option><option value="hardhat">Capacete de obra</option></select></div>
+   <div class="customField"><label>ROUPA / ARMADURA</label><select id="outfitChoice"><option value="classic">Short clássico</option><option value="tactical">Colete tático</option><option value="armor">Armadura pesada</option><option value="shirt">Regata rasgada</option><option value="pants">Calça de combate</option></select></div>
+   <div class="customField"><label>COR DA ROUPA</label><input id="clothChoice" type="color" value="#7137a8"></div>
+   <div class="customField"><label>ARMA</label><select id="weaponChoice"><option value="none">Punhos</option><option value="axe">Machado de guerra</option><option value="machinegun">Metralhadora</option><option value="hammer">Martelo colossal</option><option value="sword">Espada gigante</option></select></div>
+  </div>
+  <div id="customHint">Dica: pressione ESC para pausar. A personalização não altera o equilíbrio de combate do jogo.</div>
+  <div class="customActions"><button id="customReset" type="button">↺ PADRÃO</button><button id="customClose" type="button">VOLTAR AO JOGO</button><button id="customApply" class="primary" type="button">SALVAR VISUAL</button></div>
+ </div>
 </div>
 
 <script type="importmap">
@@ -1202,6 +1245,107 @@ hulk.add(leftLeg, rightLeg);
 const rageLight = new THREE.PointLight(0x66ff44, 0, 30, 2);
 rageLight.position.y = 4.2;
 hulk.add(rageLight);
+
+// ============================================================
+// HULK LAB — acessórios e personalização visual
+// ============================================================
+const customParts = { beard:null, glasses:null, hat:null, outfit:null, weapon:null, hair:[] };
+const defaultLook = {skin:'#ffffff',eye:'#c8ff3a',hair:'messy',beard:'none',glasses:'none',hat:'none',outfit:'classic',cloth:'#7137a8',weapon:'none'};
+function mat(color, metalness=0, roughness=.55){return new THREE.MeshStandardMaterial({color,metalness,roughness});}
+function accessoryMesh(geo,material,parent,x,y,z,sx=1,sy=1,sz=1){
+ const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+headG.traverse(o=>{if(o.isMesh&&o.material===hairMat)customParts.hair.push(o);});
+function clearCustom(key,parent){if(customParts[key]){parent.remove(customParts[key]);customParts[key].traverse?.(o=>{if(o.geometry&&o.geometry!==undefined){} });customParts[key]=null;}}
+function buildBeard(type){
+ if(type==='none')return;
+ const g=new THREE.Group(), bm=mat(0x17120f,.05,.9);
+ if(type==='short'||type==='full'){
+  accessoryMesh(new THREE.SphereGeometry(.43,18,12),bm,g,0,-.29,.49,1.08,.48,.62);
+  if(type==='full')accessoryMesh(new THREE.ConeGeometry(.32,.55,8),bm,g,0,-.57,.47,1,.8,.8);
+ } else {
+  accessoryMesh(new THREE.SphereGeometry(.22,16,10),bm,g,0,-.38,.62,1.2,.7,.8);
+  accessoryMesh(new THREE.ConeGeometry(.16,.38,8),bm,g,0,-.61,.62,1,1,.8);
+ }
+ headG.add(g);customParts.beard=g;
+}
+function buildGlasses(type){
+ if(type==='none')return;
+ const g=new THREE.Group(), frame=mat(type==='tech'?0x35eaff:0x151515,.65,.25), lens=new THREE.MeshStandardMaterial({color:type==='dark'?0x080d16:0x6adfff,metalness:.25,roughness:.12,transparent:true,opacity:.72,emissive:type==='tech'?0x087c9a:0x000000});
+ [-1,1].forEach(side=>{const ring=accessoryMesh(new THREE.TorusGeometry(.19,.045,8,20),frame,g,side*.27,.1,.72,1.15,.72,.35);ring.rotation.y=side*.08;accessoryMesh(new THREE.SphereGeometry(.16,16,10),lens,g,side*.27,.1,.725,1.1,.72,.22);});
+ accessoryMesh(new THREE.BoxGeometry(.16,.045,.05),frame,g,0,.1,.73);
+ headG.add(g);customParts.glasses=g;
+}
+function buildHat(type){
+ if(type==='none')return;
+ const g=new THREE.Group(), dark=mat(type==='crown'?0xffc928:(type==='helmet'?0x394c5b:0x273b27),.65,.3);
+ if(type==='cap'){accessoryMesh(new THREE.SphereGeometry(.63,20,12,0,Math.PI*2,0,Math.PI/2),dark,g,0,.58,-.02,1,.48,1);accessoryMesh(new THREE.CylinderGeometry(.48,.48,.07,24),dark,g,0,.48,.25,1,1,1);}
+ if(type==='helmet'||type==='hardhat'){accessoryMesh(new THREE.SphereGeometry(.7,24,14,0,Math.PI*2,0,Math.PI/2),dark,g,0,.53,0,1.08,.72,1);accessoryMesh(new THREE.BoxGeometry(1.2,.12,.18),mat(0xb6c4ca,.7,.25),g,0,.25,.57);}
+ if(type==='crown'){accessoryMesh(new THREE.CylinderGeometry(.5,.56,.2,8),dark,g,0,.48,0);for(let n=0;n<5;n++){const a=n/4*Math.PI-.0;accessoryMesh(new THREE.ConeGeometry(.12,.42,4),dark,g,Math.sin(a)*.43,.78,Math.cos(a)*.35);}}
+ headG.add(g);customParts.hat=g;
+}
+function buildOutfit(type,color){
+ if(type==='classic')return;
+ const g=new THREE.Group(), c=mat(color,.18,.65);
+ if(type==='tactical'||type==='armor'){
+  const armor=accessoryMesh(new THREE.BoxGeometry(2.35,1.45,.28),type==='armor'?mat(0x586574,.8,.25):c,g,0,1.25,.77,1,1,1);
+  armor.rotation.x=-.08;
+  [-1,1].forEach(side=>accessoryMesh(new THREE.BoxGeometry(.32,.72,.42),c,g,side*1.1,.55,.5));
+  if(type==='armor'){accessoryMesh(new THREE.BoxGeometry(1.05,.38,.1),mat(0xffb52e,.65,.25),g,0,1.35,.94);}
+ } else if(type==='shirt'){
+  const vest=accessoryMesh(new THREE.BoxGeometry(2.15,1.3,.2),c,g,0,1.15,.74);vest.rotation.x=-.08;
+  [-1,1].forEach(side=>accessoryMesh(new THREE.BoxGeometry(.45,.45,.25),c,g,side*.85,1.85,.5));
+ } else if(type==='pants'){
+  const pm=new THREE.MeshStandardMaterial({color,roughness:.9});
+  [-1,1].forEach(side=>accessoryMesh(new THREE.CylinderGeometry(.53,.48,1.2,12),pm,g,side*.7,2.15,0));
+ }
+ upper.add(g);customParts.outfit=g;
+}
+function buildWeapon(type){
+ if(type==='none')return;
+ const g=new THREE.Group(), steel=mat(0x687681,.8,.25), grip=mat(0x39271b,.1,.8);
+ if(type==='axe'||type==='hammer'||type==='sword'){
+  accessoryMesh(new THREE.CylinderGeometry(.09,.12,2.0,10),grip,g,0,-3.25,.72);
+  if(type==='axe'){const blade=accessoryMesh(new THREE.BoxGeometry(.95,.9,.16),steel,g,.42,-2.62,.72);blade.rotation.z=-.25;accessoryMesh(new THREE.ConeGeometry(.47,.55,5),steel,g,.65,-2.62,.72,1,1,1);}
+  if(type==='hammer'){accessoryMesh(new THREE.BoxGeometry(1.25,.78,.65),steel,g,0,-2.2,.72);accessoryMesh(new THREE.BoxGeometry(1.4,.12,.72),mat(0x9daab2,.8,.2),g,0,-2.2,.72);}
+  if(type==='sword'){const blade=accessoryMesh(new THREE.BoxGeometry(.2,1.45,.12),steel,g,0,-2.2,.72);blade.rotation.z=-.08;accessoryMesh(new THREE.BoxGeometry(.75,.12,.18),mat(0xc99b36,.8,.25),g,0,-3.0,.72);}
+ } else {
+  accessoryMesh(new THREE.BoxGeometry(.34,.38,1.55),mat(0x26323a,.85,.28),g,0,-2.75,.85);
+  accessoryMesh(new THREE.CylinderGeometry(.11,.11,1.25,10),steel,g,0,-2.45,1.15,1,1,1);
+  accessoryMesh(new THREE.BoxGeometry(.24,.55,.3),grip,g,0,-3.1,.6);
+  accessoryMesh(new THREE.BoxGeometry(.55,.16,.2),mat(0x111820,.7,.25),g,0,-2.35,.05);
+ }
+ rightArm.add(g);customParts.weapon=g;
+}
+function applyLook(look){
+ const v={...defaultLook,...look};
+ skinMat.map=null;skinMat.color.set(v.skin);skinMat.needsUpdate=true;
+ eyeMat.color.set(v.eye);eyeMat.emissive.set(v.eye);
+ customParts.hair.forEach(o=>o.visible=v.hair!=='none');
+ if(v.hair==='mohawk'||v.hair==='long'){
+  const extra=new THREE.Group(), hm=mat(0x17120f);
+  if(v.hair==='mohawk')accessoryMesh(new THREE.BoxGeometry(.28,.85,1.0),hm,extra,0,.68,-.04);
+  else accessoryMesh(new THREE.SphereGeometry(.72,18,12),hm,extra,0,-.02,-.22,1.05,1.15,1.3);
+  headG.add(extra);customParts.hairExtra=extra;
+ }
+ clearCustom('beard',headG);clearCustom('glasses',headG);clearCustom('hat',headG);clearCustom('outfit',upper);clearCustom('weapon',rightArm);
+ if(customParts.hairExtra){headG.remove(customParts.hairExtra);customParts.hairExtra=null;}
+ buildBeard(v.beard);buildGlasses(v.glasses);buildHat(v.hat);buildOutfit(v.outfit,v.cloth);buildWeapon(v.weapon);
+ shortsMat.color.set(v.cloth);shortsMat.needsUpdate=true;
+ localStorage.setItem('hulkSmashLook',JSON.stringify(v));
+}
+function readLook(){
+ return {skin:$('skinChoice').value,eye:$('eyeChoice').value,hair:$('hairChoice').value,beard:$('beardChoice').value,glasses:$('glassesChoice').value,hat:$('hatChoice').value,outfit:$('outfitChoice').value,cloth:$('clothChoice').value,weapon:$('weaponChoice').value};
+}
+function setLookInputs(v){$('skinChoice').value=v.skin;$('eyeChoice').value=v.eye;$('hairChoice').value=v.hair;$('beardChoice').value=v.beard;$('glassesChoice').value=v.glasses;$('hatChoice').value=v.hat;$('outfitChoice').value=v.outfit;$('clothChoice').value=v.cloth;$('weaponChoice').value=v.weapon;}
+const customizer=$('customizer');
+function openCustomizer(){customizer.classList.add('open');customizer.setAttribute('aria-hidden','false');if(document.pointerLockElement)document.exitPointerLock();}
+function closeCustomizer(){customizer.classList.remove('open');customizer.setAttribute('aria-hidden','true');}
+$('customOpen').addEventListener('click',openCustomizer);$('customClose').addEventListener('click',closeCustomizer);
+$('customApply').addEventListener('click',()=>{applyLook(readLook());toast('VISUAL SALVO!',1300);closeCustomizer();});
+$('customReset').addEventListener('click',()=>{setLookInputs(defaultLook);applyLook(defaultLook);});
+let savedLook=defaultLook;try{savedLook={...defaultLook,...JSON.parse(localStorage.getItem('hulkSmashLook')||'{}')};}catch(e){}
+setLookInputs(savedLook);applyLook(savedLook);
 
 // ============================================================
 // SISTEMA DE PARTÍCULAS (sprites reciclados)
