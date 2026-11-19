@@ -96,7 +96,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            object-position: top; /* Mantém o topo da imagem visível */
+            object-position: top;
             transition: transform 0.5s ease;
         }
 
@@ -185,12 +185,111 @@
         /* Rodapé */
         footer {
             margin-top: auto;
-            padding: 30px 20px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 50px 20px 20px;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+
+        /* Perfil */
+        .dev-profile {
+            text-align: center;
+        }
+
+        .dev-name {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .dev-role {
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .dev-skills {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .dev-location {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        /* Links Sociais */
+        .social-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .social-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            color: #f8fafc;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .social-btn:hover {
+            transform: translateY(-3px);
+            border-color: rgba(56, 189, 248, 0.6);
+            box-shadow: 0 8px 16px -4px rgba(56, 189, 248, 0.3);
+        }
+
+        .social-btn.linkedin:hover  { border-color: #0A66C2; box-shadow: 0 8px 16px -4px rgba(10, 102, 194, 0.4); }
+        .social-btn.email:hover     { border-color: #D14836; box-shadow: 0 8px 16px -4px rgba(209, 72, 54, 0.4); }
+        .social-btn.portfolio:hover { border-color: #818cf8; box-shadow: 0 8px 16px -4px rgba(129, 140, 248, 0.4); }
+        .social-btn.artstation:hover{ border-color: #13AFF0; box-shadow: 0 8px 16px -4px rgba(19, 175, 240, 0.4); }
+        .social-btn.github:hover    { border-color: #f0f6fc; box-shadow: 0 8px 16px -4px rgba(240, 246, 252, 0.35); }
+
+        /* Copyright */
+        .footer-bottom {
+            width: 100%;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
             text-align: center;
             color: #64748b;
-            font-size: 0.9rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            width: 100%;
+            font-size: 0.85rem;
+        }
+
+        /* Responsivo */
+        @media (max-width: 600px) {
+            .dev-name {
+                font-size: 1.2rem;
+            }
+            .social-btn {
+                padding: 8px 14px;
+                font-size: 0.8rem;
+            }
         }
     </style>
 </head>
@@ -346,7 +445,40 @@
     </main>
 
     <footer>
-        <p>&copy; 2026 Meus Jogos Web. Criado com HTML/CSS/JS.</p>
+        <div class="footer-container">
+
+            <!-- Perfil do Desenvolvedor (sem foto) -->
+            <div class="dev-profile">
+                <h3 class="dev-name">Antonio Mota Junior</h3>
+                <p class="dev-role">Desenvolvedor Full Stack · PHP · Python · JavaScript</p>
+                <p class="dev-skills">APIs REST · Web · RPA · Visão Computacional · IA</p>
+                <p class="dev-location">📍 Brasília-DF, Brasil</p>
+            </div>
+
+            <!-- Links Sociais -->
+            <div class="social-links">
+                <a href="https://github.com/antoniomotajr" target="_blank" rel="noopener" class="social-btn github" title="GitHub">
+                    <span>GitHub</span>
+                </a>
+                <a href="https://www.linkedin.com/in/afmotajunior/" target="_blank" rel="noopener" class="social-btn linkedin" title="LinkedIn">
+                    <span>LinkedIn</span>
+                </a>
+                <a href="mailto:antoniomotajr@gmail.com" class="social-btn email" title="E-mail">
+                    <span>E-mail</span>
+                </a>
+                <a href="https://jmstudio.orgfree.com/sobre.php" target="_blank" rel="noopener" class="social-btn portfolio" title="Portfólio">
+                    <span>Portfólio</span>
+                </a>
+                <a href="https://www.artstation.com/afmotajunior" target="_blank" rel="noopener" class="social-btn artstation" title="ArtStation">
+                    <span>ArtStation</span>
+                </a>
+            </div>
+
+            <!-- Copyright -->
+            <div class="footer-bottom">
+                <p>&copy; 2026 Meus Jogos Web. Criado com HTML/CSS/JS.</p>
+            </div>
+        </div>
     </footer>
 
 </body>
