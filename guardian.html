@@ -1,0 +1,2443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Guardião da Ponte: Fases Infinitas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" onerror="window.__threeLoadFailed = true;"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #090b10;
+            font-family: 'Inter', sans-serif;
+            color: #f8fafc;
+        }
+        .font-display {
+            font-family: 'Chakra Petch', sans-serif;
+        }
+        .hidden {
+            display: none !important;
+            pointer-events: none !important;
+        }
+        #game-canvas {
+            position: fixed;
+            inset: 0;
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
+            z-index: 1;
+        }
+        /* Camada para barras de HP flutuantes e textos de dano */
+        #world-ui-layer {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .floating-hp-container {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .barrel-label {
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+            white-space: nowrap;
+        }
+        .hp-bar-bg {
+            width: 46px;
+            height: 6px;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 3px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+        .hp-bar-bg.monster {
+            width: 58px;
+            height: 7px;
+            border-color: #f97316;
+        }
+        .hp-bar-bg.barrel {
+            width: 56px;
+            height: 7px;
+            border-color: #38bdf8;
+        }
+        .hp-bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.08s linear;
+        }
+        .floating-text {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            font-family: 'Chakra Petch', sans-serif;
+            font-weight: 700;
+            pointer-events: none;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95);
+            animation: floatUp 0.85s ease-out forwards;
+            white-space: nowrap;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.85); }
+            20% { transform: translate(-50%, -70%) scale(1.1); }
+            100% { opacity: 0; transform: translate(-50%, -140%) scale(0.95); }
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.55);
+        }
+        .btn-glow {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.38);
+        }
+        .btn-glow:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.68);
+        }
+        .btn-glow:active {
+            transform: translateY(1px) scale(0.98);
+        }
+        @keyframes pulseWave {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.06); opacity: 0.85; }
+        }
+        .wave-announce {
+            animation: pulseWave 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Música de Fundo (defender.mp3 com fallback sintético épico via Web Audio API) -->
+    <audio id="bg-music" src="defender.mp3" loop preload="none"></audio>
+
+    <!-- Canvas 3D Principal -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Camada de Barras de Integridade Flutuantes e Números de Dano -->
+    <div id="world-ui-layer"></div>
+
+    <!-- HUD Principal (Distribuído nas laterais esquerda e direita, 100% fora do eixo central da ponte) -->
+    <div id="hud" class="fixed inset-0 z-20 pointer-events-none p-2.5 sm:p-4 hidden">
+        <!-- Coluna Lateral Esquerda: Integridade da Base + Fase Infinita + Chefe -->
+        <div class="fixed top-2.5 left-2.5 sm:top-4 sm:left-4 flex flex-col gap-2.5 w-[172px] sm:w-[235px] z-20 pointer-events-none">
+            <!-- Card 1: Integridade da Base -->
+            <div class="glass-panel rounded-xl p-2.5 sm:p-3">
+                <div class="flex justify-between items-center mb-1.5 gap-1">
+                    <span class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1">
+                        <span>🛡️</span> Base
+                    </span>
+                    <span id="base-hp-text" class="font-display text-xs sm:text-sm font-bold text-white">1000 / 1000</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-950/90 rounded-full overflow-hidden border border-slate-700/80 p-0.5">
+                    <div id="base-hp-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-400 transition-all duration-200" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Card 2: Fase Infinita & Inimigos Restantes -->
+            <div class="glass-panel rounded-xl p-2.5 sm:p-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase tracking-widest text-amber-400">Fase Infinita</div>
+                        <div id="enemies-left-display" class="text-[11px] text-slate-300 mt-0.5">Inimigos: 0</div>
+                    </div>
+                    <div id="wave-display" class="font-display text-2xl sm:text-3xl font-bold text-white leading-none bg-slate-900/70 px-3 py-1.5 rounded-lg border border-amber-400/25">1</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Barra Compacta de Vida do Chefe (visível apenas quando um Chefe está ativo) -->
+            <div id="boss-hud" class="glass-panel rounded-xl p-2.5 sm:p-3 border-rose-500/50 hidden">
+                <div class="flex justify-between items-center mb-1 gap-1">
+                    <span id="boss-name-display" class="font-display text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-400 truncate">
+                        👹 CHEFE
+                    </span>
+                    <span id="boss-hp-text" class="font-display text-[10px] sm:text-xs font-bold text-white shrink-0">0 / 0</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-950/90 rounded-full overflow-hidden border border-rose-500/40 p-0.5">
+                    <div id="boss-hp-bar" class="h-full rounded-full bg-gradient-to-r from-rose-600 via-red-500 to-amber-400 transition-all duration-100" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral Direita: Pontuação/Controles + Arma Equipada -->
+        <div class="fixed top-2.5 right-2.5 sm:top-4 sm:right-4 flex flex-col gap-2.5 w-[182px] sm:w-[255px] z-20 pointer-events-none">
+            <!-- Card 1: Pontuação, Abates, Pausa [ESC] & Mute [M] -->
+            <div class="glass-panel rounded-xl p-2.5 sm:p-3 pointer-events-auto">
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div>
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pontuação</div>
+                        <div id="score-display" class="font-display text-lg sm:text-2xl font-bold text-amber-300 leading-tight">0</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Abates</div>
+                        <div id="kills-display" class="font-display text-sm sm:text-base font-bold text-white leading-tight">0</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button id="btn-pause" type="button" class="flex-1 px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 text-slate-200 text-[10px] sm:text-xs font-display font-bold uppercase tracking-wider transition cursor-pointer" title="Pausar Jogo (ESC)">
+                        [ESC] Pausar
+                    </button>
+                    <button id="btn-mute" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 text-slate-200 flex items-center gap-1 text-[10px] sm:text-xs font-display font-bold uppercase transition cursor-pointer" title="Mutar/Desmutar Música de Fundo (M)">
+                        <svg id="icon-sound-on" class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                        <svg id="icon-sound-off" class="w-4 h-4 hidden text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                        <span id="mute-label" class="hidden sm:inline">MÚSICA</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 2: Arma Equipada & Temporizador -->
+            <div class="glass-panel rounded-xl p-2.5 sm:p-3 border-slate-700/80">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Arma Equipada</span>
+                    <span id="weapon-timer-text" class="font-display text-[11px] font-bold text-slate-200">ILIMITADA</span>
+                </div>
+                <div class="flex items-center gap-1.5 mb-1.5">
+                    <span id="weapon-badge" class="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0 shadow-[0_0_8px_#38bdf8]"></span>
+                    <span id="weapon-name" class="font-display font-bold text-xs sm:text-sm tracking-wide text-white uppercase truncate">Rifle de Pulso Padrão</span>
+                </div>
+                <div class="w-full h-2 bg-slate-950/90 rounded-full overflow-hidden border border-slate-800">
+                    <div id="weapon-timer-bar" class="h-full bg-sky-400 transition-all duration-100" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banner Central Transitório de Nova Fase (Aparece apenas por 2.2s no início da fase) -->
+        <div id="wave-banner" class="fixed top-16 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 transition-opacity duration-300 text-center z-20">
+            <div class="glass-panel border-amber-500/40 px-6 py-2 rounded-2xl text-center wave-announce">
+                <div id="wave-banner-sub" class="text-[10px] font-bold uppercase tracking-[0.25em] text-amber-400">Prepare-se</div>
+                <div id="wave-banner-text" class="font-display text-2xl sm:text-3xl font-bold text-white mt-0.5">FASE 1</div>
+            </div>
+        </div>
+
+        <!-- Controles Touch para Mobile/Tablet nas bordas inferiores laterais (sem cobrir o Guardião) -->
+        <div class="fixed bottom-3 inset-x-3 flex md:hidden justify-between items-end pointer-events-none z-20">
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="touch-left" type="button" class="glass-panel active:bg-sky-500/40 px-4 py-3 rounded-xl text-white font-bold">◀</button>
+                <button id="touch-right" type="button" class="glass-panel active:bg-sky-500/40 px-4 py-3 rounded-xl text-white font-bold">▶</button>
+            </div>
+            <div class="glass-panel px-2.5 py-1.5 rounded-lg text-[10px] text-slate-300 text-right">Toque na ponte<br>para atirar</div>
+        </div>
+    </div>
+
+    <!-- Tela Inicial (Start Screen) -->
+    <div id="start-screen" class="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+        <div class="glass-panel rounded-2xl max-w-2xl w-full p-6 sm:p-8 border-sky-500/30 text-center relative overflow-hidden">
+            <div class="inline-block px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest mb-3">
+                Defesa Tática 3D • Fases Infinitas
+            </div>
+            <h1 class="font-display text-4xl sm:text-5xl font-bold text-white tracking-tight mb-2">
+                GUARDIÃO DA <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-amber-400">PONTE</span>
+            </h1>
+            <p class="text-slate-300 text-sm sm:text-base max-w-xl mx-auto mb-5">
+                Proteja o portão energético da fortaleza! Hordas de zumbis, monstros e chefes colossais avançam pela ponte sobre o rio de magma. Atire nos <strong class="text-amber-300">barris rolantes</strong> para equipar armas devastadoras.
+            </p>
+
+            <!-- Grid de Instruções e Armas -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-6">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+                    <h3 class="font-display font-bold text-sky-400 text-sm uppercase mb-2 flex items-center gap-1.5">
+                        <span>🎮</span> Controles do Guardião
+                    </h3>
+                    <ul class="text-xs text-slate-300 space-y-1.5">
+                        <li><strong class="text-white">WASD ou Setas:</strong> Mover na área defensiva</li>
+                        <li><strong class="text-white">Mouse:</strong> Mirar sobre a ponte e barris</li>
+                        <li><strong class="text-white">Clique ou Espaço:</strong> Disparar</li>
+                        <li><strong class="text-white">ESC:</strong> Pausar / <strong class="text-white">M:</strong> Mute</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
+                    <h3 class="font-display font-bold text-amber-400 text-sm uppercase mb-2 flex items-center gap-1.5">
+                        <span>🛢️</span> Barris de Suprimentos
+                    </h3>
+                    <ul class="text-xs text-slate-300 space-y-1.5">
+                        <li><span class="text-amber-400 font-bold">● Metralhadora:</span> Cadência extrema</li>
+                        <li><span class="text-orange-400 font-bold">● Escopeta:</span> Disparo múltiplo em leque</li>
+                        <li><span class="text-purple-400 font-bold">● Plasma:</span> Explosão em área</li>
+                        <li><span class="text-emerald-400 font-bold">● Laser:</span> Feixe perfurante</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="status-banner" class="hidden mb-4 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs"></div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button id="btn-start" type="button" class="btn-glow w-full sm:w-auto px-12 py-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-display font-bold text-lg tracking-wider uppercase cursor-pointer">
+                    JOGAR
+                </button>
+                <button id="start-mute-btn" type="button" class="w-full sm:w-auto px-5 py-4 rounded-xl glass-panel hover:bg-slate-800/90 text-slate-200 font-display font-bold text-sm tracking-wider uppercase cursor-pointer">
+                    🎵 Música: Ligada
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menu de Pausa [ESC] -->
+    <div id="pause-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md pointer-events-auto hidden">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-7 border-sky-500/40 text-center">
+            <div class="inline-block px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold uppercase tracking-widest mb-2">
+                Tecla ESC
+            </div>
+            <h2 class="font-display text-3xl sm:text-4xl font-bold text-white uppercase tracking-wide mb-2">
+                Jogo Pausado
+            </h2>
+            <p class="text-slate-300 text-sm mb-6">
+                A defesa da ponte está suspensa. Escolha como deseja continuar.
+            </p>
+            <div class="flex flex-col gap-3">
+                <button id="btn-resume" type="button" class="btn-glow w-full py-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-display font-bold text-base tracking-wider uppercase cursor-pointer">
+                    CONTINUAR
+                </button>
+                <button id="pause-mute-btn" type="button" class="w-full py-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 text-slate-200 font-display font-bold text-sm tracking-wider uppercase cursor-pointer">
+                    🎵 Alternar Música de Fundo (M)
+                </button>
+                <button id="btn-restart-pause" type="button" class="w-full py-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/40 text-rose-200 font-display font-bold text-sm tracking-wider uppercase cursor-pointer">
+                    REINICIAR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="gameover-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md pointer-events-auto hidden">
+        <div class="glass-panel rounded-2xl max-w-md w-full p-7 border-rose-500/40 text-center">
+            <div class="w-16 h-16 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center mx-auto mb-4 text-3xl">
+                🛡️
+            </div>
+            <h2 class="font-display text-3xl sm:text-4xl font-bold text-rose-400 uppercase tracking-wide mb-1">
+                A Base Caiu!
+            </h2>
+            <p class="text-slate-300 text-sm mb-6">
+                As hordas e monstros romperam o portão energético da base.
+            </p>
+
+            <div class="grid grid-cols-3 gap-2.5 mb-7">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Fase</div>
+                    <div id="final-wave" class="font-display text-xl font-bold text-white mt-0.5">1</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Abates</div>
+                    <div id="final-kills" class="font-display text-xl font-bold text-emerald-400 mt-0.5">0</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] uppercase text-slate-400 font-bold">Pontuação</div>
+                    <div id="final-score" class="font-display text-xl font-bold text-amber-400 mt-0.5">0</div>
+                </div>
+            </div>
+
+            <button id="btn-restart" type="button" class="btn-glow w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-display font-bold text-lg tracking-wider uppercase cursor-pointer">
+                JOGAR NOVAMENTE
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * SISTEMA DE ÁUDIO RESILIENTE (defender.mp3 + Web Audio API Fallback)
+         */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.musicMuted = false;
+                this.bgMusicEl = document.getElementById('bg-music');
+                this.bgMusicAvailable = false;
+                this.fallbackInterval = null;
+                this.fallbackStep = 0;
+            }
+
+            init() {
+                try {
+                    if (!this.ctx) {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) {
+                            this.ctx = new AudioCtx();
+                        }
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume().catch(() => {});
+                    }
+                    this.startMusic();
+                } catch (e) {}
+            }
+
+            startMusic() {
+                if (this.musicMuted) return;
+                try {
+                    if (this.bgMusicEl) {
+                        this.bgMusicEl.muted = false;
+                        const playPromise = this.bgMusicEl.play();
+                        if (playPromise && typeof playPromise.then === 'function') {
+                            playPromise.then(() => {
+                                this.bgMusicAvailable = true;
+                                this.stopFallbackMusic();
+                            }).catch(() => {
+                                this.startFallbackMusic();
+                            });
+                        } else {
+                            this.startFallbackMusic();
+                        }
+                    } else {
+                        this.startFallbackMusic();
+                    }
+                } catch (e) {
+                    this.startFallbackMusic();
+                }
+            }
+
+            startFallbackMusic() {
+                if (this.musicMuted || this.fallbackInterval || !this.ctx) return;
+                // Trilha sintetizada épica em D menor (baixo + arpejo sutil)
+                const bassNotes = [73.42, 73.42, 87.31, 65.41, 73.42, 98.00, 87.31, 65.41];
+                const leadNotes = [293.66, 349.23, 440.00, 392.00, 349.23, 293.66, 261.63, 329.63];
+
+                this.fallbackInterval = setInterval(() => {
+                    if (this.musicMuted || !this.ctx || this.ctx.state !== 'running') return;
+                    if (!state.running || state.paused || state.gameOver) return;
+
+                    try {
+                        const now = this.ctx.currentTime;
+                        const step = this.fallbackStep;
+
+                        // Pulso de baixo
+                        const bassOsc = this.ctx.createOscillator();
+                        const bassGain = this.ctx.createGain();
+                        bassOsc.type = 'sawtooth';
+                        bassOsc.frequency.setValueAtTime(bassNotes[step % bassNotes.length], now);
+
+                        const filter = this.ctx.createBiquadFilter();
+                        filter.type = 'lowpass';
+                        filter.frequency.setValueAtTime(320, now);
+
+                        bassGain.gain.setValueAtTime(0.04, now);
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+                        bassOsc.connect(filter);
+                        filter.connect(bassGain);
+                        bassGain.connect(this.ctx.destination);
+                        bassOsc.start(now);
+                        bassOsc.stop(now + 0.23);
+
+                        // Nota melódica a cada 2 batidas
+                        if (step % 2 === 0) {
+                            const leadOsc = this.ctx.createOscillator();
+                            const leadGain = this.ctx.createGain();
+                            leadOsc.type = 'triangle';
+                            leadOsc.frequency.setValueAtTime(leadNotes[(step / 2) % leadNotes.length], now);
+                            leadGain.gain.setValueAtTime(0.028, now);
+                            leadGain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+                            leadOsc.connect(leadGain);
+                            leadGain.connect(this.ctx.destination);
+                            leadOsc.start(now);
+                            leadOsc.stop(now + 0.4);
+                        }
+
+                        this.fallbackStep++;
+                    } catch (e) {}
+                }, 240);
+            }
+
+            stopFallbackMusic() {
+                if (this.fallbackInterval) {
+                    clearInterval(this.fallbackInterval);
+                    this.fallbackInterval = null;
+                }
+            }
+
+            setPausedMusic(isPaused) {
+                try {
+                    if (!this.bgMusicEl) return;
+                    if (isPaused) {
+                        this.bgMusicEl.pause();
+                    } else if (!this.musicMuted && state.running) {
+                        this.bgMusicEl.play().catch(() => {});
+                    }
+                } catch (e) {}
+            }
+
+            toggleMusicMute() {
+                this.musicMuted = !this.musicMuted;
+                try {
+                    if (this.bgMusicEl) {
+                        this.bgMusicEl.muted = this.musicMuted;
+                        if (this.musicMuted) {
+                            this.bgMusicEl.pause();
+                        } else if (state.running && !state.paused) {
+                            this.bgMusicEl.play().catch(() => this.startFallbackMusic());
+                        }
+                    }
+                    if (this.musicMuted) {
+                        this.stopFallbackMusic();
+                    } else if (this.ctx && (!this.bgMusicAvailable || (this.bgMusicEl && this.bgMusicEl.paused))) {
+                        this.startFallbackMusic();
+                    }
+                } catch (e) {}
+                return this.musicMuted;
+            }
+
+            playShoot(weaponType) {
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    if (weaponType === 'STANDARD') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(520, now);
+                        osc.frequency.exponentialRampToValueAtTime(140, now + 0.09);
+                        gain.gain.setValueAtTime(0.13, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.09);
+                    } else if (weaponType === 'MINIGUN') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(420 + Math.random() * 80, now);
+                        osc.frequency.exponentialRampToValueAtTime(110, now + 0.06);
+                        gain.gain.setValueAtTime(0.10, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.06);
+                    } else if (weaponType === 'SHOTGUN') {
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(220, now);
+                        osc.frequency.exponentialRampToValueAtTime(55, now + 0.16);
+                        gain.gain.setValueAtTime(0.16, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.16);
+                    } else if (weaponType === 'PLASMA') {
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(300, now);
+                        osc.frequency.exponentialRampToValueAtTime(75, now + 0.25);
+                        gain.gain.setValueAtTime(0.20, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.25);
+                    } else if (weaponType === 'LASER') {
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(1250, now);
+                        osc.frequency.exponentialRampToValueAtTime(280, now + 0.18);
+                        gain.gain.setValueAtTime(0.14, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.18);
+                    }
+                } catch (e) {}
+            }
+
+            playHit(isBarrel = false) {
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = isBarrel ? 'square' : 'sine';
+                    osc.frequency.setValueAtTime(isBarrel ? 260 : 180, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } catch (e) {}
+            }
+
+            playExplosion(big = false) {
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const duration = big ? 0.42 : 0.24;
+                    const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5);
+                    }
+
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(big ? 450 : 650, now);
+                    filter.frequency.exponentialRampToValueAtTime(60, now + duration);
+
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(big ? 0.30 : 0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start(now);
+                } catch (e) {}
+            }
+
+            playPowerup() {
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const freqs = [440, 554.37, 659.25, 880];
+                    freqs.forEach((f, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(f, now + idx * 0.055);
+                        gain.gain.setValueAtTime(0.14, now + idx * 0.055);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.16);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.055);
+                        osc.stop(now + idx * 0.055 + 0.16);
+                    });
+                } catch (e) {}
+            }
+
+            playBaseDamage() {
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110, now);
+                    osc.frequency.linearRampToValueAtTime(45, now + 0.32);
+                    gain.gain.setValueAtTime(0.24, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.32);
+                } catch (e) {}
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        /**
+         * CONFIGURAÇÕES DE ARMAS E INIMIGOS
+         */
+        const WEAPONS = {
+            STANDARD: {
+                id: 'STANDARD',
+                name: 'Rifle de Pulso Padrão',
+                shortName: 'Padrão',
+                color: 0x38bdf8,
+                cssColor: '#38bdf8',
+                fireRate: 0.23,
+                damage: 35,
+                speed: 60,
+                duration: Infinity,
+                spread: 0,
+                count: 1,
+                pierce: 1,
+                aoe: 0,
+                projRadius: 0.24
+            },
+            MINIGUN: {
+                id: 'MINIGUN',
+                name: 'Metralhadora Pesada',
+                shortName: 'Metralhadora',
+                color: 0xfbbf24,
+                cssColor: '#fbbf24',
+                fireRate: 0.075,
+                damage: 25,
+                speed: 70,
+                duration: 11.0,
+                spread: 0.08,
+                count: 1,
+                pierce: 1,
+                aoe: 0,
+                projRadius: 0.22
+            },
+            SHOTGUN: {
+                id: 'SHOTGUN',
+                name: 'Escopeta Tripla',
+                shortName: 'Escopeta',
+                color: 0xf97316,
+                cssColor: '#f97316',
+                fireRate: 0.40,
+                damage: 34,
+                speed: 56,
+                duration: 11.0,
+                spread: 0.24,
+                count: 5,
+                pierce: 1,
+                aoe: 0,
+                projRadius: 0.22
+            },
+            PLASMA: {
+                id: 'PLASMA',
+                name: 'Canhão de Plasma',
+                shortName: 'Plasma',
+                color: 0xc084fc,
+                cssColor: '#c084fc',
+                fireRate: 0.52,
+                damage: 120,
+                speed: 44,
+                duration: 10.0,
+                spread: 0,
+                count: 1,
+                pierce: 1,
+                aoe: 3.5,
+                projRadius: 0.52
+            },
+            LASER: {
+                id: 'LASER',
+                name: 'Rifle Laser Perfurante',
+                shortName: 'Laser',
+                color: 0x34d399,
+                cssColor: '#34d399',
+                fireRate: 0.32,
+                damage: 82,
+                speed: 96,
+                duration: 10.0,
+                spread: 0,
+                count: 1,
+                pierce: 6,
+                aoe: 0,
+                projRadius: 0.28
+            }
+        };
+
+        const BARREL_WEAPONS = ['MINIGUN', 'SHOTGUN', 'PLASMA', 'LASER'];
+
+        const ENEMY_TYPES = {
+            ZOMBIE: {
+                category: 'ZOMBIE',
+                name: 'Zumbi',
+                hp: 42,
+                speed: 6.0,
+                damage: 55,
+                score: 45,
+                skinColors: [0x65a30d, 0x4d7c0f, 0x789262, 0x84cc16],
+                clothColors: [0x334155, 0x3f3f46, 0x451a03, 0x1e293b],
+                scale: 0.88,
+                radius: 0.65
+            },
+            MONSTER: {
+                category: 'MONSTER',
+                name: 'Monstro',
+                hp: 195,
+                speed: 4.0,
+                damage: 145,
+                score: 160,
+                color: 0xdc2626,
+                hornColor: 0xfef08a,
+                coreColor: 0xf97316,
+                scale: 1.28,
+                radius: 1.05
+            },
+            BOSS: {
+                category: 'BOSS',
+                name: 'CHEFE: DEVASTADOR ABISSAL',
+                hp: 1450,
+                speed: 2.15,
+                damage: 420,
+                score: 1200,
+                color: 0x7e22ce,
+                armorColor: 0x1e1b4b,
+                hornColor: 0xfbbf24,
+                coreColor: 0xf43f5e,
+                scale: 2.25,
+                radius: 1.85
+            }
+        };
+
+        /**
+         * VARIÁVEIS GLOBAIS DO JOGO E THREE.JS
+         */
+        let scene = null;
+        let camera = null;
+        let renderer = null;
+        let raycaster = null;
+        let mouseNDC = null;
+        let aimPlane = null;
+        let guardianGroup = null;
+        let turretGroup = null;
+        let muzzleLight = null;
+        let muzzleMesh = null;
+        let weaponRingMesh = null;
+        let aimLaserLine = null;
+        let lavaMesh = null;
+        let clock = null;
+        let threeReady = false;
+        let animationStarted = false;
+
+        // Configuração da Câmera Top-Down Inclinada (aproximada do Guardião, com maior profundidade até o início da ponte)
+        const CAM_POS = { x: 0, y: 23.0, z: 29.0 };
+        const CAM_LOOK = { x: 0, y: 0.4, z: -2.5 };
+
+        // Dimensões do cenário
+        const BRIDGE_WIDTH = 11;
+        const BRIDGE_START_Z = -48; // Portal de invasão
+        const BRIDGE_END_Z = 14;    // Entrada da ponte junto à base
+        const BASE_GATE_Z = 18.5;   // Portão energético da fortaleza
+
+        // Estado Global
+        const state = {
+            running: false,
+            paused: false,
+            gameOver: false,
+            score: 0,
+            kills: 0,
+            wave: 1,
+            baseMaxHp: 1000,
+            baseHp: 1000,
+            weapon: WEAPONS.STANDARD,
+            weaponTimer: 0,
+            weaponMaxDuration: 0,
+            fireCooldown: 0,
+            isFiring: false,
+            aimPoint: { x: 0, y: 1, z: -10 },
+            playerPos: { x: 0, y: 0, z: 15.2 },
+            keys: { left: false, right: false, up: false, down: false },
+            screenShake: 0,
+            waveInProgress: false,
+            enemiesToSpawn: [],
+            spawnTimer: 0,
+            barrelSpawnTimer: 3.0,
+            waveDelayTimer: 0,
+            pendingGroup: null
+        };
+
+        let enemies = [];
+        let barrels = [];
+        let projectiles = [];
+        let particles = [];
+
+        // Referências DOM
+        const canvas = document.getElementById('game-canvas');
+        const worldUiLayer = document.getElementById('world-ui-layer');
+        const hudEl = document.getElementById('hud');
+        const startScreen = document.getElementById('start-screen');
+        const pauseScreen = document.getElementById('pause-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+
+        /**
+         * CARREGAMENTO RESILIENTE DO THREE.JS E INICIALIZAÇÃO SEGURA
+         */
+        function ensureThreeAndInit(callback) {
+            if (typeof window.THREE !== 'undefined') {
+                initThreeSafe();
+                if (callback) callback();
+                return;
+            }
+
+            // Fallback CDN caso o script primário falhe
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+            fallbackScript.onload = () => {
+                initThreeSafe();
+                if (callback) callback();
+            };
+            fallbackScript.onerror = () => {
+                const banner = document.getElementById('status-banner');
+                if (banner) {
+                    banner.textContent = 'Aviso: Não foi possível carregar a biblioteca 3D (verifique sua conexão).';
+                    banner.classList.remove('hidden');
+                }
+            };
+            document.head.appendChild(fallbackScript);
+        }
+
+        function initThreeSafe() {
+            if (threeReady) return;
+            if (typeof window.THREE === 'undefined') return;
+
+            try {
+                clock = new THREE.Clock();
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0b0e17);
+                scene.fog = new THREE.FogExp2(0x0b0e17, 0.0082);
+
+                // Câmera Top-Down Inclinada (mostra portal norte no topo e guardião/base completos embaixo)
+                camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 240);
+                camera.position.set(CAM_POS.x, CAM_POS.y, CAM_POS.z);
+                camera.lookAt(CAM_LOOK.x, CAM_LOOK.y, CAM_LOOK.z);
+
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+                raycaster = new THREE.Raycaster();
+                mouseNDC = new THREE.Vector2(0, 0);
+                aimPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.0);
+
+                setupLights();
+                buildEnvironment();
+                buildGuardian();
+
+                threeReady = true;
+
+                if (!animationStarted) {
+                    animationStarted = true;
+                    animate();
+                }
+            } catch (err) {
+                console.error('Erro ao inicializar WebGL/Three.js:', err);
+                const banner = document.getElementById('status-banner');
+                if (banner) {
+                    banner.textContent = 'Aviso: Seu navegador apresentou uma restrição gráfica WebGL.';
+                    banner.classList.remove('hidden');
+                }
+            }
+        }
+
+        function setupLights() {
+            const hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x1e1b4b, 0.78);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.15);
+            dirLight.position.set(18, 36, 22);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            dirLight.shadow.camera.near = 5;
+            dirLight.shadow.camera.far = 95;
+            const d = 38;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            dirLight.shadow.bias = -0.0005;
+            scene.add(dirLight);
+
+            const lavaLight = new THREE.PointLight(0xf97316, 1.45, 75);
+            lavaLight.position.set(0, -4, -15);
+            scene.add(lavaLight);
+        }
+
+        function buildEnvironment() {
+            // 1. Abismo de Magma abaixo da ponte
+            const lavaGeo = new THREE.PlaneGeometry(180, 180, 20, 20);
+            lavaGeo.rotateX(-Math.PI / 2);
+            const lavaMat = new THREE.MeshStandardMaterial({
+                color: 0x9a3412,
+                emissive: 0xea580c,
+                emissiveIntensity: 0.65,
+                roughness: 0.85
+            });
+            lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
+            lavaMesh.position.y = -7.5;
+            scene.add(lavaMesh);
+
+            // 2. Ponte Principal
+            const bridgeLength = BRIDGE_END_Z - BRIDGE_START_Z;
+            const bridgeCenterZ = (BRIDGE_START_Z + BRIDGE_END_Z) / 2;
+
+            const deckGeo = new THREE.BoxGeometry(BRIDGE_WIDTH, 1.4, bridgeLength);
+            const deckMat = new THREE.MeshStandardMaterial({
+                color: 0x334155,
+                roughness: 0.75,
+                metalness: 0.2
+            });
+            const bridgeDeck = new THREE.Mesh(deckGeo, deckMat);
+            bridgeDeck.position.set(0, -0.7, bridgeCenterZ);
+            bridgeDeck.receiveShadow = true;
+            scene.add(bridgeDeck);
+
+            // Tiras táticas na ponte
+            const stripeGeo = new THREE.BoxGeometry(BRIDGE_WIDTH - 1.2, 0.06, 0.45);
+            const stripeMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+            for (let z = BRIDGE_START_Z + 2; z < BRIDGE_END_Z - 1; z += 4.5) {
+                const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+                stripe.position.set(0, 0.02, z);
+                stripe.receiveShadow = true;
+                scene.add(stripe);
+            }
+
+            // Parapeitos e pilares
+            const railGeo = new THREE.BoxGeometry(0.65, 0.85, bridgeLength);
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5, metalness: 0.4 });
+
+            const leftRail = new THREE.Mesh(railGeo, railMat);
+            leftRail.position.set(-BRIDGE_WIDTH / 2 - 0.25, 0.35, bridgeCenterZ);
+            leftRail.castShadow = true;
+            leftRail.receiveShadow = true;
+            scene.add(leftRail);
+
+            const rightRail = new THREE.Mesh(railGeo, railMat);
+            rightRail.position.set(BRIDGE_WIDTH / 2 + 0.25, 0.35, bridgeCenterZ);
+            rightRail.castShadow = true;
+            rightRail.receiveShadow = true;
+            scene.add(rightRail);
+
+            const pillarGeo = new THREE.BoxGeometry(1.3, 8, 1.3);
+            for (let z = BRIDGE_START_Z + 4; z <= BRIDGE_END_Z - 2; z += 11) {
+                [-BRIDGE_WIDTH / 2 - 0.2, BRIDGE_WIDTH / 2 + 0.2].forEach(x => {
+                    const pillar = new THREE.Mesh(pillarGeo, railMat);
+                    pillar.position.set(x, -4, z);
+                    scene.add(pillar);
+                });
+            }
+
+            // Portal de origem dos inimigos (Norte)
+            const archGroup = new THREE.Group();
+            const archPillarGeo = new THREE.BoxGeometry(1.8, 6.5, 2.2);
+            const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 });
+            const pL = new THREE.Mesh(archPillarGeo, darkStoneMat);
+            pL.position.set(-BRIDGE_WIDTH / 2 - 0.4, 3.2, BRIDGE_START_Z + 1);
+            const pR = new THREE.Mesh(archPillarGeo, darkStoneMat);
+            pR.position.set(BRIDGE_WIDTH / 2 + 0.4, 3.2, BRIDGE_START_Z + 1);
+            const topBeam = new THREE.Mesh(new THREE.BoxGeometry(BRIDGE_WIDTH + 3, 1.5, 2.4), darkStoneMat);
+            topBeam.position.set(0, 6.5, BRIDGE_START_Z + 1);
+            archGroup.add(pL, pR, topBeam);
+            scene.add(archGroup);
+
+            // 3. Plataforma da Base Fortificada (Sul)
+            const basePlatformGeo = new THREE.BoxGeometry(26, 2.2, 14);
+            const basePlatformMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.65,
+                metalness: 0.25
+            });
+            const basePlatform = new THREE.Mesh(basePlatformGeo, basePlatformMat);
+            basePlatform.position.set(0, -1.05, BRIDGE_END_Z + 6.5);
+            basePlatform.receiveShadow = true;
+            scene.add(basePlatform);
+
+            // Linha de energia azul na entrada da ponte
+            const borderLine = new THREE.Mesh(
+                new THREE.BoxGeometry(BRIDGE_WIDTH + 1.5, 0.1, 0.35),
+                new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.9 })
+            );
+            borderLine.position.set(0, 0.05, BRIDGE_END_Z);
+            scene.add(borderLine);
+
+            // Muralhas e Torres da Base
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.35 });
+            const wallL = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4.5, 2.5), wallMat);
+            wallL.position.set(-8.8, 2.25, BASE_GATE_Z + 1.5);
+            wallL.castShadow = true;
+            wallL.receiveShadow = true;
+            scene.add(wallL);
+
+            const wallR = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4.5, 2.5), wallMat);
+            wallR.position.set(8.8, 2.25, BASE_GATE_Z + 1.5);
+            wallR.castShadow = true;
+            wallR.receiveShadow = true;
+            scene.add(wallR);
+
+            // Portão Central Energizado da Base
+            const gateFrame = new THREE.Mesh(
+                new THREE.BoxGeometry(10.5, 4.2, 1.4),
+                new THREE.MeshStandardMaterial({
+                    color: 0x0ea5e9,
+                    emissive: 0x0369a1,
+                    emissiveIntensity: 0.65,
+                    transparent: true,
+                    opacity: 0.65
+                })
+            );
+            gateFrame.position.set(0, 2.1, BASE_GATE_Z + 1.5);
+            scene.add(gateFrame);
+        }
+
+        function buildGuardian() {
+            guardianGroup = new THREE.Group();
+            guardianGroup.position.set(state.playerPos.x, state.playerPos.y, state.playerPos.z);
+
+            const chassisMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.6 });
+            const darkMetalMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4, metalness: 0.7 });
+
+            const baseMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.15, 0.65, 12), darkMetalMat);
+            baseMesh.position.y = 0.35;
+            baseMesh.castShadow = true;
+            guardianGroup.add(baseMesh);
+
+            const armorRing = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.9, 0.4, 12), chassisMat);
+            armorRing.position.y = 0.75;
+            armorRing.castShadow = true;
+            guardianGroup.add(armorRing);
+
+            // Anel tático luminoso na base do Guardião (muda de cor conforme a arma equipada)
+            const ringGeo = new THREE.RingGeometry(1.22, 1.44, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.85
+            });
+            weaponRingMesh = new THREE.Mesh(ringGeo, ringMat);
+            weaponRingMesh.position.y = 0.08;
+            guardianGroup.add(weaponRingMesh);
+
+            // Torreta rotativa
+            turretGroup = new THREE.Group();
+            turretGroup.position.y = 1.05;
+
+            const headMesh = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.65, 1.25), chassisMat);
+            headMesh.castShadow = true;
+            turretGroup.add(headMesh);
+
+            const visorMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(0.75, 0.22, 0.2),
+                new THREE.MeshStandardMaterial({ color: 0xe0f2fe, emissive: 0x38bdf8, emissiveIntensity: 1.2 })
+            );
+            visorMesh.position.set(0, 0.1, 0.6);
+            turretGroup.add(visorMesh);
+
+            const barrelMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.35, 10), darkMetalMat);
+            barrelMesh.rotation.x = Math.PI / 2;
+            barrelMesh.position.set(0, 0, 1.05);
+            barrelMesh.castShadow = true;
+            turretGroup.add(barrelMesh);
+
+            muzzleMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.36, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0 })
+            );
+            muzzleMesh.position.set(0, 0, 1.85);
+            turretGroup.add(muzzleMesh);
+
+            muzzleLight = new THREE.PointLight(0x38bdf8, 0, 12);
+            muzzleLight.position.set(0, 0.5, 2.0);
+            turretGroup.add(muzzleLight);
+
+            // Linha sutil de mira tática projetada à frente do cano
+            const laserPts = [new THREE.Vector3(0, 0, 1.75), new THREE.Vector3(0, 0, 28)];
+            const laserGeo = new THREE.BufferGeometry().setFromPoints(laserPts);
+            const laserMat = new THREE.LineBasicMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.35
+            });
+            aimLaserLine = new THREE.Line(laserGeo, laserMat);
+            turretGroup.add(aimLaserLine);
+
+            guardianGroup.add(turretGroup);
+            scene.add(guardianGroup);
+        }
+
+        /**
+         * CONTROLES E EVENT LISTENERS (GARANTIDOS IMEDIATAMENTE)
+         */
+        function bindUIEvents() {
+            const btnStart = document.getElementById('btn-start');
+            const btnResume = document.getElementById('btn-resume');
+            const btnRestartPause = document.getElementById('btn-restart-pause');
+            const btnRestart = document.getElementById('btn-restart');
+            const btnPause = document.getElementById('btn-pause');
+            const btnMute = document.getElementById('btn-mute');
+            const startMuteBtn = document.getElementById('start-mute-btn');
+            const pauseMuteBtn = document.getElementById('pause-mute-btn');
+
+            if (btnStart) {
+                btnStart.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startGame();
+                });
+            }
+
+            if (btnResume) {
+                btnResume.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (state.paused) togglePause();
+                });
+            }
+
+            if (btnRestartPause) {
+                btnRestartPause.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setPaused(false);
+                    startGame();
+                });
+            }
+
+            if (btnRestart) {
+                btnRestart.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startGame();
+                });
+            }
+
+            if (btnPause) {
+                btnPause.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (state.running && !state.gameOver) togglePause();
+                });
+            }
+
+            if (btnMute) {
+                btnMute.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleMuteToggle();
+                });
+            }
+
+            if (startMuteBtn) {
+                startMuteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sfx.init();
+                    handleMuteToggle();
+                });
+            }
+
+            if (pauseMuteBtn) {
+                pauseMuteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleMuteToggle();
+                });
+            }
+
+            // Controles Touch Mobile
+            const touchLeft = document.getElementById('touch-left');
+            const touchRight = document.getElementById('touch-right');
+            if (touchLeft) {
+                touchLeft.addEventListener('touchstart', (e) => { e.preventDefault(); state.keys.left = true; });
+                touchLeft.addEventListener('touchend', (e) => { e.preventDefault(); state.keys.left = false; });
+            }
+            if (touchRight) {
+                touchRight.addEventListener('touchstart', (e) => { e.preventDefault(); state.keys.right = true; });
+                touchRight.addEventListener('touchend', (e) => { e.preventDefault(); state.keys.right = false; });
+            }
+
+            canvas.addEventListener('touchstart', (e) => {
+                if (!state.running || state.paused || state.gameOver) return;
+                if (e.touches.length > 0) {
+                    updateMouseNDC(e.touches[0].clientX, e.touches[0].clientY);
+                    state.isFiring = true;
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (!state.running || state.paused || state.gameOver) return;
+                if (e.touches.length > 0) {
+                    updateMouseNDC(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            canvas.addEventListener('touchend', () => {
+                state.isFiring = false;
+            });
+
+            window.addEventListener('keydown', (e) => {
+                const code = e.code;
+
+                // Iniciar jogo com Enter/Espaço na tela inicial
+                if (!state.running && !state.gameOver && !startScreen.classList.contains('hidden')) {
+                    if (code === 'Enter' || code === 'Space') {
+                        e.preventDefault();
+                        startGame();
+                        return;
+                    }
+                }
+
+                if (code === 'Escape') {
+                    if (state.running && !state.gameOver) {
+                        togglePause();
+                    }
+                    return;
+                }
+
+                if (code === 'KeyM') {
+                    handleMuteToggle();
+                    return;
+                }
+
+                if (code === 'KeyA' || code === 'ArrowLeft') state.keys.left = true;
+                if (code === 'KeyD' || code === 'ArrowRight') state.keys.right = true;
+                if (code === 'KeyW' || code === 'ArrowUp') state.keys.up = true;
+                if (code === 'KeyS' || code === 'ArrowDown') state.keys.down = true;
+                if (code === 'Space' && state.running && !state.paused && !state.gameOver) {
+                    e.preventDefault();
+                    state.isFiring = true;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                const code = e.code;
+                if (code === 'KeyA' || code === 'ArrowLeft') state.keys.left = false;
+                if (code === 'KeyD' || code === 'ArrowRight') state.keys.right = false;
+                if (code === 'KeyW' || code === 'ArrowUp') state.keys.up = false;
+                if (code === 'KeyS' || code === 'ArrowDown') state.keys.down = false;
+                if (code === 'Space') state.isFiring = false;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                updateMouseNDC(e.clientX, e.clientY);
+            });
+
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && state.running && !state.paused && !state.gameOver) {
+                    updateMouseNDC(e.clientX, e.clientY);
+                    state.isFiring = true;
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (e.button === 0) {
+                    state.isFiring = false;
+                }
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function handleMuteToggle() {
+            const musicMuted = sfx.toggleMusicMute();
+            document.getElementById('icon-sound-on').classList.toggle('hidden', musicMuted);
+            document.getElementById('icon-sound-off').classList.toggle('hidden', !musicMuted);
+            const muteLabel = document.getElementById('mute-label');
+            if (muteLabel) muteLabel.textContent = musicMuted ? 'MÚSICA OFF' : 'MÚSICA';
+            const startMuteBtn = document.getElementById('start-mute-btn');
+            if (startMuteBtn) {
+                startMuteBtn.textContent = musicMuted ? '🔇 Música: Muda' : '🎵 Música: Ligada';
+            }
+        }
+
+        function setPaused(paused) {
+            state.paused = paused;
+            state.isFiring = false;
+            if (pauseScreen) {
+                pauseScreen.classList.toggle('hidden', !paused);
+            }
+            sfx.setPausedMusic(paused);
+        }
+
+        function togglePause() {
+            setPaused(!state.paused);
+        }
+
+        function updateMouseNDC(clientX, clientY) {
+            if (!mouseNDC && typeof window.THREE !== 'undefined') {
+                mouseNDC = new THREE.Vector2(0, 0);
+            }
+            if (mouseNDC) {
+                mouseNDC.x = (clientX / window.innerWidth) * 2 - 1;
+                mouseNDC.y = -(clientY / window.innerHeight) * 2 + 1;
+            }
+        }
+
+        function onWindowResize() {
+            if (!threeReady || !camera || !renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /**
+         * INÍCIO E CONTROLE DE PARTIDA
+         */
+        function startGame() {
+            // Garante que Three.js esteja inicializado antes de começar
+            if (!threeReady) {
+                ensureThreeAndInit(() => {
+                    if (threeReady) startGame();
+                });
+                if (!threeReady) return;
+            }
+
+            try {
+                sfx.init();
+            } catch (e) {}
+
+            clearEntities();
+
+            state.running = true;
+            state.paused = false;
+            state.gameOver = false;
+            state.score = 0;
+            state.kills = 0;
+            state.wave = 1;
+            state.baseMaxHp = 1000;
+            state.baseHp = 1000;
+            state.playerPos = { x: 0, y: 0, z: 15.2 };
+            state.aimPoint = { x: 0, y: 1, z: -10 };
+
+            if (guardianGroup) {
+                guardianGroup.position.set(state.playerPos.x, state.playerPos.y, state.playerPos.z);
+            }
+
+            equipWeapon(WEAPONS.STANDARD);
+
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+            hudEl.classList.remove('hidden');
+
+            updateHUD();
+            startWave(1);
+        }
+
+        function clearEntities() {
+            state.pendingGroup = null;
+            if (scene) {
+                enemies.forEach(e => {
+                    if (e.mesh) scene.remove(e.mesh);
+                    if (e.hpEl) e.hpEl.remove();
+                });
+                barrels.forEach(b => {
+                    if (b.mesh) scene.remove(b.mesh);
+                    if (b.hpEl) b.hpEl.remove();
+                });
+                projectiles.forEach(p => { if (p.mesh) scene.remove(p.mesh); });
+                particles.forEach(pt => { if (pt.mesh) scene.remove(pt.mesh); });
+            }
+
+            enemies = [];
+            barrels = [];
+            projectiles = [];
+            particles = [];
+            worldUiLayer.innerHTML = '';
+        }
+
+        function startWave(waveNum) {
+            if (waveNum > 1 && state.baseHp > 0) {
+                const repairAmount = Math.round(state.baseMaxHp * 0.12);
+                state.baseHp = Math.min(state.baseMaxHp, state.baseHp + repairAmount);
+                showFloatingText(new THREE.Vector3(0, 2.5, BASE_GATE_Z - 1), `+${repairAmount} REPARO DA BASE`, '#34d399', '15px');
+            }
+
+            state.wave = waveNum;
+            state.waveInProgress = true;
+            state.enemiesToSpawn = [];
+            state.pendingGroup = null;
+
+            const isBossPhase = waveNum % 3 === 0;
+            const banner = document.getElementById('wave-banner');
+            const bannerText = document.getElementById('wave-banner-text');
+            const bannerSub = document.getElementById('wave-banner-sub');
+            bannerSub.textContent = isBossPhase ? 'ALERTA DE CHEFE!' : 'Horda em Avanço';
+            bannerText.textContent = `FASE ${waveNum}`;
+            banner.classList.remove('opacity-0');
+            setTimeout(() => banner.classList.add('opacity-0'), 2300);
+
+            const zombieCount = 12 + waveNum * 6;
+            const monsterCount = waveNum === 1 ? 1 : Math.min(18, 1 + Math.floor(waveNum * 1.35));
+
+            // Constrói formações de zumbis: grupos duplos (2), triplos (3), de 5 e de 10 zumbis
+            const zombieGroups = [];
+            let remainingZombies = zombieCount;
+            const allowedSizes = [2, 3, 5, 10];
+
+            while (remainingZombies > 0) {
+                const candidates = allowedSizes.filter(sz => sz <= remainingZombies);
+                const chosenSize = candidates.length > 0
+                    ? candidates[Math.floor(Math.random() * candidates.length)]
+                    : remainingZombies;
+                zombieGroups.push({ type: 'ZOMBIE_GROUP', count: chosenSize });
+                remainingZombies -= chosenSize;
+            }
+
+            // Garante que pelo menos um grupo de 5 e um grupo de 10 apareçam quando houver zumbis suficientes
+            if (zombieCount >= 15) {
+                const has5 = zombieGroups.some(g => g.count === 5);
+                const has10 = zombieGroups.some(g => g.count === 10);
+                if (!has5 && zombieGroups.length >= 2) zombieGroups[0].count = Math.min(5, zombieCount);
+                if (!has10 && zombieGroups.length >= 3) zombieGroups[1].count = Math.min(10, zombieCount);
+            }
+
+            // Embaralha os grupos de zumbis
+            for (let i = zombieGroups.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [zombieGroups[i], zombieGroups[j]] = [zombieGroups[j], zombieGroups[i]];
+            }
+
+            state.enemiesToSpawn.push(...zombieGroups);
+
+            for (let j = 0; j < monsterCount; j++) {
+                const insertIdx = Math.floor(Math.random() * (state.enemiesToSpawn.length + 1));
+                state.enemiesToSpawn.splice(insertIdx, 0, { type: 'MONSTER', count: 1 });
+            }
+            if (isBossPhase) {
+                state.enemiesToSpawn.push({ type: 'BOSS', count: 1 });
+            }
+
+            state.spawnTimer = 0.65;
+            state.barrelSpawnTimer = 2.0;
+            updateHUD();
+        }
+
+        function spawnZombieFormation(groupSize) {
+            if (!threeReady) return;
+
+            // Define layout de colunas/linhas para grupos de 2, 3, 5 e 10 zumbis na largura da ponte
+            let slots = [];
+            if (groupSize === 2) {
+                slots = [
+                    { dx: -1.7, dz: 0 },
+                    { dx: 1.7, dz: 0 }
+                ];
+            } else if (groupSize === 3) {
+                slots = [
+                    { dx: -2.4, dz: 0.4 },
+                    { dx: 0, dz: -0.5 },
+                    { dx: 2.4, dz: 0.4 }
+                ];
+            } else if (groupSize === 5) {
+                slots = [
+                    { dx: -2.6, dz: -0.6 },
+                    { dx: 0, dz: -0.6 },
+                    { dx: 2.6, dz: -0.6 },
+                    { dx: -1.35, dz: 1.15 },
+                    { dx: 1.35, dz: 1.15 }
+                ];
+            } else if (groupSize === 10) {
+                // Bloco tático de 10 zumbis em 2 fileiras de 5
+                for (let row = 0; row < 2; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        slots.push({
+                            dx: (col - 2) * 1.75,
+                            dz: -row * 1.45
+                        });
+                    }
+                }
+            } else {
+                for (let i = 0; i < groupSize; i++) {
+                    const col = i % 4;
+                    const row = Math.floor(i / 4);
+                    slots.push({
+                        dx: (col - 1.5) * 1.8,
+                        dz: -row * 1.4
+                    });
+                }
+            }
+
+            const maxX = BRIDGE_WIDTH / 2 - 1.1;
+            const centerX = (Math.random() - 0.5) * 2.2;
+            const sharedSpeed = ENEMY_TYPES.ZOMBIE.speed * (0.94 + Math.random() * 0.14) * (1 + Math.min(0.45, (state.wave - 1) * 0.03));
+
+            slots.forEach((slot) => {
+                const clampedX = Math.max(-maxX, Math.min(maxX, centerX + slot.dx));
+                spawnEnemy('ZOMBIE', {
+                    x: clampedX,
+                    z: BRIDGE_START_Z + 1.5 + slot.dz,
+                    speed: sharedSpeed
+                });
+            });
+        }
+
+        function spawnEnemy(typeKey, override = null) {
+            if (!threeReady) return;
+            const cfg = ENEMY_TYPES[typeKey];
+            const hpMultiplier = 1 + (state.wave - 1) * 0.16;
+            const maxHp = Math.round(cfg.hp * hpMultiplier);
+
+            const group = new THREE.Group();
+            // Variação sutil de escala para zumbis deixarem a horda mais orgânica e variada
+            const sizeJitter = typeKey === 'ZOMBIE' ? (0.92 + Math.random() * 0.2) : 1.0;
+            const s = cfg.scale * sizeJitter;
+            const animatedParts = { leftArm: null, rightArm: null, leftLeg: null, rightLeg: null, core: null, ring: null };
+            const flashMeshes = [];
+
+            if (typeKey === 'ZOMBIE') {
+                const skinHex = cfg.skinColors[Math.floor(Math.random() * cfg.skinColors.length)];
+                const clothHex = cfg.clothColors[Math.floor(Math.random() * cfg.clothColors.length)];
+                const skinMat = new THREE.MeshStandardMaterial({ color: skinHex, roughness: 0.75 });
+                const clothMat = new THREE.MeshStandardMaterial({ color: clothHex, roughness: 0.85 });
+
+                const legGeo = new THREE.BoxGeometry(0.24 * s, 0.62 * s, 0.26 * s);
+                const leftLeg = new THREE.Mesh(legGeo, clothMat);
+                leftLeg.position.set(-0.2 * s, 0.31 * s, 0);
+                leftLeg.castShadow = true;
+                const rightLeg = new THREE.Mesh(legGeo, clothMat);
+                rightLeg.position.set(0.2 * s, 0.31 * s, 0);
+                rightLeg.castShadow = true;
+                group.add(leftLeg, rightLeg);
+                animatedParts.leftLeg = leftLeg;
+                animatedParts.rightLeg = rightLeg;
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(0.66 * s, 0.74 * s, 0.38 * s), clothMat);
+                torso.position.set(0, 0.92 * s, 0.08 * s);
+                torso.rotation.x = 0.22;
+                torso.castShadow = true;
+                group.add(torso);
+                flashMeshes.push(torso);
+
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.52 * s, 0.52 * s, 0.52 * s), skinMat);
+                head.position.set(0, 1.52 * s, 0.22 * s);
+                head.castShadow = true;
+                group.add(head);
+                flashMeshes.push(head);
+
+                const eyeMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+                const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.11 * s, 0.09 * s, 0.08 * s), eyeMat);
+                eyeL.position.set(-0.13 * s, 1.55 * s, 0.48 * s);
+                const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.11 * s, 0.09 * s, 0.08 * s), eyeMat);
+                eyeR.position.set(0.13 * s, 1.55 * s, 0.48 * s);
+                group.add(eyeL, eyeR);
+
+                const armGeo = new THREE.BoxGeometry(0.2 * s, 0.2 * s, 0.72 * s);
+                const leftArm = new THREE.Mesh(armGeo, skinMat);
+                leftArm.position.set(-0.44 * s, 1.12 * s, 0.42 * s);
+                leftArm.rotation.x = -0.25;
+                leftArm.castShadow = true;
+                const rightArm = new THREE.Mesh(armGeo, skinMat);
+                rightArm.position.set(0.44 * s, 1.12 * s, 0.42 * s);
+                rightArm.rotation.x = -0.15;
+                rightArm.castShadow = true;
+                group.add(leftArm, rightArm);
+                animatedParts.leftArm = leftArm;
+                animatedParts.rightArm = rightArm;
+                flashMeshes.push(leftArm, rightArm);
+
+            } else if (typeKey === 'MONSTER') {
+                const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.45, metalness: 0.25 });
+                const hornMat = new THREE.MeshStandardMaterial({ color: cfg.hornColor, roughness: 0.35, metalness: 0.4 });
+                const coreMat = new THREE.MeshStandardMaterial({ color: cfg.coreColor, emissive: cfg.coreColor, emissiveIntensity: 1.1 });
+
+                const legGeo = new THREE.BoxGeometry(0.32 * s, 0.65 * s, 0.36 * s);
+                const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+                leftLeg.position.set(-0.3 * s, 0.32 * s, 0);
+                const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+                rightLeg.position.set(0.3 * s, 0.32 * s, 0);
+                group.add(leftLeg, rightLeg);
+                animatedParts.leftLeg = leftLeg;
+                animatedParts.rightLeg = rightLeg;
+                flashMeshes.push(leftLeg, rightLeg);
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(0.95 * s, 0.92 * s, 0.62 * s), bodyMat);
+                torso.position.set(0, 1.05 * s, 0.1 * s);
+                torso.rotation.x = 0.25;
+                torso.castShadow = true;
+                group.add(torso);
+                flashMeshes.push(torso);
+
+                const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.26 * s, 0), coreMat);
+                core.position.set(0, 1.1 * s, 0.44 * s);
+                group.add(core);
+                animatedParts.core = core;
+
+                const spikeGeo = new THREE.ConeGeometry(0.16 * s, 0.55 * s, 6);
+                for (let k = -1; k <= 1; k++) {
+                    const spike = new THREE.Mesh(spikeGeo, hornMat);
+                    spike.position.set(0, (1.45 - Math.abs(k) * 0.12) * s, (-0.18 - Math.abs(k) * 0.08) * s);
+                    spike.rotation.x = -0.65;
+                    group.add(spike);
+                }
+
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.62 * s, 0.54 * s, 0.62 * s), bodyMat);
+                head.position.set(0, 1.62 * s, 0.35 * s);
+                group.add(head);
+                flashMeshes.push(head);
+
+                const hornGeo = new THREE.ConeGeometry(0.14 * s, 0.62 * s, 6);
+                const hornL = new THREE.Mesh(hornGeo, hornMat);
+                hornL.position.set(-0.32 * s, 1.98 * s, 0.32 * s);
+                hornL.rotation.z = 0.35;
+                const hornR = new THREE.Mesh(hornGeo, hornMat);
+                hornR.position.set(0.32 * s, 1.98 * s, 0.32 * s);
+                hornR.rotation.z = -0.35;
+                group.add(hornL, hornR);
+
+                const armGeo = new THREE.BoxGeometry(0.3 * s, 0.3 * s, 0.85 * s);
+                const leftArm = new THREE.Mesh(armGeo, bodyMat);
+                leftArm.position.set(-0.62 * s, 1.15 * s, 0.48 * s);
+                const rightArm = new THREE.Mesh(armGeo, bodyMat);
+                rightArm.position.set(0.62 * s, 1.15 * s, 0.48 * s);
+                group.add(leftArm, rightArm);
+                animatedParts.leftArm = leftArm;
+                animatedParts.rightArm = rightArm;
+                flashMeshes.push(leftArm, rightArm);
+
+            } else {
+                const bodyMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.35, metalness: 0.45 });
+                const armorMat = new THREE.MeshStandardMaterial({ color: cfg.armorColor, roughness: 0.4, metalness: 0.65 });
+                const hornMat = new THREE.MeshStandardMaterial({ color: cfg.hornColor, roughness: 0.25, metalness: 0.6 });
+                const coreMat = new THREE.MeshStandardMaterial({ color: cfg.coreColor, emissive: cfg.coreColor, emissiveIntensity: 1.5 });
+
+                const ringGeo = new THREE.RingGeometry(1.15 * s, 1.38 * s, 28);
+                ringGeo.rotateX(-Math.PI / 2);
+                const ringMat = new THREE.MeshBasicMaterial({ color: cfg.coreColor, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.position.y = 0.06;
+                group.add(ringMesh);
+                animatedParts.ring = ringMesh;
+
+                const legGeo = new THREE.BoxGeometry(0.42 * s, 0.72 * s, 0.46 * s);
+                const leftLeg = new THREE.Mesh(legGeo, armorMat);
+                leftLeg.position.set(-0.42 * s, 0.36 * s, 0);
+                const rightLeg = new THREE.Mesh(legGeo, armorMat);
+                rightLeg.position.set(0.42 * s, 0.36 * s, 0);
+                group.add(leftLeg, rightLeg);
+                animatedParts.leftLeg = leftLeg;
+                animatedParts.rightLeg = rightLeg;
+                flashMeshes.push(leftLeg, rightLeg);
+
+                const torso = new THREE.Mesh(new THREE.BoxGeometry(1.32 * s, 1.18 * s, 0.88 * s), bodyMat);
+                torso.position.set(0, 1.25 * s, 0.08 * s);
+                torso.castShadow = true;
+                group.add(torso);
+                flashMeshes.push(torso);
+
+                const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(1.42 * s, 0.65 * s, 0.96 * s), armorMat);
+                chestPlate.position.set(0, 1.48 * s, 0.1 * s);
+                group.add(chestPlate);
+                flashMeshes.push(chestPlate);
+
+                const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36 * s, 1), coreMat);
+                core.position.set(0, 1.25 * s, 0.54 * s);
+                group.add(core);
+                animatedParts.core = core;
+
+                const dorsalGeo = new THREE.ConeGeometry(0.22 * s, 0.85 * s, 7);
+                for (let d = 0; d < 3; d++) {
+                    const dorsal = new THREE.Mesh(dorsalGeo, hornMat);
+                    dorsal.position.set(0, (1.85 - d * 0.25) * s, (-0.42 - d * 0.12) * s);
+                    dorsal.rotation.x = -0.8;
+                    group.add(dorsal);
+                }
+
+                const head = new THREE.Mesh(new THREE.BoxGeometry(0.78 * s, 0.66 * s, 0.74 * s), armorMat);
+                head.position.set(0, 1.98 * s, 0.38 * s);
+                group.add(head);
+                flashMeshes.push(head);
+
+                const bigHornGeo = new THREE.ConeGeometry(0.2 * s, 0.95 * s, 8);
+                const bHornL = new THREE.Mesh(bigHornGeo, hornMat);
+                bHornL.position.set(-0.48 * s, 2.38 * s, 0.34 * s);
+                bHornL.rotation.z = 0.55;
+                const bHornR = new THREE.Mesh(bigHornGeo, hornMat);
+                bHornR.position.set(0.48 * s, 2.38 * s, 0.34 * s);
+                bHornR.rotation.z = -0.55;
+                group.add(bHornL, bHornR);
+
+                const armGeo = new THREE.BoxGeometry(0.42 * s, 0.42 * s, 1.05 * s);
+                const leftArm = new THREE.Mesh(armGeo, bodyMat);
+                leftArm.position.set(-0.88 * s, 1.28 * s, 0.55 * s);
+                const rightArm = new THREE.Mesh(armGeo, bodyMat);
+                rightArm.position.set(0.88 * s, 1.28 * s, 0.55 * s);
+                group.add(leftArm, rightArm);
+                animatedParts.leftArm = leftArm;
+                animatedParts.rightArm = rightArm;
+                flashMeshes.push(leftArm, rightArm);
+            }
+
+            const margin = 1.2 + cfg.radius * 0.5;
+            const spawnX = override && typeof override.x === 'number'
+                ? override.x
+                : (Math.random() - 0.5) * (BRIDGE_WIDTH - margin * 2);
+            const spawnZ = override && typeof override.z === 'number'
+                ? override.z
+                : (BRIDGE_START_Z + 1.5);
+
+            group.position.set(spawnX, 0, spawnZ);
+            scene.add(group);
+
+            const hpContainer = document.createElement('div');
+            hpContainer.className = 'floating-hp-container';
+            hpContainer.style.opacity = '0';
+
+            const barBg = document.createElement('div');
+            barBg.className = `hp-bar-bg ${typeKey === 'MONSTER' ? 'monster' : ''}`;
+            const barFill = document.createElement('div');
+            barFill.className = 'hp-bar-fill bg-rose-500';
+            barBg.appendChild(barFill);
+            hpContainer.appendChild(barBg);
+            worldUiLayer.appendChild(hpContainer);
+
+            enemies.push({
+                type: typeKey,
+                cfg: cfg,
+                mesh: group,
+                parts: animatedParts,
+                flashMeshes: flashMeshes,
+                hp: maxHp,
+                maxHp: maxHp,
+                speed: override && typeof override.speed === 'number'
+                    ? override.speed
+                    : cfg.speed * (typeKey === 'ZOMBIE' ? (0.9 + Math.random() * 0.25) : 1.0) * (1 + Math.min(0.45, (state.wave - 1) * 0.03)),
+                radius: cfg.radius * sizeJitter,
+                hpEl: hpContainer,
+                hpFillEl: barFill,
+                hitFlash: 0,
+                wobbleOffset: Math.random() * Math.PI * 2
+            });
+            updateBossHUD();
+        }
+
+        function spawnBarrel() {
+            if (!threeReady) return;
+            const weaponKey = BARREL_WEAPONS[Math.floor(Math.random() * BARREL_WEAPONS.length)];
+            const weaponCfg = WEAPONS[weaponKey];
+            const barrelHp = 60 + state.wave * 10;
+
+            const group = new THREE.Group();
+
+            const cylGeo = new THREE.CylinderGeometry(0.72, 0.72, 1.45, 16);
+            cylGeo.rotateZ(Math.PI / 2);
+
+            const barrelMat = new THREE.MeshStandardMaterial({
+                color: 0x78350f,
+                roughness: 0.65,
+                metalness: 0.2
+            });
+            const barrelMesh = new THREE.Mesh(cylGeo, barrelMat);
+            barrelMesh.castShadow = true;
+            barrelMesh.receiveShadow = true;
+            group.add(barrelMesh);
+
+            const ringGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.22, 16);
+            ringGeo.rotateZ(Math.PI / 2);
+            const ringMat = new THREE.MeshStandardMaterial({
+                color: weaponCfg.color,
+                emissive: weaponCfg.color,
+                emissiveIntensity: 0.95
+            });
+
+            const ringL = new THREE.Mesh(ringGeo, ringMat);
+            ringL.position.x = -0.45;
+            const ringR = new THREE.Mesh(ringGeo, ringMat);
+            ringR.position.x = 0.45;
+            group.add(ringL, ringR);
+
+            const spawnX = (Math.random() - 0.5) * (BRIDGE_WIDTH - 2.6);
+            group.position.set(spawnX, 0.72, BRIDGE_START_Z + 1.5);
+            scene.add(group);
+
+            const hpContainer = document.createElement('div');
+            hpContainer.className = 'floating-hp-container';
+
+            const label = document.createElement('div');
+            label.className = 'barrel-label';
+            label.style.backgroundColor = 'rgba(15, 23, 42, 0.88)';
+            label.style.color = weaponCfg.cssColor;
+            label.style.border = `1px solid ${weaponCfg.cssColor}`;
+            label.textContent = `🛢️ ${weaponCfg.shortName}`;
+
+            const barBg = document.createElement('div');
+            barBg.className = 'hp-bar-bg barrel';
+            const barFill = document.createElement('div');
+            barFill.className = 'hp-bar-fill';
+            barFill.style.backgroundColor = weaponCfg.cssColor;
+
+            barBg.appendChild(barFill);
+            hpContainer.appendChild(label);
+            hpContainer.appendChild(barBg);
+            worldUiLayer.appendChild(hpContainer);
+
+            barrels.push({
+                weaponKey: weaponKey,
+                weaponCfg: weaponCfg,
+                mesh: group,
+                hp: barrelHp,
+                maxHp: barrelHp,
+                speed: 4.3 + Math.random() * 1.0,
+                radius: 0.95,
+                hpEl: hpContainer,
+                hpFillEl: barFill
+            });
+        }
+
+        /**
+         * SISTEMA DE TIRO E ARMAS
+         */
+        function equipWeapon(weaponCfg) {
+            state.weapon = weaponCfg;
+            if (weaponCfg.id === 'STANDARD') {
+                state.weaponTimer = 0;
+                state.weaponMaxDuration = 0;
+            } else {
+                state.weaponTimer = weaponCfg.duration;
+                state.weaponMaxDuration = weaponCfg.duration;
+            }
+
+            if (muzzleMesh) muzzleMesh.material.color.setHex(weaponCfg.color);
+            if (muzzleLight) muzzleLight.color.setHex(weaponCfg.color);
+            if (weaponRingMesh) weaponRingMesh.material.color.setHex(weaponCfg.color);
+            if (aimLaserLine) {
+                aimLaserLine.material.color.setHex(weaponCfg.color);
+                aimLaserLine.material.opacity = weaponCfg.id === 'STANDARD' ? 0.32 : 0.55;
+            }
+            updateHUD();
+        }
+
+        function fireWeapon() {
+            if (!threeReady || !muzzleMesh) return;
+            const w = state.weapon;
+            state.fireCooldown = w.fireRate;
+            sfx.playShoot(w.id);
+
+            muzzleMesh.material.opacity = 0.95;
+            muzzleMesh.scale.setScalar(w.id === 'PLASMA' ? 1.5 : 1.0);
+            muzzleLight.intensity = 3.2;
+
+            const origin = new THREE.Vector3();
+            muzzleMesh.getWorldPosition(origin);
+            origin.y = 0.95;
+
+            const targetVec = new THREE.Vector3(state.aimPoint.x, origin.y, state.aimPoint.z);
+            const baseDir = new THREE.Vector3().subVectors(targetVec, origin);
+            baseDir.y = 0;
+            if (baseDir.lengthSq() < 0.001) baseDir.set(0, 0, -1);
+            baseDir.normalize();
+
+            const baseAngle = Math.atan2(baseDir.x, baseDir.z);
+
+            for (let i = 0; i < w.count; i++) {
+                let angleOffset = 0;
+                if (w.count > 1) {
+                    const step = w.spread / (w.count - 1);
+                    angleOffset = -w.spread / 2 + step * i;
+                } else if (w.spread > 0) {
+                    angleOffset = (Math.random() - 0.5) * w.spread;
+                }
+
+                const finalAngle = baseAngle + angleOffset;
+                const dir = new THREE.Vector3(Math.sin(finalAngle), 0, Math.cos(finalAngle));
+
+                let projGeo;
+                if (w.id === 'LASER') {
+                    projGeo = new THREE.CylinderGeometry(0.14, 0.14, 3.2, 8);
+                    projGeo.rotateX(Math.PI / 2);
+                } else {
+                    projGeo = new THREE.SphereGeometry(w.projRadius, 8, 8);
+                }
+
+                const projMat = new THREE.MeshBasicMaterial({ color: w.color });
+                const projMesh = new THREE.Mesh(projGeo, projMat);
+                projMesh.position.copy(origin);
+                projMesh.rotation.y = finalAngle;
+                scene.add(projMesh);
+
+                projectiles.push({
+                    mesh: projMesh,
+                    dir: dir,
+                    speed: w.speed,
+                    damage: w.damage,
+                    pierce: w.pierce,
+                    aoe: w.aoe,
+                    color: w.color,
+                    hitIds: new Set(),
+                    life: 1.8
+                });
+            }
+        }
+
+        /**
+         * PARTÍCULAS E TEXTOS FLUTUANTES
+         */
+        function spawnParticles(pos, colorHex, count = 10, speedScale = 1) {
+            if (!threeReady || !scene) return;
+            const geo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+            const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+            for (let i = 0; i < count; i++) {
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                mesh.position.y += 0.3;
+                scene.add(mesh);
+
+                const angle = Math.random() * Math.PI * 2;
+                const spd = (2 + Math.random() * 6) * speedScale;
+                particles.push({
+                    mesh: mesh,
+                    vel: new THREE.Vector3(
+                        Math.cos(angle) * spd,
+                        3 + Math.random() * 5 * speedScale,
+                        Math.sin(angle) * spd
+                    ),
+                    life: 0.35 + Math.random() * 0.3,
+                    maxLife: 0.65
+                });
+            }
+        }
+
+        function showFloatingText(worldPos, text, color = '#ffffff', size = '14px') {
+            const screenPos = projectToScreen(worldPos);
+            if (!screenPos.visible) return;
+
+            const el = document.createElement('div');
+            el.className = 'floating-text';
+            el.style.left = `${screenPos.x}px`;
+            el.style.top = `${screenPos.y}px`;
+            el.style.color = color;
+            el.style.fontSize = size;
+            el.textContent = text;
+            worldUiLayer.appendChild(el);
+
+            setTimeout(() => el.remove(), 850);
+        }
+
+        function projectToScreen(vec3) {
+            if (!camera) return { x: 0, y: 0, visible: false };
+            const temp = vec3.clone();
+            temp.project(camera);
+            const visible = temp.z < 1;
+            const x = (temp.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(temp.y * 0.5) + 0.5) * window.innerHeight;
+            return { x, y, visible };
+        }
+
+        /**
+         * LOOP PRINCIPAL DE ATUALIZAÇÃO E RENDERIZAÇÃO
+         */
+        function update(dt) {
+            if (!threeReady) return;
+
+            const elapsed = clock.getElapsedTime();
+
+            if (lavaMesh) {
+                lavaMesh.material.emissiveIntensity = 0.55 + Math.sin(elapsed * 2.2) * 0.15;
+            }
+
+            if (weaponRingMesh) {
+                const ringPulse = 1 + Math.sin(elapsed * 6) * 0.05;
+                weaponRingMesh.scale.setScalar(ringPulse);
+            }
+
+            if (!state.running || state.paused || state.gameOver) return;
+
+            // 1. Movimento do Guardião
+            const moveSpeed = 14.5;
+            let moveX = 0;
+            let moveZ = 0;
+            if (state.keys.left) moveX -= 1;
+            if (state.keys.right) moveX += 1;
+            if (state.keys.up) moveZ -= 1;
+            if (state.keys.down) moveZ += 1;
+
+            if (moveX !== 0 || moveZ !== 0) {
+                const len = Math.hypot(moveX, moveZ);
+                state.playerPos.x += (moveX / len) * moveSpeed * dt;
+                state.playerPos.z += (moveZ / len) * moveSpeed * dt;
+
+                const maxX = BRIDGE_WIDTH / 2 - 0.6;
+                state.playerPos.x = Math.max(-maxX, Math.min(maxX, state.playerPos.x));
+                state.playerPos.z = Math.max(BRIDGE_END_Z - 1.2, Math.min(BASE_GATE_Z - 0.5, state.playerPos.z));
+                guardianGroup.position.set(state.playerPos.x, state.playerPos.y, state.playerPos.z);
+            }
+
+            // 2. Mira via Raycasting
+            if (raycaster && mouseNDC && aimPlane) {
+                raycaster.setFromCamera(mouseNDC, camera);
+                const hitTarget = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(aimPlane, hitTarget)) {
+                    hitTarget.z = Math.min(state.playerPos.z - 1.0, hitTarget.z);
+                    state.aimPoint = { x: hitTarget.x, y: hitTarget.y, z: hitTarget.z };
+                    turretGroup.lookAt(state.aimPoint.x, turretGroup.position.y + guardianGroup.position.y, state.aimPoint.z);
+                }
+            }
+
+            // 3. Temporizador da arma especial & Disparo
+            if (state.weapon.id !== 'STANDARD') {
+                state.weaponTimer -= dt;
+                if (state.weaponTimer <= 0) {
+                    equipWeapon(WEAPONS.STANDARD);
+                } else {
+                    updateWeaponHUD();
+                }
+            }
+
+            if (state.fireCooldown > 0) state.fireCooldown -= dt;
+            if (state.isFiring && state.fireCooldown <= 0) {
+                fireWeapon();
+            }
+
+            if (muzzleMesh && muzzleMesh.material.opacity > 0) {
+                muzzleMesh.material.opacity = Math.max(0, muzzleMesh.material.opacity - dt * 14);
+                muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 45);
+            }
+
+            // 4. Spawner de Inimigos e Barris
+            if (state.waveInProgress) {
+                if (state.enemiesToSpawn.length > 0) {
+                    state.spawnTimer -= dt;
+                    if (state.spawnTimer <= 0) {
+                        const nextEntry = state.enemiesToSpawn.shift();
+                        if (nextEntry.type === 'ZOMBIE_GROUP') {
+                            spawnZombieFormation(nextEntry.count);
+                            state.spawnTimer = Math.max(0.85, 1.85 - state.wave * 0.05);
+                        } else {
+                            spawnEnemy(nextEntry.type);
+                            state.spawnTimer = Math.max(0.45, 1.3 - state.wave * 0.06);
+                        }
+                    }
+                } else if (enemies.length === 0) {
+                    state.waveInProgress = false;
+                    state.waveDelayTimer = 2.4;
+                }
+
+                state.barrelSpawnTimer -= dt;
+                if (state.barrelSpawnTimer <= 0) {
+                    spawnBarrel();
+                    state.barrelSpawnTimer = Math.max(4.0, 6.5 - state.wave * 0.15);
+                }
+            } else {
+                state.waveDelayTimer -= dt;
+                if (state.waveDelayTimer <= 0) {
+                    startWave(state.wave + 1);
+                }
+            }
+
+            // 5. Atualização dos Barris Rolantes
+            for (let i = barrels.length - 1; i >= 0; i--) {
+                const b = barrels[i];
+                b.mesh.position.z += b.speed * dt;
+                b.mesh.rotation.x += (b.speed / 0.72) * dt;
+
+                const hpWorldPos = b.mesh.position.clone().add(new THREE.Vector3(0, 1.35, 0));
+                const screenPos = projectToScreen(hpWorldPos);
+                if (screenPos.visible) {
+                    b.hpEl.style.left = `${screenPos.x}px`;
+                    b.hpEl.style.top = `${screenPos.y}px`;
+                    b.hpEl.style.opacity = '1';
+                } else {
+                    b.hpEl.style.opacity = '0';
+                }
+
+                // Remove barril se passar da zona da ponte sem ser destruído
+                if (b.mesh.position.z >= BASE_GATE_Z - 0.5) {
+                    spawnParticles(b.mesh.position, b.weaponCfg.color, 10, 0.8);
+                    scene.remove(b.mesh);
+                    b.hpEl.remove();
+                    barrels.splice(i, 1);
+                }
+            }
+
+            // 6. Atualização dos Inimigos
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.mesh.position.z += e.speed * dt;
+
+                const swing = Math.sin(elapsed * (e.type === 'BOSS' ? 4.5 : 8.5) + e.wobbleOffset);
+                if (e.parts.leftLeg && e.parts.rightLeg) {
+                    e.parts.leftLeg.rotation.x = swing * 0.45;
+                    e.parts.rightLeg.rotation.x = -swing * 0.45;
+                }
+                if (e.parts.leftArm && e.parts.rightArm) {
+                    e.parts.leftArm.rotation.x = (e.type === 'ZOMBIE' ? -0.22 : 0) - swing * 0.35;
+                    e.parts.rightArm.rotation.x = (e.type === 'ZOMBIE' ? -0.15 : 0) + swing * 0.35;
+                }
+                if (e.parts.core) {
+                    const pulse = 1 + Math.sin(elapsed * 7 + e.wobbleOffset) * 0.18;
+                    e.parts.core.scale.setScalar(pulse);
+                    e.parts.core.rotation.y += 2.5 * dt;
+                }
+                if (e.parts.ring) {
+                    e.parts.ring.rotation.z += 1.4 * dt;
+                }
+                e.mesh.position.y = Math.abs(swing) * (e.type === 'BOSS' ? 0.08 : 0.12);
+
+                if (e.hitFlash > 0) {
+                    e.hitFlash -= dt;
+                    if (e.hitFlash <= 0) {
+                        e.flashMeshes.forEach(m => m.material.emissive.setHex(0x000000));
+                    }
+                }
+
+                if (e.type !== 'BOSS') {
+                    const hpWorldPos = e.mesh.position.clone().add(new THREE.Vector3(0, 1.85 * e.cfg.scale, 0));
+                    const screenPos = projectToScreen(hpWorldPos);
+                    if (screenPos.visible) {
+                        e.hpEl.style.left = `${screenPos.x}px`;
+                        e.hpEl.style.top = `${screenPos.y}px`;
+                    }
+                }
+
+                if (e.mesh.position.z >= BASE_GATE_Z) {
+                    damageBase(e.cfg.damage);
+                    spawnParticles(e.mesh.position, e.cfg.color || 0xef4444, 14, 1.1);
+                    scene.remove(e.mesh);
+                    e.hpEl.remove();
+                    enemies.splice(i, 1);
+                    updateBossHUD();
+                    updateHUD();
+                }
+            }
+
+            // 7. Atualização dos Projéteis e Colisões
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.mesh.position.addScaledVector(p.dir, p.speed * dt);
+                p.life -= dt;
+
+                let destroyProj = p.life <= 0 || p.mesh.position.z < BRIDGE_START_Z - 2;
+
+                if (!destroyProj) {
+                    for (let j = barrels.length - 1; j >= 0; j--) {
+                        const b = barrels[j];
+                        if (p.hitIds.has(b)) continue;
+
+                        const dist = Math.hypot(p.mesh.position.x - b.mesh.position.x, p.mesh.position.z - b.mesh.position.z);
+                        if (dist <= b.radius + 0.35) {
+                            p.hitIds.add(b);
+                            damageBarrel(j, p.damage, p.mesh.position);
+                            if (p.aoe > 0) triggerExplosion(p.mesh.position, p.aoe, p.damage * 0.65, p.color);
+                            p.pierce--;
+                            if (p.pierce <= 0) {
+                                destroyProj = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!destroyProj) {
+                    for (let k = enemies.length - 1; k >= 0; k--) {
+                        const e = enemies[k];
+                        if (p.hitIds.has(e)) continue;
+
+                        const dist = Math.hypot(p.mesh.position.x - e.mesh.position.x, p.mesh.position.z - e.mesh.position.z);
+                        if (dist <= e.radius + 0.3) {
+                            p.hitIds.add(e);
+                            damageEnemy(k, p.damage, p.mesh.position);
+                            if (p.aoe > 0) triggerExplosion(p.mesh.position, p.aoe, p.damage * 0.75, p.color);
+                            p.pierce--;
+                            if (p.pierce <= 0) {
+                                destroyProj = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (destroyProj) {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // 8. Partículas
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const pt = particles[i];
+                pt.vel.y -= 16 * dt;
+                pt.mesh.position.addScaledVector(pt.vel, dt);
+                pt.mesh.rotation.x += 6 * dt;
+                pt.mesh.rotation.y += 6 * dt;
+                pt.life -= dt;
+                const scale = Math.max(0.01, pt.life / pt.maxLife);
+                pt.mesh.scale.setScalar(scale);
+
+                if (pt.life <= 0) {
+                    scene.remove(pt.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+            // 9. Screen Shake mantendo o enquadramento completo da ponte e da base
+            if (state.screenShake > 0) {
+                state.screenShake = Math.max(0, state.screenShake - dt * 2.5);
+                const shakeAmt = state.screenShake * 0.45;
+                camera.position.set(
+                    CAM_POS.x + (Math.random() - 0.5) * shakeAmt,
+                    CAM_POS.y + (Math.random() - 0.5) * shakeAmt,
+                    CAM_POS.z + (Math.random() - 0.5) * shakeAmt
+                );
+            } else {
+                camera.position.set(CAM_POS.x, CAM_POS.y, CAM_POS.z);
+            }
+            camera.lookAt(CAM_LOOK.x, CAM_LOOK.y, CAM_LOOK.z);
+        }
+
+        function damageBarrel(index, dmg, hitPos) {
+            const b = barrels[index];
+            if (!b) return;
+            b.hp -= dmg;
+            sfx.playHit(true);
+            spawnParticles(hitPos, b.weaponCfg.color, 5, 0.6);
+
+            const pct = Math.max(0, (b.hp / b.maxHp) * 100);
+            b.hpFillEl.style.width = `${pct}%`;
+
+            if (b.hp <= 0) {
+                sfx.playPowerup();
+                spawnParticles(b.mesh.position, b.weaponCfg.color, 18, 1.25);
+                showFloatingText(b.mesh.position, `+ ${b.weaponCfg.name.toUpperCase()}!`, b.weaponCfg.cssColor, '16px');
+                equipWeapon(b.weaponCfg);
+                state.score += 75;
+                updateHUD();
+
+                scene.remove(b.mesh);
+                b.hpEl.remove();
+                barrels.splice(index, 1);
+            }
+        }
+
+        function damageEnemy(index, dmg, hitPos) {
+            const e = enemies[index];
+            if (!e) return;
+
+            e.hp -= dmg;
+            e.hitFlash = 0.08;
+            e.flashMeshes.forEach(m => m.material.emissive.setHex(0xef4444));
+            sfx.playHit(false);
+            spawnParticles(hitPos, e.cfg.color || 0x84cc16, 4, 0.55);
+
+            if (e.type !== 'BOSS') {
+                e.hpEl.style.opacity = '1';
+                const pct = Math.max(0, (e.hp / e.maxHp) * 100);
+                e.hpFillEl.style.width = `${pct}%`;
+            }
+
+            if (e.hp <= 0) {
+                const isBig = e.type === 'MONSTER' || e.type === 'BOSS';
+                sfx.playExplosion(isBig);
+                if (isBig) state.screenShake = e.type === 'BOSS' ? 0.85 : 0.45;
+                spawnParticles(e.mesh.position, e.cfg.color || 0x84cc16, e.type === 'BOSS' ? 34 : 14, 1.2);
+                showFloatingText(e.mesh.position, `+${e.cfg.score}`, '#fde047', e.type === 'BOSS' ? '18px' : '13px');
+
+                state.kills++;
+                state.score += e.cfg.score;
+                scene.remove(e.mesh);
+                e.hpEl.remove();
+                enemies.splice(index, 1);
+                updateBossHUD();
+                updateHUD();
+            } else if (e.type === 'BOSS') {
+                updateBossHUD();
+            }
+        }
+
+        function triggerExplosion(center, radius, aoeDmg, colorHex) {
+            sfx.playExplosion(true);
+            state.screenShake = Math.max(state.screenShake, 0.35);
+            spawnParticles(center, colorHex, 16, 1.4);
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                const dist = Math.hypot(center.x - e.mesh.position.x, center.z - e.mesh.position.z);
+                if (dist <= radius + e.radius) {
+                    damageEnemy(i, Math.round(aoeDmg), e.mesh.position);
+                }
+            }
+        }
+
+        function damageBase(amount) {
+            state.baseHp = Math.max(0, state.baseHp - amount);
+            state.screenShake = 0.75;
+            sfx.playBaseDamage();
+            showFloatingText(new THREE.Vector3(0, 2, BASE_GATE_Z - 1), `-${amount} BASE!`, '#fb7185', '18px');
+            updateHUD();
+
+            if (state.baseHp <= 0) {
+                triggerGameOver();
+            }
+        }
+
+        function triggerGameOver() {
+            state.gameOver = true;
+            state.running = false;
+            state.paused = false;
+            state.isFiring = false;
+            pauseScreen.classList.add('hidden');
+            document.getElementById('boss-hud').classList.add('hidden');
+            sfx.playExplosion(true);
+
+            document.getElementById('final-wave').textContent = state.wave;
+            document.getElementById('final-kills').textContent = state.kills.toLocaleString('pt-BR');
+            document.getElementById('final-score').textContent = state.score.toLocaleString('pt-BR');
+            hudEl.classList.add('hidden');
+            gameoverScreen.classList.remove('hidden');
+        }
+
+        function updateBossHUD() {
+            const bossHud = document.getElementById('boss-hud');
+            if (!bossHud) return;
+            const activeBoss = enemies.find(en => en.type === 'BOSS');
+            if (!activeBoss) {
+                bossHud.classList.add('hidden');
+                return;
+            }
+            bossHud.classList.remove('hidden');
+            document.getElementById('boss-name-display').textContent = `👹 ${activeBoss.cfg.name}`;
+            document.getElementById('boss-hp-text').textContent = `${Math.max(0, activeBoss.hp)} / ${activeBoss.maxHp}`;
+            const pct = Math.max(0, (activeBoss.hp / activeBoss.maxHp) * 100);
+            document.getElementById('boss-hp-bar').style.width = `${pct}%`;
+        }
+
+        function updateHUD() {
+            const hpPct = Math.max(0, (state.baseHp / state.baseMaxHp) * 100);
+            const hpBar = document.getElementById('base-hp-bar');
+            hpBar.style.width = `${hpPct}%`;
+            if (hpPct < 30) {
+                hpBar.className = 'h-full rounded-full bg-gradient-to-r from-rose-600 to-red-400 transition-all duration-200';
+            } else if (hpPct < 60) {
+                hpBar.className = 'h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-200';
+            } else {
+                hpBar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-400 transition-all duration-200';
+            }
+
+            document.getElementById('base-hp-text').textContent = `${state.baseHp} / ${state.baseMaxHp}`;
+            document.getElementById('wave-display').textContent = state.wave;
+            const queuedCount = state.enemiesToSpawn.reduce((sum, entry) => sum + (entry.count || 1), 0);
+            const remaining = queuedCount + enemies.length;
+            document.getElementById('enemies-left-display').textContent = `Inimigos: ${remaining}`;
+            const killsEl = document.getElementById('kills-display');
+            if (killsEl) killsEl.textContent = state.kills.toLocaleString('pt-BR');
+            document.getElementById('score-display').textContent = state.score.toLocaleString('pt-BR');
+
+            updateWeaponHUD();
+        }
+
+        function updateWeaponHUD() {
+            const w = state.weapon;
+            document.getElementById('weapon-name').textContent = w.name;
+            document.getElementById('weapon-name').style.color = w.cssColor;
+            const badge = document.getElementById('weapon-badge');
+            badge.style.backgroundColor = w.cssColor;
+            badge.style.boxShadow = `0 0 10px ${w.cssColor}`;
+
+            const timerBar = document.getElementById('weapon-timer-bar');
+            const timerText = document.getElementById('weapon-timer-text');
+            timerBar.style.backgroundColor = w.cssColor;
+
+            if (w.id === 'STANDARD') {
+                timerBar.style.width = '100%';
+                timerText.textContent = 'ILIMITADA';
+            } else {
+                const pct = Math.max(0, (state.weaponTimer / state.weaponMaxDuration) * 100);
+                timerBar.style.width = `${pct}%`;
+                timerText.textContent = `${state.weaponTimer.toFixed(1)}s`;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!threeReady || !clock || !renderer || !scene || !camera) return;
+            const dt = Math.min(clock.getDelta(), 0.05);
+            update(dt);
+            renderer.render(scene, camera);
+        }
+
+        // Vincula imediatamente os botões da interface assim que o DOM estiver pronto
+        bindUIEvents();
+        ensureThreeAndInit();
+    </script>
+</body>
+</html>
