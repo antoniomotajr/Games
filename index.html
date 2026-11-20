@@ -64,6 +64,7 @@
 
         .header-titles {
             text-align: left;
+            flex-grow: 1;
         }
 
         header h1 {
@@ -78,9 +79,29 @@
             text-transform: uppercase;
         }
 
+        .header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 14px;
+        }
+
         header p {
             color: #94a3b8;
             font-size: 1.1rem;
+        }
+
+        .page-views-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #7dd3fc;
+            font-size: 0.85rem;
+            font-weight: 700;
         }
 
         /* Container de Jogos */
@@ -103,7 +124,6 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            text-decoration: none;
             color: inherit;
         }
 
@@ -123,6 +143,15 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .game-image a {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
         }
 
         .game-image img {
@@ -173,13 +202,68 @@
             flex-grow: 1;
         }
 
+        .game-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
         .game-genre {
             font-size: 0.85rem;
             color: #38bdf8;
             font-weight: 700;
-            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        .game-stats {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .views-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(15, 23, 42, 0.6);
+            color: #94a3b8;
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        /* Botão de Like */
+        .like-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 11px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(15, 23, 42, 0.75);
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .like-btn:hover {
+            transform: scale(1.05);
+            border-color: rgba(244, 63, 94, 0.6);
+            color: #fda4af;
+        }
+
+        .like-btn.liked {
+            background: rgba(244, 63, 94, 0.2);
+            border-color: #f43f5e;
+            color: #fb7185;
         }
 
         .game-title {
@@ -187,6 +271,15 @@
             font-weight: bold;
             margin-bottom: 12px;
             color: #f8fafc;
+        }
+
+        .game-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .game-title a:hover {
+            text-decoration: underline;
         }
 
         .game-desc {
@@ -199,7 +292,8 @@
 
         /* Botão de Jogar */
         .play-btn {
-            display: inline-block;
+            display: block;
+            text-decoration: none;
             background: linear-gradient(90deg, #38bdf8, #818cf8);
             color: #0f172a;
             text-align: center;
@@ -211,7 +305,7 @@
             transition: filter 0.3s ease;
         }
 
-        .game-card:hover .play-btn {
+        .play-btn:hover {
             filter: brightness(1.15);
         }
 
@@ -324,6 +418,9 @@
             .header-titles {
                 text-align: center;
             }
+            .header-meta {
+                justify-content: center;
+            }
             .header-logo {
                 width: 80px;
                 height: 80px;
@@ -350,7 +447,14 @@
             </div>
             <div class="header-titles">
                 <h1>Game Dev Hub</h1>
-                <p>Minha coleção de jogos web experimentais - JOGOS PARA PC/DESKTOP</p>
+                <div class="header-meta">
+                    <p>Minha coleção de jogos web experimentais - JOGOS PARA PC/DESKTOP</p>
+                    <span class="page-views-badge" title="Visualizações totais da página">
+                        <span>👁️</span>
+                        <span id="page-views-count">...</span>
+                        <span>visualizações</span>
+                    </span>
+                </div>
             </div>
         </div>
     </header>
@@ -360,224 +464,406 @@
         <!-- ========================================== -->
         <!-- JOGO 1: BEACH HEAD 2002                    -->
         <!-- ========================================== -->
-        <a href="BeachHead2002.html" class="game-card" target="_blank">
+        <div class="game-card" data-game-id="beach-head-2002">
             <div class="game-image">
                 <span class="status-badge">Pronto</span>
-                <img src="beachhead2002.png" alt="Beach Head 2002" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🎯</span>
+                <a href="BeachHead2002.html" target="_blank" class="game-launch">
+                    <img src="beachhead2002.png" alt="Beach Head 2002" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🎯</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre">Defesa / Tiro em 3D</span>
-                <h2 class="game-title">Beach Head 2002</h2>
+                <div class="game-top-row">
+                    <span class="game-genre">Defesa / Tiro em 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Beach Head 2002">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="BeachHead2002.html" target="_blank" class="game-launch">Beach Head 2002</a></h2>
                 <p class="game-desc">Proteja o bunker contra ondas infinitas de soldados, tanques, navios e caças. Sobreviva o máximo que puder.</p>
-                <span class="play-btn">Jogar Agora</span>
+                <a href="BeachHead2002.html" class="play-btn game-launch" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
         <!-- ========================================== -->
         <!-- JOGO 2: PIXEL GUN 3D                       -->
         <!-- ========================================== -->
-        <a href="PixelGun3D.html" class="game-card" target="_blank">
+        <div class="game-card" data-game-id="pixel-gun-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="pixelgun.png" alt="Pixel Gun 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="PixelGun3D.html" target="_blank" class="game-launch">
+                    <img src="pixelgun.png" alt="Pixel Gun 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">FPS / Arena 3D</span>
-                <h2 class="game-title">Pixel Gun 3D</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">FPS / Arena 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Pixel Gun 3D">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="PixelGun3D.html" target="_blank" class="game-launch">Pixel Gun 3D</a></h2>
                 <p class="game-desc">Sobreviva a ondas de inimigos em uma arena futurista. Desbloqueie armas como Rifle, Shotgun e Laser enquanto explora o mapa.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="PixelGun3D.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
-	<!-- ========================================== -->
-        <!-- JOGO 3: ESCAPE ROOM 3D                       -->
+        </div>
+
         <!-- ========================================== -->
-        <a href="EscapeRoom3D.html" class="game-card" target="_blank">
+        <!-- JOGO 3: ESCAPE ROOM 3D                     -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="escape-room-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="escaperoom.png" alt="Escape Room 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="EscapeRoom3D.html" target="_blank" class="game-launch">
+                    <img src="escaperoom.png" alt="Escape Room 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Escape Room 3D</span>
-                <h2 class="game-title">Escape Room 3D</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Escape Room 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Escape Room 3D">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="EscapeRoom3D.html" target="_blank" class="game-launch">Escape Room 3D</a></h2>
                 <p class="game-desc">O jogo EscapeRoom3D coloca-o no papel de um jogador preso numa sala misteriosa, onde o objetivo principal é explorar o ambiente interativo em três dimensões. Para conseguir escapar, terá de decifrar enigmas complexos, resolver puzzles lógicos e encontrar pistas ocultas antes que o tempo esgote.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="EscapeRoom3D.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 4: CYBER RUNSET 3D                       -->
         <!-- ========================================== -->
-        <a href="cyber3D.html" class="game-card" target="_blank">
+        <!-- JOGO 4: CYBER RUNSET 3D                    -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="cyber-runset-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="caparacer.png" alt="CYBER RUNSET 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="cyber3D.html" target="_blank" class="game-launch">
+                    <img src="caparacer.png" alt="CYBER RUNSET 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Cyber Sunset Racing 3D</span>
-                <h2 class="game-title">CYBER RUNSET 3D</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Cyber Sunset Racing 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir CYBER RUNSET 3D">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="cyber3D.html" target="_blank" class="game-launch">CYBER RUNSET 3D</a></h2>
                 <p class="game-desc">Cyber Sunset Racing é um jogo de corrida arcade infinito onde você acelera por uma rodovia neon futurista desviando de obstáculos letais.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="cyber3D.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-
-	<!-- ========================================== -->
-        <!-- JOGO 5: HULK SMASH 3D                       -->
         <!-- ========================================== -->
-        <a href="hulk-smash.html" class="game-card" target="_blank">
+        <!-- JOGO 5: HULK SMASH 3D                      -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="hulk-smash-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="capahulk.png" alt="Hulk Smash 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="hulk-smash.html" target="_blank" class="game-launch">
+                    <img src="capahulk.png" alt="Hulk Smash 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Hulk-Smash 3D</span>
-                <h2 class="game-title">Hulk Smash 3D</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Hulk-Smash 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Hulk Smash 3D">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="hulk-smash.html" target="_blank" class="game-launch">Hulk Smash 3D</a></h2>
                 <p class="game-desc">Hulk Smash 2 é um jogo 3D de destruição em que você controla o Hulk numa metrópole inteira. Você derruba prédios, arremessa carros e esmaga tudo pela frente. O exército responde com ondas de tanques e soldados, e você ainda pode entrar em modo Fúria para ficar mais forte e mais rápido.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="hulk-smash.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 6: DEGRAUS DO CÉU 3D                       -->
         <!-- ========================================== -->
-        <a href="degraus-da-salvacao.html" class="game-card" target="_blank">
+        <!-- JOGO 6: DEGRAUS DO CÉU 3D                  -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="degraus-do-ceu-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="degrausceu.png" alt="DEGRAUS DO CÉU 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="degraus-da-salvacao.html" target="_blank" class="game-launch">
+                    <img src="degrausceu.png" alt="DEGRAUS DO CÉU 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">DEGRAUS DO CÉU 3D</span>
-                <h2 class="game-title">DEGRAUS DO CÉU</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">DEGRAUS DO CÉU 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir DEGRAUS DO CÉU">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="degraus-da-salvacao.html" target="_blank" class="game-launch">DEGRAUS DO CÉU</a></h2>
                 <p class="game-desc">Quiz bíblico em 3D em que cada acerto leva o personagem escada acima rumo ao Céu, e cada erro o faz descer ao Inferno, ganhando chifres e rabo.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="degraus-da-salvacao.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 7: FORMAÇOES 3D                       -->
         <!-- ========================================== -->
-        <a href="Formacoes3D.html" class="game-card" target="_blank">
+        <!-- JOGO 7: FORMAÇÕES 3D                       -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="formacoes-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="Capaformacoes.png" alt="FORMAÇOES 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="Formacoes3D.html" target="_blank" class="game-launch">
+                    <img src="Capaformacoes.png" alt="FORMAÇOES 3D" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">FORMAÇOES 3D</span>
-                <h2 class="game-title">FORMAÇOES</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">FORMAÇOES 3D</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir FORMAÇÕES">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="Formacoes3D.html" target="_blank" class="game-launch">FORMAÇÕES</a></h2>
                 <p class="game-desc">Numa cidade compacta e viva, você alterna entre policial, bombeiro e gamer para prender suspeitos, apagar incêndios, resgatar um gato e vencer o desafio do quarto gamer.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="Formacoes3D.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	
-	<!-- ========================================== -->
-        <!-- JOGO 8: APEX GT 3D - Racing                       -->
         <!-- ========================================== -->
-        <a href="APEX GT 3D - Racing.html" class="game-card" target="_blank">
+        <!-- JOGO 8: APEX GT 3D - RACING                -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="apex-gt-3d">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="apexgt.png" alt="APEX GT 3D - Racing" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="APEX GT 3D - Racing.html" target="_blank" class="game-launch">
+                    <img src="apexgt.png" alt="APEX GT 3D - Racing" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">APEX GT 3D - Racing</span>
-                <h2 class="game-title">APEX GT 3D</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">APEX GT 3D - Racing</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir APEX GT 3D">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="APEX GT 3D - Racing.html" target="_blank" class="game-launch">APEX GT 3D</a></h2>
                 <p class="game-desc">Domine curvas desafiadoras sob sol ou chuva, customize cada detalhe do seu bólido e acelere rumo à vitória no Campeonato GT.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="APEX GT 3D - Racing.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 9: Core Defender                       -->
         <!-- ========================================== -->
-        <a href="core_defender.html" class="game-card" target="_blank">
+        <!-- JOGO 9: CORE DEFENDER                      -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="core-defender">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="coredefender.png" alt="Core Defender" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="core_defender.html" target="_blank" class="game-launch">
+                    <img src="coredefender.png" alt="Core Defender" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Core Defender</span>
-                <h2 class="game-title">Core Defender</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Core Defender</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Core Defender">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="core_defender.html" target="_blank" class="game-launch">Core Defender</a></h2>
                 <p class="game-desc">Core Defender — Assuma o comando em uma intensa batalha de sobrevivência, enfrente ondas de inimigos e defenda sua posição em uma experiência de ação e estratégia.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="core_defender.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 10: Bridge Guardian: Endless Stages                       -->
         <!-- ========================================== -->
-        <a href="guardian.html" class="game-card" target="_blank">
+        <!-- JOGO 10: BRIDGE GUARDIAN: ENDLESS STAGES   -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="bridge-guardian">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="guardian.png" alt="Bridge Guardian: Endless Stages" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="guardian.html" target="_blank" class="game-launch">
+                    <img src="guardian.png" alt="Bridge Guardian: Endless Stages" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Bridge Guardian: Endless Stages</span>
-                <h2 class="game-title">Bridge Guardian: Endless Stages</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Bridge Guardian: Endless Stages</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Bridge Guardian: Endless Stages">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="guardian.html" target="_blank" class="game-launch">Bridge Guardian: Endless Stages</a></h2>
                 <p class="game-desc">Defenda o portão da base em fases infinitas destruindo hordas de zumbis, monstros e chefes na única ponte sobre o magma enquanto estoura barris rolantes para desbloquear armas potentes.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="guardian.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 11 Aether Vanguard                       -->
         <!-- ========================================== -->
-        <a href="vanguard.html" class="game-card" target="_blank">
+        <!-- JOGO 11: AETHER VANGUARD                   -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="aether-vanguard">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="vanguard.png" alt="Aether Vanguard" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="vanguard.html" target="_blank" class="game-launch">
+                    <img src="vanguard.png" alt="Aether Vanguard" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Aether Vanguard</span>
-                <h2 class="game-title">Aether Vanguard</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Aether Vanguard</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Aether Vanguard">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="vanguard.html" target="_blank" class="game-launch">Aether Vanguard</a></h2>
                 <p class="game-desc">Pilote a Aether Vanguard em ondas infinitas de enxames espaciais e naves-mãe, evoluindo seu armamento enquanto manobra sob fogo intenso no espaço profundo.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="vanguard.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
-	<!-- ========================================== -->
-        <!-- JOGO 12 Duelo de arqueiros                       -->
         <!-- ========================================== -->
-        <a href="arrow.html" class="game-card" target="_blank">
+        <!-- JOGO 12: DUELO DE ARQUEIROS                -->
+        <!-- ========================================== -->
+        <div class="game-card" data-game-id="duelo-de-arqueiros">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="arrow.png" alt="Duelo de arqueiros" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="arrow.html" target="_blank" class="game-launch">
+                    <img src="arrow.png" alt="Duelo de arqueiros" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Duelo de arqueiros</span>
-                <h2 class="game-title">Duelo de arqueiros</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Duelo de arqueiros</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Duelo de arqueiros">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="arrow.html" target="_blank" class="game-launch">Duelo de arqueiros</a></h2>
                 <p class="game-desc">Duelo de arqueiros em cenários medievais com vento variável, munição de flechas e armas especiais, e trolagens caóticas contra o rival.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="arrow.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
 
 	<!-- ========================================== -->
-        <!-- JOGO 13 Robin Hood                       -->
+        <!-- JOGO 13: Robin Hood                -->
         <!-- ========================================== -->
-        <a href="RobinHood.html" class="game-card" target="_blank">
+        <div class="game-card" data-game-id="duelo-de-arqueiros">
             <div class="game-image">
                 <span class="status-badge new">Novo</span>
-                <img src="RobinHood.png" alt="Robin Hood" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <span class="placeholder" style="display:none;">🔫</span>
+                <a href="RobinHood.html" target="_blank" class="game-launch">
+                    <img src="RobinHood.png" alt="Robin Hood" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <span class="placeholder" style="display:none;">🔫</span>
+                </a>
             </div>
             <div class="game-content">
-                <span class="game-genre" style="color: #a855f7;">Robin Hood</span>
-                <h2 class="game-title">Robin Hood</h2>
+                <div class="game-top-row">
+                    <span class="game-genre" style="color: #a855f7;">Robin Hood</span>
+                    <div class="game-stats">
+                        <span class="views-pill" title="Visualizações deste jogo">
+                            <span>👁️</span>
+                            <span class="view-count">0</span>
+                        </span>
+                        <button type="button" class="like-btn" aria-label="Curtir Robin Hood">
+                            <span class="like-icon">♥</span>
+                            <span class="like-count">0</span>
+                        </button>
+                    </div>
+                </div>
+                <h2 class="game-title"><a href="RobinHood.html" target="_blank" class="game-launch">Robin Hood</a></h2>
                 <p class="game-desc">Em uma janela clássica do Windows 3.1, um arqueiro ao estilo Robin Hood enfrenta balões, bolhas desviadoras, slimes e o temido Black Archer ao longo de cinco fases onde cada flecha conta.</p>
-                <span class="play-btn" style="background: linear-gradient(90deg, #a855f7, #6366f1);">Jogar Agora</span>
+                <a href="RobinHood.html" class="play-btn game-launch" style="background: linear-gradient(90deg, #a855f7, #6366f1);" target="_blank">Jogar Agora</a>
             </div>
-        </a>
+        </div>
+
         <!-- ========================================== -->
         <!-- ADICIONE NOVOS JOGOS AQUI COPIANDO O BLOCO ACIMA -->
         <!-- ========================================== -->
@@ -620,6 +906,136 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        (function () {
+            const NAMESPACE = 'antoniomotajr-gamedevhub';
+            const API_BASE = 'https://api.counterapi.dev/v1/' + NAMESPACE;
+            const LOCAL_KEY = 'game_dev_hub_metrics_v1';
+
+            function loadLocal() {
+                try {
+                    return JSON.parse(localStorage.getItem(LOCAL_KEY)) || { pageViews: 0, liked: {}, views: {}, likes: {} };
+                } catch (e) {
+                    return { pageViews: 0, liked: {}, views: {}, likes: {} };
+                }
+            }
+
+            function saveLocal(data) {
+                try {
+                    localStorage.setItem(LOCAL_KEY, JSON.stringify(data));
+                } catch (e) {}
+            }
+
+            async function hitCounter(key) {
+                const res = await fetch(API_BASE + '/' + encodeURIComponent(key) + '/up');
+                if (!res.ok) throw new Error('API error');
+                const json = await res.json();
+                return typeof json.count === 'number' ? json.count : 0;
+            }
+
+            async function getCounter(key) {
+                const res = await fetch(API_BASE + '/' + encodeURIComponent(key));
+                if (!res.ok) throw new Error('API error');
+                const json = await res.json();
+                return typeof json.count === 'number' ? json.count : 0;
+            }
+
+            const localData = loadLocal();
+
+            // 1. Visualizações totais da página
+            const pageViewsEl = document.getElementById('page-views-count');
+            hitCounter('hub-page-views')
+                .then(function (count) {
+                    localData.pageViews = count;
+                    saveLocal(localData);
+                    if (pageViewsEl) pageViewsEl.textContent = count.toLocaleString('pt-BR');
+                })
+                .catch(function () {
+                    localData.pageViews = (localData.pageViews || 0) + 1;
+                    saveLocal(localData);
+                    if (pageViewsEl) pageViewsEl.textContent = localData.pageViews.toLocaleString('pt-BR');
+                });
+
+            // 2. Visualizações e Likes por jogo
+            document.querySelectorAll('.game-card[data-game-id]').forEach(function (card) {
+                const gameId = card.getAttribute('data-game-id');
+                const viewCountEl = card.querySelector('.view-count');
+                const likeBtn = card.querySelector('.like-btn');
+                const likeCountEl = card.querySelector('.like-count');
+
+                // Carregar visualizações do jogo
+                if (viewCountEl) {
+                    viewCountEl.textContent = localData.views[gameId] || 0;
+                    getCounter('view-' + gameId)
+                        .then(function (count) {
+                            localData.views[gameId] = count;
+                            saveLocal(localData);
+                            viewCountEl.textContent = count;
+                        })
+                        .catch(function () {});
+                }
+
+                // Incrementar visualização ao abrir o jogo
+                card.querySelectorAll('.game-launch').forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        const optimistic = (localData.views[gameId] || 0) + 1;
+                        localData.views[gameId] = optimistic;
+                        saveLocal(localData);
+                        if (viewCountEl) viewCountEl.textContent = optimistic;
+
+                        hitCounter('view-' + gameId)
+                            .then(function (count) {
+                                localData.views[gameId] = count;
+                                saveLocal(localData);
+                                if (viewCountEl) viewCountEl.textContent = count;
+                            })
+                            .catch(function () {});
+                    });
+                });
+
+                // Carregar likes do jogo
+                if (likeBtn && likeCountEl) {
+                    const isLiked = Boolean(localData.liked[gameId]);
+                    likeBtn.classList.toggle('liked', isLiked);
+                    likeBtn.setAttribute('aria-pressed', String(isLiked));
+                    likeCountEl.textContent = localData.likes[gameId] || 0;
+
+                    getCounter('like-' + gameId)
+                        .then(function (count) {
+                            localData.likes[gameId] = count;
+                            saveLocal(localData);
+                            likeCountEl.textContent = count;
+                        })
+                        .catch(function () {});
+
+                    likeBtn.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (localData.liked[gameId]) return; // Evita múltiplos likes do mesmo navegador
+
+                        localData.liked[gameId] = true;
+                        const optimisticLikes = (localData.likes[gameId] || 0) + 1;
+                        localData.likes[gameId] = optimisticLikes;
+                        saveLocal(localData);
+
+                        likeBtn.classList.add('liked');
+                        likeBtn.setAttribute('aria-pressed', 'true');
+                        likeCountEl.textContent = optimisticLikes;
+
+                        hitCounter('like-' + gameId)
+                            .then(function (count) {
+                                localData.likes[gameId] = count;
+                                saveLocal(localData);
+                                likeCountEl.textContent = count;
+                            })
+                            .catch(function () {});
+                    });
+                }
+            });
+        })();
+    </script>
 
 </body>
 </html>
