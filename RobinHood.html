@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bow and Arrow - Windows 3.1 (1992) Clone</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #008080; /* Classic Windows 3.1 Desktop Teal */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-family: "MS Sans Serif", Tahoma, Verdana, sans-serif;
+    }
+
+    /* Moldura clássica de janela Windows 3.1 */
+    .win31-window {
+      background-color: #C0C0C0;
+      border-top: 2px solid #FFFFFF;
+      border-left: 2px solid #FFFFFF;
+      border-right: 2px solid #000000;
+      border-bottom: 2px solid #000000;
+      box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #DFDFDF, 6px 6px 0 rgba(0, 0, 0, 0.35);
+      padding: 3px;
+      display: flex;
+      flex-direction: column;
+      max-width: 98vw;
+      max-height: 98vh;
+    }
+
+    canvas {
+      display: block;
+      width: 960px;
+      height: 600px;
+      max-width: calc(98vw - 10px);
+      max-height: calc(98vh - 10px);
+      aspect-ratio: 960 / 600;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <div class="win31-window">
+    <canvas id="gameCanvas" width="960" height="600"></canvas>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * BOW AND ARROW (Windows 3.1, 1992) - CLONE EM HTML5 CANVAS & JS PURO
+     * ============================================================================
+     */
+
+    (() => {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Mantém pixels nítidos sem suavização
+      ctx.imageSmoothingEnabled = false;
+
+      // Dimensões lógicas fixas
+      const W = 960;
+      const H = 600;
+
+      // Layout inspirado na captura do Bow and Arrow no Windows 3.1
+      const UI = {
+        TITLE_H: 26,
+        MENU_H: 22,
+        HUD_H: 64,
+        STATUS_H: 30,
+        get PLAY_TOP() { return this.TITLE_H + this.MENU_H + this.HUD_H; },
+        get PLAY_BOTTOM() { return H - this.STATUS_H; },
+        get PLAY_H() { return this.PLAY_BOTTOM - this.PLAY_TOP; }
+      };
+
+      // Paleta Clássica Windows 3.1 / EGA
+      const PALETTE = {
+        BLACK: '#000000',
+        WHITE: '#FFFFFF',
+        GRAY_LIGHT: '#C0C0C0',
+        GRAY_DARK: '#808080',
+        WIN_BLUE: '#000080',
+        BG_GREEN: '#00AA00',
+        DARK_GREEN: '#006600',
+        RED: '#FF0000',
+        DARK_RED: '#AA0000',
+        YELLOW: '#FFFF00',
+        GOLD: '#FFAA00',
+        CYAN: '#00FFFF',
+        BLUE: '#0000FF',
+        SKIN: '#FFCC99',
+        BROWN: '#884400',
+        MAGENTA: '#FF00FF'
+      };
+
+      // ==========================================================================
+      // 1. SINTETIZADOR DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+      // ==========================================================================
+      class SoundFX {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+        }
+
+        init() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+          }
+        }
+
+        playShoot(power = 1) {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          const startFreq = 420 + power * 260;
+          osc.frequency.setValueAtTime(startFreq, now);
+          osc.frequency.exponentialRampToValueAtTime(95, now + 0.16);
+
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        }
+
+        playPop(isBonus = false) {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.09);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(isBonus ? 1400 : 900, now);
+          filter.Q.value = 1.2;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.32, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+
+          if (isBonus) {
+            this.playTone(880, 0.08, 'square', 0.12, 0.04);
+            this.playTone(1320, 0.12, 'square', 0.12, 0.10);
+          }
+        }
+
+        playDeflect() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(980, now + 0.08);
+          osc.frequency.exponentialRampToValueAtTime(320, now + 0.16);
+
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        }
+
+        playLevelClear() {
+          if (this.muted || !this.ctx) return;
+          const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+          notes.forEach((freq, idx) => {
+            this.playTone(freq, 0.11, 'square', 0.14, idx * 0.075);
+          });
+        }
+
+        playVictory() {
+          if (this.muted || !this.ctx) return;
+          const melody = [
+            { f: 392.00, d: 0.12, t: 0.00 },
+            { f: 523.25, d: 0.12, t: 0.13 },
+            { f: 659.25, d: 0.12, t: 0.26 },
+            { f: 783.99, d: 0.24, t: 0.39 },
+            { f: 659.25, d: 0.12, t: 0.65 },
+            { f: 1046.50, d: 0.45, t: 0.78 }
+          ];
+          melody.forEach(n => this.playTone(n.f, n.d, 'square', 0.16, n.t));
+        }
+
+        playGameOver() {
+          if (this.muted || !this.ctx) return;
+          const notes = [220, 196, 174.61, 146.83, 110];
+          notes.forEach((freq, idx) => {
+            this.playTone(freq, 0.22, 'sawtooth', 0.15, idx * 0.18);
+          });
+        }
+
+        playTone(freq, duration, type = 'square', volume = 0.15, delay = 0) {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + duration + 0.01);
+        }
+      }
+
+      const sfx = new SoundFX();
+
+      // ==========================================================================
+      // 2. MATRIZES DE PIXELS E SPRITE DO ARQUEIRO CONFORME FOTO ANEXA
+      // ==========================================================================
+      function drawPixelMatrix(matrix, colorMap, x, y, scale = 3, flipX = false) {
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+        const startX = Math.round(x);
+        const startY = Math.round(y);
+
+        for (let r = 0; r < rows; r++) {
+          const rowStr = matrix[r];
+          for (let c = 0; c < cols; c++) {
+            const ch = rowStr[c];
+            if (ch === '.' || !colorMap[ch]) continue;
+            ctx.fillStyle = colorMap[ch];
+            const drawC = flipX ? (cols - 1 - c) : c;
+            ctx.fillRect(startX + drawC * scale, startY + r * scale, scale, scale);
+          }
+        }
+      }
+
+      // Sprite 24x26 fiel à imagem de referência:
+      // - Pena vermelha longa e curva à esquerda (R)
+      // - Chapéu verde com contorno preto (H / D / K)
+      // - Cabelo loiro (L) e rosto claro com contorno (S / W / K)
+      // - Túnica castanha/alaranjada (B / O), calções verdes (G) e botas verdes (G / D)
+      // - Aljava com pontas de flechas nas costas (Q / M)
+      const ARCHER_MATRIX = [
+        '.....KKKKKKKK...........',
+        '...KKRRRRRRRRKK.........',
+        '.KKRRRRRRRRRRKKKK.......',
+        'KKRRRRRRRRRKKHHHHKK.....',
+        '.KKRRRRRRKKHHHHHHHHKK...',
+        '...KKKKKKKHHHHHHHHHHKK..',
+        '........KKHHHHHHHHHHHHKK',
+        '.......KKKHHHHHHHHHHHHKK',
+        '......KKLLKKKKKKKKKKKKKK',
+        '.....KKLLLLLLLLSSSSSSSSK',
+        '.....KKLLLLLLSSSKSSSSSSK',
+        '......KKLLLLLSSSSSSSSSSK',
+        '.......KKKLLLSSWSSSSSSSK',
+        '..........KKKKKKKKKSSSSK',
+        '......KKK.KBBBBBBBBKKKK.',
+        '.....KMMKKKBBBBBOOBBBK..',
+        '.....KMMKBBBBBBBBBBOBBK.',
+        '.....KQQKBBBBBBBBBBBBBK.',
+        '......KQQKKKBBBBBBBBKK..',
+        '.......KQQKKGGGGGGGGKK..',
+        '.........KKGGGGKGGGGKK..',
+        '.........KGGGGK..KGGGGK.',
+        '.........KGGGGK...KGGGGK',
+        '.......KKKGGGGK...KGGGGK',
+        '.....KKGGGGGGGKKKKGGGGGG',
+        '.....KKKKKKKKKKKKKKKKKKK'
+      ];
+
+      const PLAYER_PALETTE = {
+        K: '#000000', // Contorno preto clássico
+        R: '#CC2211', // Pena vermelha da foto
+        H: '#18A828', // Chapéu verde claro
+        D: '#007711', // Sombra verde
+        L: '#F5E050', // Cabelo loiro
+        S: '#FFD8A8', // Rosto / pele
+        W: '#E0A870', // Sombra facial / nariz
+        B: '#A85A28', // Túnica castanha/alaranjada
+        O: '#7A3B12', // Detalhe/dobra castanha
+        G: '#12B022', // Calções e botas verdes
+        Q: '#663311', // Aljava marrom
+        M: '#444444'  // Pontas de flecha na aljava
+      };
+
+      const ENEMY_PALETTE = {
+        K: '#000000',
+        R: '#FF2222',
+        H: '#2A2A2A',
+        D: '#111111',
+        L: '#AA2222',
+        S: '#DDA880',
+        W: '#996644',
+        B: '#383838',
+        O: '#1D1D1D',
+        G: '#441111',
+        Q: '#220000',
+        M: '#CCCCCC'
+      };
+
+      const SLIME_MATRIX = [
+        '.....MMMM.....',
+        '...MMMMMMMM...',
+        '..MMMMMMMMMM..',
+        '.MMMMMMMMMMMM.',
+        '.MMWWMMMMWWMM.',
+        '.MMWKMMMMWKMM.',
+        'MMMMMMMMMMMMMM',
+        'MMMMMMMMMMMMMM',
+        'MMKMMMMMMMMKMM',
+        'MMMKKKKKKKKMMM',
+        'MMMMMMMMMMMMMM',
+        '.MMMMMMMMMMMM.',
+        '..MM.MMMM.MM..'
+      ];
+
+      // ==========================================================================
+      // 3. ESTADO GLOBAL DO JOGO E CONFIGURAÇÃO DE FASES
+      // ==========================================================================
+      const STATES = {
+        MENU: 'MENU',
+        PLAYING: 'PLAYING',
+        LEVEL_CLEAR: 'LEVEL_CLEAR',
+        GAME_OVER: 'GAME_OVER',
+        VICTORY: 'VICTORY'
+      };
+
+      const LEVEL_INFO = [
+        { id: 1, name: 'Target Practice', subtitle: 'Estoure todos os 15 balões vermelhos!' },
+        { id: 2, name: 'Speed & Bonus', subtitle: 'Balões rápidos e 2 bônus (+3 flechas)!' },
+        { id: 3, name: 'Bubbles', subtitle: 'Bolhas desviam flechas! Mire com precisão.' },
+        { id: 4, name: 'Slimes', subtitle: 'Alvos ágeis em movimento senoidal!' },
+        { id: 5, name: 'Black Archer', subtitle: 'Duelo final! Vença o Arqueiro Negro (5 HP)!' }
+      ];
+
+      const STORAGE_KEY = 'bow_and_arrow_win31_highscore';
+
+      const game = {
+        state: STATES.MENU,
+        score: 0,
+        highScore: parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10),
+        level: 1,
+        maxLevels: 5,
+        arrowsLeft: 15,
+        totalTargets: 15,
+        poppedTargets: 0,
+        stateTimer: 0,
+        levelBannerTimer: 0,
+        lastTime: 0
+      };
+
+      function getRemainingTargets() {
+        if (game.level === 5) {
+          return boss ? Math.max(0, boss.hp) : 0;
+        }
+        return targets.length;
+      }
+
+      function saveHighScore() {
+        if (game.score > game.highScore) {
+          game.highScore = game.score;
+          localStorage.setItem(STORAGE_KEY, String(game.highScore));
+        }
+      }
+
+      // ==========================================================================
+      // 4. ENTIDADES DO JOGO
+      // ==========================================================================
+      const player = {
+        x: 72,
+        y: UI.PLAY_TOP + UI.PLAY_H / 2,
+        speed: 380,
+        isCharging: false,
+        charge: 0,
+        maxChargeTime: 0.55,
+        cooldown: 0,
+        cooldownDuration: 0.22,
+        alive: true,
+        hitFlash: 0
+      };
+
+      let arrows = [];
+      let enemyArrows = [];
+      let targets = [];
+      let bubbles = [];
+      let particles = [];
+      let floatingTexts = [];
+      let boss = null;
+
+      const input = {
+        up: false,
+        down: false,
+        space: false,
+        mouseDown: false,
+        mouseY: player.y,
+        useMouseY: false
+      };
+
+      // ==========================================================================
+      // 5. CONSTRUÇÃO DE CADA NÍVEL (1 A 5)
+      // ==========================================================================
+      function startNewGame() {
+        game.score = 0;
+        game.level = 1;
+        loadLevel(1);
+        game.state = STATES.PLAYING;
+      }
+
+      function loadLevel(lvl) {
+        game.level = lvl;
+        game.arrowsLeft = 15;
+        game.poppedTargets = 0;
+        game.levelBannerTimer = 2.0;
+        arrows = [];
+        enemyArrows = [];
+        targets = [];
+        bubbles = [];
+        particles = [];
+        floatingTexts = [];
+        boss = null;
+
+        player.alive = true;
+        player.hitFlash = 0;
+        player.isCharging = false;
+        player.charge = 0;
+        player.cooldown = 0.15;
+
+        const playTop = UI.PLAY_TOP + 28;
+        const playBottom = UI.PLAY_BOTTOM - 28;
+        const playSpan = playBottom - playTop;
+
+        if (lvl === 1) {
+          // 15 balões vermelhos alinhados como na captura
+          const count = 15;
+          const startX = 365;
+          const spacingX = 34;
+          const rowY = UI.PLAY_TOP + 54;
+          for (let i = 0; i < count; i++) {
+            targets.push({
+              type: 'balloon',
+              variant: 'red',
+              x: startX + i * spacingX,
+              y: rowY,
+              rx: 12,
+              ry: 15,
+              vy: -70,
+              vx: 0,
+              points: 100,
+              bonusArrows: 0,
+              phase: i * 0.35
+            });
+          }
+          game.totalTargets = targets.length;
+        } else if (lvl === 2) {
+          const count = 14;
+          const bonusIndices = new Set([4, 10]);
+          for (let i = 0; i < count; i++) {
+            const isBonus = bonusIndices.has(i);
+            const isYellow = !isBonus && (i % 2 === 1);
+            const dir = (i % 3 === 0) ? 1 : -1;
+            const speed = isBonus ? 145 : (isYellow ? 155 : 92);
+
+            targets.push({
+              type: 'balloon',
+              variant: isBonus ? 'bonus' : (isYellow ? 'yellow' : 'red'),
+              x: 440 + i * 33,
+              y: playTop + ((i * 57) % playSpan),
+              rx: 12,
+              ry: 15,
+              vy: speed * dir,
+              vx: 0,
+              points: isBonus ? 250 : (isYellow ? 150 : 100),
+              bonusArrows: isBonus ? 3 : 0,
+              phase: i * 0.6
+            });
+          }
+          game.totalTargets = targets.length;
+        } else if (lvl === 3) {
+          const balloonCount = 12;
+          for (let i = 0; i < balloonCount; i++) {
+            const col = i % 3;
+            const row = Math.floor(i / 3);
+            targets.push({
+              type: 'balloon',
+              variant: i % 2 === 0 ? 'red' : 'yellow',
+              x: 620 + col * 88,
+              y: playTop + 34 + row * 105,
+              rx: 12,
+              ry: 15,
+              vy: (col % 2 === 0 ? -1 : 1) * (88 + col * 22),
+              vx: 0,
+              points: 150,
+              bonusArrows: 0,
+              phase: i * 0.5
+            });
+          }
+          game.totalTargets = targets.length;
+
+          const bubbleCount = 14;
+          for (let i = 0; i < bubbleCount; i++) {
+            const layer = i % 2;
+            bubbles.push({
+              x: 430 + layer * 115 + (i % 3) * 16,
+              y: playTop + ((i * 63) % playSpan),
+              r: 20,
+              vy: (layer === 0 ? -72 : 82),
+              wobblePhase: i * 0.9
+            });
+          }
+        } else if (lvl === 4) {
+          const slimeCount = 12;
+          for (let i = 0; i < slimeCount; i++) {
+            const baseX = 510 + (i % 4) * 95;
+            const baseY = playTop + 44 + Math.floor(i / 4) * 135;
+            targets.push({
+              type: 'slime',
+              variant: 'slime',
+              x: baseX,
+              y: baseY,
+              baseX: baseX,
+              baseY: baseY,
+              rx: 14,
+              ry: 13,
+              vy: (i % 2 === 0 ? 1 : -1) * 105,
+              vx: 0,
+              ampX: 45 + (i % 3) * 14,
+              freqX: 2.6 + (i % 4) * 0.45,
+              points: 200,
+              bonusArrows: 0,
+              phase: i * 0.85
+            });
+          }
+          game.totalTargets = targets.length;
+        } else if (lvl === 5) {
+          game.arrowsLeft = 20;
+          boss = {
+            x: W - 75,
+            y: UI.PLAY_TOP + UI.PLAY_H / 2,
+            hp: 5,
+            maxHp: 5,
+            speed: 220,
+            reactionDelay: 0.24,
+            delayedTargetY: player.y,
+            delayTimer: 0,
+            shootCooldown: 1.35,
+            charge: 0,
+            isCharging: false,
+            hitFlash: 0,
+            strafePhase: 0
+          };
+          game.totalTargets = boss.maxHp;
+        }
+      }
+
+      // ==========================================================================
+      // 6. MECÂNICA DE DISPARO E PARTÍCULAS
+      // ==========================================================================
+      function firePlayerArrow() {
+        if (game.arrowsLeft <= 0 || player.cooldown > 0 || !player.alive) return;
+
+        const power = Math.max(0.25, player.charge);
+        const speed = 580 + power * 400;
+
+        arrows.push({
+          x: player.x + 36,
+          y: player.y - 6,
+          vx: speed,
+          vy: 0,
+          length: 36,
+          deflected: false,
+          active: true
+        });
+
+        game.arrowsLeft--;
+        player.isCharging = false;
+        player.charge = 0;
+        player.cooldown = player.cooldownDuration;
+        sfx.playShoot(power);
+      }
+
+      function spawnPopParticles(x, y, color, count = 14) {
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+          const speed = 65 + Math.random() * 170;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 0.28 + Math.random() * 0.18,
+            maxLife: 0.45,
+            color,
+            size: 2 + Math.floor(Math.random() * 2)
+          });
+        }
+      }
+
+      function spawnFloatingText(x, y, text, color = PALETTE.WHITE) {
+        floatingTexts.push({
+          x,
+          y,
+          text,
+          color,
+          life: 0.9
+        });
+      }
+
+      // ==========================================================================
+      // 7. ATUALIZAÇÃO DA LÓGICA (UPDATE COM DELTATIME)
+      // ==========================================================================
+      function update(dt) {
+        if (game.levelBannerTimer > 0) {
+          game.levelBannerTimer = Math.max(0, game.levelBannerTimer - dt);
+        }
+
+        if (game.state === STATES.LEVEL_CLEAR) {
+          game.stateTimer -= dt;
+          updateParticles(dt);
+          if (game.stateTimer <= 0) {
+            if (game.level < game.maxLevels) {
+              loadLevel(game.level + 1);
+              game.state = STATES.PLAYING;
+            } else {
+              saveHighScore();
+              game.state = STATES.VICTORY;
+              sfx.playVictory();
+            }
+          }
+          return;
+        }
+
+        if (game.state !== STATES.PLAYING) {
+          updateParticles(dt);
+          return;
+        }
+
+        if (player.cooldown > 0) {
+          player.cooldown = Math.max(0, player.cooldown - dt);
+        }
+        if (player.hitFlash > 0) {
+          player.hitFlash = Math.max(0, player.hitFlash - dt);
+        }
+
+        const minY = UI.PLAY_TOP + 34;
+        const maxY = UI.PLAY_BOTTOM - 34;
+
+        if (input.up || input.down) {
+          input.useMouseY = false;
+          if (input.up) player.y -= player.speed * dt;
+          if (input.down) player.y += player.speed * dt;
+        } else if (input.useMouseY) {
+          const smooth = 1 - Math.exp(-18 * dt);
+          player.y += (input.mouseY - player.y) * smooth;
+        }
+        player.y = Math.max(minY, Math.min(maxY, player.y));
+
+        const wantsCharge = (input.mouseDown || input.space) && game.arrowsLeft > 0 && player.cooldown <= 0;
+        if (wantsCharge) {
+          player.isCharging = true;
+          player.charge = Math.min(1, player.charge + dt / player.maxChargeTime);
+        } else if (player.isCharging) {
+          firePlayerArrow();
+        }
+
+        for (const b of bubbles) {
+          b.wobblePhase += dt * 3;
+          b.y += b.vy * dt;
+          if (b.y < UI.PLAY_TOP + b.r + 4) {
+            b.y = UI.PLAY_TOP + b.r + 4;
+            b.vy = Math.abs(b.vy);
+          } else if (b.y > UI.PLAY_BOTTOM - b.r - 4) {
+            b.y = UI.PLAY_BOTTOM - b.r - 4;
+            b.vy = -Math.abs(b.vy);
+          }
+        }
+
+        for (const t of targets) {
+          t.phase += dt;
+          if (t.type === 'balloon') {
+            t.y += t.vy * dt;
+            if (t.vy < 0 && t.y < UI.PLAY_TOP - t.ry) {
+              t.y = UI.PLAY_BOTTOM + t.ry;
+            } else if (t.vy > 0 && t.y > UI.PLAY_BOTTOM + t.ry) {
+              t.y = UI.PLAY_TOP - t.ry;
+            }
+          } else if (t.type === 'slime') {
+            t.y += t.vy * dt;
+            if (t.y < UI.PLAY_TOP + 20) {
+              t.y = UI.PLAY_TOP + 20;
+              t.vy = Math.abs(t.vy);
+            } else if (t.y > UI.PLAY_BOTTOM - 20) {
+              t.y = UI.PLAY_BOTTOM - 20;
+              t.vy = -Math.abs(t.vy);
+            }
+            t.x = t.baseX + Math.sin(t.phase * t.freqX) * t.ampX;
+          }
+        }
+
+        if (boss) {
+          if (boss.hitFlash > 0) boss.hitFlash = Math.max(0, boss.hitFlash - dt);
+          boss.strafePhase += dt * 2.2;
+
+          boss.delayTimer += dt;
+          if (boss.delayTimer >= boss.reactionDelay) {
+            boss.delayTimer = 0;
+            boss.delayedTargetY = player.y + Math.sin(boss.strafePhase) * 32;
+          }
+
+          const diffY = boss.delayedTargetY - boss.y;
+          if (Math.abs(diffY) > 4) {
+            boss.y += Math.sign(diffY) * Math.min(Math.abs(diffY), boss.speed * dt);
+          }
+          boss.y = Math.max(minY, Math.min(maxY, boss.y));
+
+          boss.shootCooldown -= dt;
+          if (boss.shootCooldown <= 0.45 && boss.shootCooldown > 0) {
+            boss.isCharging = true;
+            boss.charge = Math.min(1, (0.45 - boss.shootCooldown) / 0.45);
+          } else if (boss.shootCooldown <= 0) {
+            boss.isCharging = false;
+            boss.charge = 0;
+            boss.shootCooldown = 1.25 + Math.random() * 0.65;
+            enemyArrows.push({
+              x: boss.x - 36,
+              y: boss.y - 6,
+              vx: -(600 + Math.random() * 150),
+              vy: 0,
+              length: 36,
+              active: true
+            });
+            sfx.playShoot(0.6);
+          }
+        }
+
+        for (const a of arrows) {
+          if (!a.active) continue;
+
+          if (a.deflected) {
+            a.vy += 680 * dt;
+          }
+
+          a.x += a.vx * dt;
+          a.y += a.vy * dt;
+
+          const tipX = a.x + a.length;
+          const tipY = a.y;
+
+          if (a.x > W + 30 || a.y > UI.PLAY_BOTTOM + 20 || a.y < UI.PLAY_TOP - 30) {
+            a.active = false;
+            continue;
+          }
+
+          for (const ea of enemyArrows) {
+            if (!ea.active) continue;
+            const enemyTipX = ea.x - ea.length;
+            const enemyTipY = ea.y;
+            if (Math.abs(tipX - enemyTipX) < 18 && Math.abs(tipY - enemyTipY) < 11) {
+              a.active = false;
+              ea.active = false;
+              spawnPopParticles((tipX + enemyTipX) / 2, tipY, PALETTE.YELLOW, 12);
+              spawnFloatingText(tipX, tipY - 12, 'CLASH! +50', PALETTE.YELLOW);
+              game.score += 50;
+              saveHighScore();
+              sfx.playDeflect();
+              break;
+            }
+          }
+          if (!a.active) continue;
+
+          if (!a.deflected) {
+            for (const b of bubbles) {
+              const dx = tipX - b.x;
+              const dy = tipY - b.y;
+              if (dx * dx + dy * dy <= b.r * b.r) {
+                a.deflected = true;
+                a.vx *= 0.45;
+                a.vy = 240;
+                spawnPopParticles(tipX, tipY, PALETTE.CYAN, 6);
+                sfx.playDeflect();
+                break;
+              }
+            }
+          }
+
+          for (let i = targets.length - 1; i >= 0; i--) {
+            const t = targets[i];
+            const dx = (tipX - t.x) / t.rx;
+            const dy = (tipY - t.y) / t.ry;
+            if (dx * dx + dy * dy <= 1.0) {
+              targets.splice(i, 1);
+              game.poppedTargets++;
+              game.score += t.points;
+
+              if (t.bonusArrows > 0) {
+                game.arrowsLeft += t.bonusArrows;
+                spawnFloatingText(t.x, t.y - 10, `+${t.bonusArrows} ARROWS!`, PALETTE.CYAN);
+              } else {
+                spawnFloatingText(t.x, t.y - 10, `+${t.points}`, PALETTE.WHITE);
+              }
+
+              const popColor =
+                t.variant === 'bonus' ? PALETTE.CYAN :
+                t.variant === 'yellow' ? PALETTE.YELLOW :
+                t.variant === 'slime' ? PALETTE.MAGENTA : PALETTE.RED;
+
+              spawnPopParticles(t.x, t.y, popColor, 16);
+              sfx.playPop(t.bonusArrows > 0);
+              saveHighScore();
+              break;
+            }
+          }
+
+          if (boss && boss.hp > 0) {
+            const hitBoxX = Math.abs(tipX - boss.x) <= 22;
+            const hitBoxY = Math.abs(tipY - boss.y) <= 32;
+            if (hitBoxX && hitBoxY) {
+              a.active = false;
+              boss.hp--;
+              game.poppedTargets++;
+              boss.hitFlash = 0.25;
+              game.score += 300;
+              saveHighScore();
+              spawnPopParticles(tipX, tipY, PALETTE.RED, 18);
+              spawnFloatingText(boss.x - 24, boss.y - 32, boss.hp > 0 ? 'HIT! +300' : 'DEFEATED!', PALETTE.YELLOW);
+              sfx.playPop(true);
+
+              if (boss.hp <= 0) {
+                spawnPopParticles(boss.x, boss.y, PALETTE.WHITE, 30);
+                boss = null;
+              }
+            }
+          }
+        }
+
+        for (const ea of enemyArrows) {
+          if (!ea.active) continue;
+          ea.x += ea.vx * dt;
+          const tipX = ea.x - ea.length;
+          const tipY = ea.y;
+
+          if (tipX < -30) {
+            ea.active = false;
+            continue;
+          }
+
+          if (Math.abs(tipX - player.x) <= 20 && Math.abs(tipY - player.y) <= 30) {
+            ea.active = false;
+            player.alive = false;
+            player.hitFlash = 0.5;
+            spawnPopParticles(player.x, player.y, PALETTE.RED, 28);
+            saveHighScore();
+            game.state = STATES.GAME_OVER;
+            sfx.playGameOver();
+            return;
+          }
+        }
+
+        arrows = arrows.filter(a => a.active);
+        enemyArrows = enemyArrows.filter(ea => ea.active);
+
+        updateParticles(dt);
+
+        const allTargetsCleared = targets.length === 0 && (!boss || boss.hp <= 0);
+        if (allTargetsCleared) {
+          const arrowBonus = game.arrowsLeft * 50;
+          game.score += arrowBonus;
+          saveHighScore();
+          if (arrowBonus > 0) {
+            spawnFloatingText(W / 2, H / 2 + 30, `BONUS FLECHAS: +${arrowBonus}`, PALETTE.YELLOW);
+          }
+          game.state = STATES.LEVEL_CLEAR;
+          game.stateTimer = 2.0;
+          sfx.playLevelClear();
+          return;
+        }
+
+        if (game.arrowsLeft === 0 && arrows.length === 0 && !player.isCharging) {
+          saveHighScore();
+          game.state = STATES.GAME_OVER;
+          sfx.playGameOver();
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 180 * dt;
+          p.life -= dt;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+          const ft = floatingTexts[i];
+          ft.y -= 28 * dt;
+          ft.life -= dt;
+          if (ft.life <= 0) floatingTexts.splice(i, 1);
+        }
+      }
+
+      // ==========================================================================
+      // 8. RENDERIZAÇÃO WINDOWS 3.1 E SPRITES
+      // ==========================================================================
+      function drawBevelRect(x, y, w, h, raised = true, bgColor = PALETTE.GRAY_LIGHT) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.fillStyle = raised ? PALETTE.WHITE : PALETTE.GRAY_DARK;
+        ctx.fillRect(x, y, w, 2);
+        ctx.fillRect(x, y, 2, h);
+
+        ctx.fillStyle = raised ? PALETTE.GRAY_DARK : PALETTE.WHITE;
+        ctx.fillRect(x, y + h - 2, w, 2);
+        ctx.fillRect(x + w - 2, y, 2, h);
+      }
+
+      function drawWindows31Chrome() {
+        // 1. Barra de Título Azul
+        ctx.fillStyle = PALETTE.WIN_BLUE;
+        ctx.fillRect(0, 0, W, UI.TITLE_H);
+
+        drawBevelRect(2, 3, 20, 20, true);
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.fillRect(6, 12, 12, 3);
+
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.font = 'bold 13px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Bow and Arrow', W / 2, UI.TITLE_H / 2 + 1);
+
+        drawBevelRect(W - 22, 3, 20, 20, true);
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.beginPath();
+        ctx.moveTo(W - 16, 16);
+        ctx.lineTo(W - 8, 16);
+        ctx.lineTo(W - 12, 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // 2. Barra de Menu Estática (File | Options | Help)
+        const menuYTop = UI.TITLE_H;
+        ctx.fillStyle = PALETTE.GRAY_LIGHT;
+        ctx.fillRect(0, menuYTop, W, UI.MENU_H);
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.fillRect(0, menuYTop + UI.MENU_H - 1, W, 1);
+
+        ctx.font = '12px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        const menuY = menuYTop + UI.MENU_H / 2;
+
+        ctx.fillText('File', 12, menuY);
+        ctx.fillRect(12, menuY + 5, 6, 1);
+
+        ctx.fillText('Options', 52, menuY);
+        ctx.fillRect(52, menuY + 5, 8, 1);
+
+        ctx.fillText('Help', 112, menuY);
+        ctx.fillRect(112, menuY + 5, 7, 1);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = PALETTE.DARK_GREEN;
+        ctx.fillText(sfx.muted ? '[Sound: OFF (M)]' : '[Sound: ON (M)]', W - 12, menuY);
+
+        // 3. Painel Superior Estilo Foto (Score / High Score | Level / Nome da Fase | Flechas)
+        const hudY = UI.TITLE_H + UI.MENU_H;
+        ctx.fillStyle = PALETTE.GRAY_LIGHT;
+        ctx.fillRect(0, hudY, W, UI.HUD_H);
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.fillRect(0, hudY + UI.HUD_H - 2, W, 2);
+
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.font = 'bold 14px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`Score: ${game.score}`, 14, hudY + 20);
+        ctx.fillText(`High Score: ${game.highScore}`, 14, hudY + 44);
+
+        const info = LEVEL_INFO[game.level - 1];
+        ctx.textAlign = 'center';
+        ctx.fillText(`Level ${game.level}`, W / 2, hudY + 20);
+        ctx.fillText(info.name, W / 2, hudY + 44);
+
+        // Indicador de flechas no canto superior direito (como na foto)
+        const arrowCount = Math.min(game.arrowsLeft, 20);
+        for (let i = 0; i < arrowCount; i++) {
+          const ax = W - 16 - (arrowCount - 1 - i) * 7;
+          ctx.fillStyle = PALETTE.DARK_RED;
+          ctx.fillRect(ax, hudY + 12, 3, 18);
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.fillRect(ax - 1, hudY + 28, 5, 3);
+        }
+
+        // 4. Área de Jogo Verde Sólido (#00AA00)
+        ctx.fillStyle = PALETTE.BG_GREEN;
+        ctx.fillRect(0, UI.PLAY_TOP, W, UI.PLAY_H);
+
+        // 5. Barra de Status Inferior com Contagem de Estourados / Faltantes
+        const statusY = UI.PLAY_BOTTOM;
+        drawBevelRect(0, statusY, W, UI.STATUS_H, true, PALETTE.GRAY_LIGHT);
+
+        const remaining = getRemainingTargets();
+        const labelPrefix = game.level === 4 ? 'Slimes' : (game.level === 5 ? 'Boss HP' : 'Balões');
+        ctx.fillStyle = remaining === 0 ? PALETTE.DARK_GREEN : PALETTE.BLACK;
+        ctx.font = 'bold 12px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(
+          `${labelPrefix}: ${game.poppedTargets}/${game.totalTargets} (Faltam ${remaining})   |   Flechas: ${game.arrowsLeft}`,
+          14,
+          statusY + UI.STATUS_H / 2 + 1
+        );
+      }
+
+      function drawArcherEntity(x, y, palette, isCharging, charge, facingRight = true, hitFlash = 0) {
+        ctx.save();
+        if (hitFlash > 0 && Math.floor(hitFlash * 24) % 2 === 0) {
+          ctx.globalAlpha = 0.45;
+        }
+
+        const scale = 3;
+        const spriteW = 24 * scale;
+        const spriteH = 26 * scale;
+
+        // Desenha o sprite pixel art do arqueiro exatamente como na imagem de referência
+        drawPixelMatrix(
+          ARCHER_MATRIX,
+          palette,
+          x - spriteW / 2,
+          y - spriteH / 2,
+          scale,
+          !facingRight
+        );
+
+        // Arco recurvo à frente do arqueiro
+        const dir = facingRight ? 1 : -1;
+        const bowX = Math.round(x + dir * 24);
+        const bowY = Math.round(y - 6);
+        const pullBack = isCharging ? Math.round(charge * 15) : 0;
+
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(bowX - dir * 8, bowY, 26, facingRight ? -1.18 : Math.PI - 1.18, facingRight ? 1.18 : Math.PI + 1.18);
+        ctx.stroke();
+
+        ctx.strokeStyle = facingRight ? PALETTE.O : PALETTE.GRAY_DARK;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(bowX - dir * 8, bowY, 26, facingRight ? -1.18 : Math.PI - 1.18, facingRight ? 1.18 : Math.PI + 1.18);
+        ctx.stroke();
+
+        // Corda esticada
+        const tipOffsetX = bowX + dir * 13;
+        const topTipY = bowY - 23;
+        const botTipY = bowY + 23;
+        const nockX = bowX + dir * (12 - pullBack);
+        const nockY = bowY;
+
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(tipOffsetX, topTipY);
+        ctx.lineTo(nockX, nockY);
+        ctx.lineTo(tipOffsetX, botTipY);
+        ctx.stroke();
+
+        // Flecha engatilhada (com ponta/detalhe avermelhado como na captura)
+        if ((facingRight && game.arrowsLeft > 0 && player.cooldown <= 0) || (!facingRight && isCharging)) {
+          drawArrow(nockX, nockY, 36, facingRight, 0, facingRight ? PALETTE.RED : PALETTE.YELLOW);
+        }
+
+        // Barra de força ao segurar o disparo
+        if (facingRight && isCharging) {
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.fillRect(x - 24, y + 43, 48, 6);
+          ctx.fillStyle = charge > 0.75 ? PALETTE.YELLOW : PALETTE.WHITE;
+          ctx.fillRect(x - 23, y + 44, Math.round(46 * charge), 4);
+        }
+
+        ctx.restore();
+      }
+
+      function drawArrow(x, y, length = 36, facingRight = true, angle = 0, tipAccent = PALETTE.RED) {
+        ctx.save();
+        ctx.translate(Math.round(x), Math.round(y));
+        if (angle !== 0) ctx.rotate(angle);
+        if (!facingRight) ctx.scale(-1, 1);
+
+        // Haste fina e nítida
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.fillRect(0, -1.5, length - 7, 3);
+        ctx.fillStyle = PALETTE.BROWN;
+        ctx.fillRect(1, -0.8, length - 9, 1.6);
+
+        // Penas traseiras
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.fillRect(0, -4, 6, 2.5);
+        ctx.fillRect(0, 1.5, 6, 2.5);
+
+        // Ponta com detalhe vermelho como na foto
+        ctx.fillStyle = tipAccent;
+        ctx.beginPath();
+        ctx.moveTo(length, 0);
+        ctx.lineTo(length - 8, -3.5);
+        ctx.lineTo(length - 8, 3.5);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawBalloon(t) {
+        const x = Math.round(t.x);
+        const y = Math.round(t.y);
+
+        let mainColor = PALETTE.RED;
+        let shadeColor = PALETTE.DARK_RED;
+        if (t.variant === 'yellow') {
+          mainColor = PALETTE.YELLOW;
+          shadeColor = PALETTE.GOLD;
+        } else if (t.variant === 'bonus') {
+          mainColor = PALETTE.CYAN;
+          shadeColor = PALETTE.BLUE;
+        }
+
+        // Barbante escuro discreto como na foto
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y + t.ry);
+        ctx.lineTo(x + Math.sin(t.phase * 5) * 2.5, y + t.ry + 9);
+        ctx.lineTo(x - Math.sin(t.phase * 5) * 2, y + t.ry + 17);
+        ctx.stroke();
+
+        // Corpo oval do balão com contorno preto
+        ctx.fillStyle = mainColor;
+        ctx.beginPath();
+        ctx.ellipse(x, y, t.rx, t.ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        ctx.fillStyle = shadeColor;
+        ctx.fillRect(x - 2, y + t.ry - 1, 4, 3);
+
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.fillRect(x - 5, y - 8, 3, 5);
+
+        if (t.bonusArrows > 0) {
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = 'bold 10px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('+3', x + 1, y + 1);
+        }
+      }
+
+      function drawSlime(t) {
+        const slimePalette = {
+          M: PALETTE.MAGENTA,
+          W: PALETTE.WHITE,
+          K: PALETTE.BLACK
+        };
+        drawPixelMatrix(SLIME_MATRIX, slimePalette, t.x - 15, t.y - 14, 2.2, false);
+      }
+
+      function drawBubble(b) {
+        const x = Math.round(b.x + Math.sin(b.wobblePhase) * 2);
+        const y = Math.round(b.y);
+
+        ctx.fillStyle = 'rgba(180, 255, 255, 0.28)';
+        ctx.beginPath();
+        ctx.arc(x, y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = PALETTE.CYAN;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.fillRect(x - 8, y - 9, 4, 4);
+        ctx.fillRect(x - 10, y - 4, 2, 2);
+      }
+
+      function drawBossHud() {
+        if (!boss) return;
+        const barW = 160;
+        const barH = 16;
+        const bx = W - barW - 16;
+        const by = UI.PLAY_TOP + 12;
+
+        drawBevelRect(bx - 4, by - 4, barW + 8, barH + 8, true);
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.fillRect(bx, by, barW, barH);
+
+        const hpRatio = Math.max(0, boss.hp / boss.maxHp);
+        ctx.fillStyle = PALETTE.RED;
+        ctx.fillRect(bx + 1, by + 1, Math.round((barW - 2) * hpRatio), barH - 2);
+
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.font = 'bold 11px Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`BLACK ARCHER: ${boss.hp}/${boss.maxHp}`, bx + barW / 2, by + barH / 2 + 1);
+      }
+
+      // ==========================================================================
+      // 9. TELAS DE ESTADO
+      // ==========================================================================
+      function drawWin31Dialog(title, width, height) {
+        const dx = Math.round((W - width) / 2);
+        const dy = Math.round((UI.PLAY_TOP + UI.PLAY_BOTTOM - height) / 2);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(dx + 6, dy + 6, width, height);
+
+        drawBevelRect(dx, dy, width, height, true, PALETTE.GRAY_LIGHT);
+
+        ctx.fillStyle = PALETTE.WIN_BLUE;
+        ctx.fillRect(dx + 4, dy + 4, width - 8, 22);
+
+        ctx.fillStyle = PALETTE.WHITE;
+        ctx.font = 'bold 12px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(title, dx + width / 2, dy + 15);
+
+        return { dx, dy, width, height };
+      }
+
+      function drawWin31Button(x, y, w, h, label) {
+        drawBevelRect(x, y, w, h, true, PALETTE.GRAY_LIGHT);
+        ctx.strokeStyle = PALETTE.BLACK;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+
+        ctx.fillStyle = PALETTE.BLACK;
+        ctx.font = 'bold 12px Tahoma, "MS Sans Serif", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+      }
+
+      function drawOverlays() {
+        if (game.state === STATES.MENU) {
+          const box = drawWin31Dialog('Bow and Arrow - Windows 3.1 Edition (1992)', 540, 295);
+
+          drawPixelMatrix(ARCHER_MATRIX, PLAYER_PALETTE, box.dx + 22, box.dy + 34, 2.2, false);
+          drawBalloon({ x: box.dx + 498, y: box.dy + 66, rx: 12, ry: 15, variant: 'red', phase: 0 });
+
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = 'bold 17px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('BOW AND ARROW', box.dx + box.width / 2, box.dy + 54);
+
+          ctx.font = '12px Tahoma, sans-serif';
+          ctx.fillText('Clone Clássico do Windows 3.1 — 5 Fases', box.dx + box.width / 2, box.dy + 78);
+
+          drawBevelRect(box.dx + 26, box.dy + 104, box.width - 52, 112, false, PALETTE.WHITE);
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = '12px Tahoma, sans-serif';
+          ctx.textAlign = 'left';
+          const ix = box.dx + 40;
+          ctx.fillText('• Mover Arqueiro: Mouse (Eixo Y) ou Setas Cima / Baixo', ix, box.dy + 126);
+          ctx.fillText('• Tensionar e Disparar: Segure Clique Esquerdo ou Espaço', ix, box.dy + 148);
+          ctx.fillText('• Hitbox Realista: Apenas a PONTA da flecha acerta os alvos', ix, box.dy + 170);
+          ctx.fillText('• Munição: 15 flechas por fase (gerencie cada disparo!)', ix, box.dy + 192);
+
+          drawWin31Button(box.dx + box.width / 2 - 90, box.dy + 236, 180, 34, 'START GAME [ENTER]');
+        } else if (game.state === STATES.PLAYING && game.levelBannerTimer > 0) {
+          const info = LEVEL_INFO[game.level - 1];
+          const bw = 430;
+          const bh = 72;
+          const bx = (W - bw) / 2;
+          const by = UI.PLAY_TOP + 18;
+
+          drawBevelRect(bx, by, bw, bh, true, PALETTE.GRAY_LIGHT);
+          ctx.fillStyle = PALETTE.WIN_BLUE;
+          ctx.fillRect(bx + 3, by + 3, bw - 6, 22);
+
+          ctx.fillStyle = PALETTE.WHITE;
+          ctx.font = 'bold 12px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`LEVEL ${info.id}: ${info.name.toUpperCase()}`, bx + bw / 2, by + 14);
+
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = '12px Tahoma, sans-serif';
+          ctx.fillText(info.subtitle, bx + bw / 2, by + 48);
+        } else if (game.state === STATES.LEVEL_CLEAR) {
+          const box = drawWin31Dialog('Stage Complete!', 380, 155);
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = 'bold 15px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`Nível ${game.level} Concluído!`, box.dx + box.width / 2, box.dy + 58);
+
+          ctx.font = '12px Tahoma, sans-serif';
+          ctx.fillText(`Bónus por flechas restantes: +${game.arrowsLeft * 50} pts`, box.dx + box.width / 2, box.dy + 88);
+          ctx.fillText('A preparar a próxima fase...', box.dx + box.width / 2, box.dy + 118);
+        } else if (game.state === STATES.GAME_OVER) {
+          const box = drawWin31Dialog('Game Over', 400, 215);
+          const remaining = getRemainingTargets();
+
+          ctx.fillStyle = PALETTE.DARK_RED;
+          ctx.font = 'bold 16px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(player.alive ? 'AS FLECHAS ACABARAM!' : 'FOSTE ATINGIDO!', box.dx + box.width / 2, box.dy + 54);
+
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = '12px Tahoma, sans-serif';
+          ctx.fillText(
+            `Alvos estourados: ${game.poppedTargets}/${game.totalTargets} (Faltam ${remaining})`,
+            box.dx + box.width / 2,
+            box.dy + 82
+          );
+          ctx.font = '13px Tahoma, sans-serif';
+          ctx.fillText(`Pontuação Final: ${game.score}`, box.dx + box.width / 2, box.dy + 108);
+          ctx.fillText(`Recorde (High Score): ${game.highScore}`, box.dx + box.width / 2, box.dy + 132);
+
+          drawWin31Button(box.dx + box.width / 2 - 85, box.dy + 158, 170, 34, 'TRY AGAIN [ENTER]');
+        } else if (game.state === STATES.VICTORY) {
+          const box = drawWin31Dialog('Congratulations - Master Archer!', 440, 210);
+          ctx.fillStyle = PALETTE.DARK_GREEN;
+          ctx.font = 'bold 16px Tahoma, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('DERROTASTE O BLACK ARCHER!', box.dx + box.width / 2, box.dy + 56);
+
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.font = '13px Tahoma, sans-serif';
+          ctx.fillText('Todas as 5 fases foram concluídas com sucesso.', box.dx + box.width / 2, box.dy + 86);
+          ctx.fillText(`Pontuação Final: ${game.score}  |  Recorde: ${game.highScore}`, box.dx + box.width / 2, box.dy + 114);
+
+          drawWin31Button(box.dx + box.width / 2 - 90, box.dy + 150, 180, 34, 'PLAY AGAIN [ENTER]');
+        }
+      }
+
+      // ==========================================================================
+      // 10. RENDER PRINCIPAL E GAME LOOP COM DELTATIME
+      // ==========================================================================
+      function render() {
+        ctx.clearRect(0, 0, W, H);
+
+        drawWindows31Chrome();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, UI.PLAY_TOP, W, UI.PLAY_H);
+        ctx.clip();
+
+        for (const b of bubbles) {
+          drawBubble(b);
+        }
+
+        for (const t of targets) {
+          if (t.type === 'balloon') drawBalloon(t);
+          else if (t.type === 'slime') drawSlime(t);
+        }
+
+        drawArcherEntity(
+          player.x,
+          player.y,
+          PLAYER_PALETTE,
+          player.isCharging,
+          player.charge,
+          true,
+          player.hitFlash
+        );
+
+        if (boss) {
+          drawArcherEntity(
+            boss.x,
+            boss.y,
+            ENEMY_PALETTE,
+            boss.isCharging,
+            boss.charge,
+            false,
+            boss.hitFlash
+          );
+          drawBossHud();
+        }
+
+        for (const a of arrows) {
+          const angle = a.deflected ? Math.atan2(a.vy, a.vx) : 0;
+          drawArrow(a.x, a.y, a.length, true, angle, PALETTE.RED);
+        }
+
+        for (const ea of enemyArrows) {
+          drawArrow(ea.x, ea.y, ea.length, false, 0, PALETTE.YELLOW);
+        }
+
+        for (const p of particles) {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+        }
+
+        ctx.font = 'bold 12px Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const ft of floatingTexts) {
+          ctx.fillStyle = PALETTE.BLACK;
+          ctx.fillText(ft.text, Math.round(ft.x) + 1, Math.round(ft.y) + 1);
+          ctx.fillStyle = ft.color;
+          ctx.fillText(ft.text, Math.round(ft.x), Math.round(ft.y));
+        }
+
+        ctx.restore();
+
+        drawOverlays();
+      }
+
+      function gameLoop(timestamp) {
+        if (!game.lastTime) game.lastTime = timestamp;
+        const dt = Math.min(0.05, (timestamp - game.lastTime) / 1000);
+        game.lastTime = timestamp;
+
+        update(dt);
+        render();
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ==========================================================================
+      // 11. EVENTOS DE MOUSE E TECLADO
+      // ==========================================================================
+      function getLogicalCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = W / rect.width;
+        const scaleY = H / rect.height;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      }
+
+      canvas.addEventListener('mousemove', (e) => {
+        const pos = getLogicalCoords(e.clientX, e.clientY);
+        input.mouseY = pos.y;
+        input.useMouseY = true;
+      });
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        sfx.init();
+
+        const pos = getLogicalCoords(e.clientX, e.clientY);
+        input.mouseY = pos.y;
+        input.useMouseY = true;
+
+        if (pos.y >= UI.TITLE_H && pos.y <= UI.TITLE_H + UI.MENU_H && pos.x >= W - 140) {
+          sfx.muted = !sfx.muted;
+          return;
+        }
+
+        if (game.state === STATES.MENU || game.state === STATES.GAME_OVER || game.state === STATES.VICTORY) {
+          startNewGame();
+          return;
+        }
+
+        if (game.state === STATES.PLAYING) {
+          input.mouseDown = true;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+          input.mouseDown = false;
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        sfx.init();
+
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          e.preventDefault();
+          input.up = true;
+        } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          e.preventDefault();
+          input.down = true;
+        } else if (e.code === 'Space') {
+          e.preventDefault();
+          if (game.state === STATES.MENU || game.state === STATES.GAME_OVER || game.state === STATES.VICTORY) {
+            startNewGame();
+          } else {
+            input.space = true;
+          }
+        } else if (e.code === 'Enter') {
+          if (game.state === STATES.MENU || game.state === STATES.GAME_OVER || game.state === STATES.VICTORY) {
+            startNewGame();
+          }
+        } else if (e.code === 'KeyM') {
+          sfx.muted = !sfx.muted;
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          input.up = false;
+        } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          input.down = false;
+        } else if (e.code === 'Space') {
+          input.space = false;
+        }
+      });
+
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>
