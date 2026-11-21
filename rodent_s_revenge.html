@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rodent's Revenge 95 - Vingança do Roedor</title>
+    <style>
+        /* -------------------------------------------------------------
+           ESTILOS ESTÉTICOS RETRÔ WINDOWS 95 / WINDOWS 3.1
+           ------------------------------------------------------------- */
+        :root {
+            --win-bg: #008080;         /* Verde azulado clássico da área de trabalho */
+            --win-gray: #c0c0c0;       /* Cinza padrão de janelas */
+            --win-dark: #808080;       /* Sombra escura de bisel */
+            --win-darker: #404040;     /* Sombra profunda */
+            --win-light: #ffffff;      /* Brilho claro de bisel */
+            --win-navy: #000080;       /* Azul marinho de barra de título */
+            --win-navy-active: #1084d0;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            font-family: 'MS Sans Serif', Tahoma, Geneva, sans-serif;
+        }
+
+        body {
+            background-color: var(--win-bg);
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        /* Molduras e Biseis Windows 95 (3D Bevels) */
+        .bevel-outset {
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            box-shadow: inset 1px 1px 0 var(--win-gray), inset -1px -1px 0 var(--win-dark);
+        }
+
+        .bevel-inset {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+            box-shadow: inset 1px 1px 0 var(--win-dark), inset -1px -1px 0 var(--win-gray);
+        }
+
+        /* Estrutura Principal da Janela em Paisagem */
+        .window {
+            background-color: var(--win-gray);
+            width: 100%;
+            max-width: 960px;
+            height: 100%;
+            max-height: calc(100vh - 16px);
+            padding: 3px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Barra de Título */
+        .title-bar {
+            background: linear-gradient(90deg, var(--win-navy), #1084d0);
+            color: white;
+            padding: 3px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        /* Molduras e Biseis Windows 95 (3D Bevels) */
+        .bevel-outset {
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            box-shadow: inset 1px 1px 0 var(--win-gray), inset -1px -1px 0 var(--win-dark);
+        }
+
+        .bevel-inset {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+            box-shadow: inset 1px 1px 0 var(--win-dark), inset -1px -1px 0 var(--win-gray);
+        }
+
+        /* Estrutura Principal da Janela */
+        .window {
+            background-color: var(--win-gray);
+            width: 100%;
+            max-width: 680px;
+            padding: 3px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Barra de Título */
+        .title-bar {
+            background: linear-gradient(90deg, var(--win-navy), #1084d0);
+            color: white;
+            padding: 3px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .title-bar-text {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .title-bar-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .win-btn {
+            background-color: var(--win-gray);
+            border-top: 1px solid var(--win-light);
+            border-left: 1px solid var(--win-light);
+            border-right: 1px solid var(--win-darker);
+            border-bottom: 1px solid var(--win-darker);
+            font-size: 11px;
+            font-weight: bold;
+            width: 18px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            color: black;
+        }
+
+        .win-btn:active {
+            border-top: 1px solid var(--win-darker);
+            border-left: 1px solid var(--win-darker);
+            border-right: 1px solid var(--win-light);
+            border-bottom: 1px solid var(--win-light);
+            padding: 1px 0 0 1px;
+        }
+
+        /* Barra de Menus */
+        .menu-bar {
+            display: flex;
+            gap: 12px;
+            padding: 3px 8px;
+            font-size: 12px;
+            border-bottom: 1px solid var(--win-dark);
+            background-color: var(--win-gray);
+            flex-shrink: 0;
+        }
+
+        .menu-item {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background-color: var(--win-navy);
+            color: white;
+        }
+
+        /* Área Interna Dividida em Paisagem (Tabuleiro + Painel Lateral) */
+        .landscape-content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: row;
+            gap: 6px;
+            padding: 6px;
+            overflow: hidden;
+        }
+
+        /* Área Principal do Jogo (Canvas Container) */
+        .game-viewport {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--win-gray);
+        }
+
+        .canvas-container {
+            position: relative;
+            background-color: #707070;
+            height: 100%;
+            max-height: 100%;
+            max-width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        /* Painel Lateral Direito (HUD + Botões + D-Pad) */
+        .side-panel {
+            width: 245px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 6px;
+            overflow: hidden;
+        }
+
+        /* HUD / Painel de Informações */
+        .hud-panel {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            background-color: var(--win-gray);
+        }
+
+        .hud-box {
+            background-color: #000;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 4px 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hud-label {
+            font-family: 'MS Sans Serif', Tahoma, sans-serif;
+            font-size: 10px;
+            color: var(--win-gray);
+            background-color: transparent;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .hud-value-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Barra de Ações (Botões Win95) */
+        .controls-toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+        }
+
+        .win-action-btn {
+            background-color: var(--win-gray);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            padding: 5px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            outline: none;
+        }
+
+        .win-action-btn:active {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+            padding: 6px 5px 4px 7px;
+        }
+
+        /* D-Pad Virtual para Celular/Touch */
+        .touch-dpad-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px;
+            background-color: var(--win-gray);
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 38px);
+            grid-template-rows: repeat(3, 38px);
+            gap: 3px;
+        }
+
+        .dpad-btn {
+            background-color: var(--win-gray);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            font-size: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dpad-btn:active {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+        }
+
+        .dpad-empty {
+            visibility: hidden;
+        }
+
+        /* Barra de Status Inferior */
+        .status-bar {
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #222;
+            display: flex;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .menu-item {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .menu-item:hover {
+            background-color: var(--win-navy);
+            color: white;
+        }
+
+        /* HUD / Painel de Informações */
+        .hud-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 6px;
+            padding: 6px;
+            background-color: var(--win-gray);
+        }
+
+        .hud-box {
+            background-color: #000;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 4px 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hud-label {
+            font-family: 'MS Sans Serif', Tahoma, sans-serif;
+            font-size: 10px;
+            color: var(--win-gray);
+            background-color: transparent;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .hud-value-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Área Principal do Jogo (Canvas Container) */
+        .game-viewport {
+            padding: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--win-gray);
+        }
+
+        .canvas-container {
+            position: relative;
+            background-color: #707070;
+            width: 100%;
+            max-width: 520px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        /* Barra de Ações (Botões Win95) */
+        .controls-toolbar {
+            padding: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .win-action-btn {
+            background-color: var(--win-gray);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            outline: none;
+        }
+
+        .win-action-btn:active {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+            padding: 5px 11px 3px 13px;
+        }
+
+        /* D-Pad Virtual para Celular/Touch */
+        .touch-dpad-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 6px;
+            background-color: var(--win-gray);
+        }
+
+        .dpad {
+            display: grid;
+            grid-template-columns: repeat(3, 42px);
+            grid-template-rows: repeat(3, 42px);
+            gap: 4px;
+        }
+
+        .dpad-btn {
+            background-color: var(--win-gray);
+            border-top: 2px solid var(--win-light);
+            border-left: 2px solid var(--win-light);
+            border-right: 2px solid var(--win-darker);
+            border-bottom: 2px solid var(--win-darker);
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dpad-btn:active {
+            border-top: 2px solid var(--win-darker);
+            border-left: 2px solid var(--win-darker);
+            border-right: 2px solid var(--win-light);
+            border-bottom: 2px solid var(--win-light);
+        }
+
+        .dpad-empty {
+            visibility: hidden;
+        }
+
+        /* Barra de Status Inferior */
+        .status-bar {
+            margin-top: 4px;
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #222;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Modal Overlay (Diálogos Retrô) */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 10px;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal-box {
+            background-color: var(--win-gray);
+            width: 100%;
+            max-width: 380px;
+            padding: 3px;
+        }
+
+        .modal-body {
+            padding: 14px;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+        }
+
+        .modal-footer {
+            padding: 8px 14px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* Banner de Status Recarregável */
+        .status-msg {
+            font-size: 11px;
+            color: #000;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- JANELA PRINCIPAL DO JOGO -->
+    <div class="window bevel-outset">
+        
+        <!-- Barra de Título -->
+        <div class="title-bar">
+            <div class="title-bar-text">
+                <span>🐭</span> Rodent's Revenge 95 - Vingança do Roedor
+            </div>
+            <div class="title-bar-controls">
+                <button class="win-btn" title="Minimizar">_</button>
+                <button class="win-btn" title="Maximizar">□</button>
+                <button class="win-btn" onclick="toggleHelpModal(true)" title="Fechar">X</button>
+            </div>
+        </div>
+
+        <!-- Barra de Menus Clássica -->
+        <div class="menu-bar">
+            <div class="menu-item" onclick="resetGame()"><u>J</u>ogo Novo</div>
+            <div class="menu-item" onclick="togglePause()"><u>P</u>ausar</div>
+            <div class="menu-item" onclick="toggleHelpModal(true)"><u>A</u>juda</div>
+            <div class="menu-item" onclick="toggleSound()"><u>S</u>om (<span id="soundStatusText">LIGADO</span>)</div>
+        </div>
+
+        <!-- Conteúdo Principal em Paisagem -->
+        <div class="landscape-content">
+
+            <!-- Viewport do Tabuleiro (Canvas 20x20) -->
+            <div class="game-viewport">
+                <div class="canvas-container bevel-inset" id="canvasContainer">
+                    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+                    <!-- MODAL DE DIÁLOGO / MENSAGENS -->
+                    <div class="modal-overlay hidden" id="gameModal">
+                        <div class="modal-box bevel-outset">
+                            <div class="title-bar">
+                                <div class="title-bar-text" id="modalTitle">Mensagem do Sistema</div>
+                            </div>
+                            <div class="modal-body" id="modalContent">
+                                Conteúdo da mensagem aqui.
+                            </div>
+                            <div class="modal-footer">
+                                <button class="win-action-btn" id="modalPrimaryBtn" onclick="closeModal()">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel Lateral Direito -->
+            <div class="side-panel">
+                <!-- HUD (Painel de Status) -->
+                <div class="hud-panel">
+                    <div class="hud-box bevel-inset">
+                        <span class="hud-label">NÍVEL</span>
+                        <span id="hudLevel">01</span>
+                    </div>
+                    <div class="hud-box bevel-inset">
+                        <span class="hud-label">PONTUAÇÃO</span>
+                        <span id="hudScore">000000</span>
+                    </div>
+                    <div class="hud-box bevel-inset">
+                        <span class="hud-label">VIDAS</span>
+                        <div class="hud-value-container" id="hudLives">🐭 🐭 🐭</div>
+                    </div>
+                    <div class="hud-box bevel-inset">
+                        <span class="hud-label">GATOS</span>
+                        <div class="hud-value-container">
+                            <span>🐱</span> <span id="hudCatsLeft">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles de Ação & Sons -->
+                <div class="controls-toolbar">
+                    <button class="win-action-btn" onclick="resetGame()">
+                        <span>🔄</span> Reiniciar
+                    </button>
+                    <button class="win-action-btn" onclick="togglePause()" id="pauseBtn">
+                        <span>⏸️</span> Pausar
+                    </button>
+                    <button class="win-action-btn" onclick="toggleSound()" id="soundBtn">
+                        <span>🔊</span> Som: ON
+                    </button>
+                    <button class="win-action-btn" onclick="toggleHelpModal(true)">
+                        <span>❓</span> Ajuda
+                    </button>
+                </div>
+
+                <!-- Controles D-Pad para Dispositivos Móveis / Touch -->
+                <div class="touch-dpad-container bevel-inset">
+                    <div class="dpad">
+                        <div class="dpad-btn dpad-empty"></div>
+                        <div class="dpad-btn" onclick="handleDpadInput(0, -1)">▲</div>
+                        <div class="dpad-btn dpad-empty"></div>
+                        <div class="dpad-btn" onclick="handleDpadInput(-1, 0)">◄</div>
+                        <div class="dpad-btn dpad-empty"></div>
+                        <div class="dpad-btn" onclick="handleDpadInput(1, 0)">►</div>
+                        <div class="dpad-btn dpad-empty"></div>
+                        <div class="dpad-btn" onclick="handleDpadInput(0, 1)">▼</div>
+                        <div class="dpad-btn dpad-empty"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Barra de Status Inferior -->
+        <div class="status-bar bevel-inset">
+            <span class="status-msg" id="statusMessage">Pronto. Use as setas ou WASD para mover o rato!</span>
+            <span>Windows 95 Edition</span>
+        </div>
+
+    </div>
+
+    <!-- -------------------------------------------------------------
+         LÓGICA E ENGINE DO JOGO (JAVASCRIPT EMBUTIDO)
+         ------------------------------------------------------------- -->
+    <script>
+        /* =============================================================
+           CONSTANTES E CONFIGURAÇÕES DO JOGO
+           ============================================================= */
+        const GRID_SIZE = 20;       // Grade 20x20 células
+        const CANVAS_SIZE = 600;     // Resolução interna do Canvas
+        const CELL_SIZE = CANVAS_SIZE / GRID_SIZE; // 30px por célula
+
+        // Tipos de Célula no Mapa
+        const TILE_WALL = 0;        // Parede Fixa (Cinza Escuro)
+        const TILE_EMPTY = 1;       // Chão Vazio
+        const TILE_BLOCK = 2;       // Bloco Empurrável (Verde)
+        const TILE_TRAP = 3;        // Ratoeira (Perigo!)
+        const TILE_HOLE = 4;        // Buraco no chão (Prende por 3s)
+        const TILE_CHEESE = 5;      // Queijo (Pontos e Objetivo)
+
+        /* =============================================================
+           ESTADO DO JOGO
+           ============================================================= */
+        let grid = [];
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let isPaused = false;
+        let isGameOver = false;
+        let soundMuted = false;
+
+        // Estado do Jogador (Rato)
+        let player = {
+            x: 2,
+            y: 2,
+            direction: 'RIGHT',
+            isStuck: false,
+            stuckTimer: 0,
+            invincibleTimer: 0
+        };
+
+        // Lista de Inimigos (Gatos)
+        let cats = [];
+        let catMoveTimer = 0;
+        let catMoveInterval = 950; // ms entre movimentos dos gatos (mais lento para permitir estratégia)
+
+        // Controle de movimento contínuo ao segurar tecla
+        let heldDirection = null;
+        let moveRepeatTimer = 0;
+        const MOVE_REPEAT_DELAY = 130; // ms entre passos ao segurar a tecla
+
+        // Web Audio API Context
+        let audioCtx = null;
+
+        // Elementos DOM
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const hudScore = document.getElementById('hudScore');
+        const hudLevel = document.getElementById('hudLevel');
+        const hudLives = document.getElementById('hudLives');
+        const hudCatsLeft = document.getElementById('hudCatsLeft');
+        const statusMessage = document.getElementById('statusMessage');
+        const soundBtn = document.getElementById('soundBtn');
+        const soundStatusText = document.getElementById('soundStatusText');
+        const pauseBtn = document.getElementById('pauseBtn');
+
+        /* =============================================================
+           SINTETIZADOR DE ÁUDIO RETRÔ (WEB AUDIO API)
+           ============================================================= */
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            if (soundMuted) return;
+            try {
+                initAudio();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'push') {
+                    // Som de empurrar bloco
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(60, now + 0.08);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'eat') {
+                    // Som de comer queijo
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.06); // E5
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'trapCat') {
+                    // Som de gato virando queijo
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(440, now);    // A4
+                    osc.frequency.setValueAtTime(554.37, now + 0.08); // C#5
+                    osc.frequency.setValueAtTime(659.25, now + 0.16); // E5
+                    osc.frequency.setValueAtTime(880, now + 0.24);    // A5
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'hole') {
+                    // Som de cair no buraco
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'fillHole') {
+                    // Som de tampar buraco com bloco
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.setValueAtTime(300, now + 0.08);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'loseLife') {
+                    // Som de perder vida
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(260, now);
+                    osc.frequency.exponentialRampToValueAtTime(45, now + 0.4);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'levelClear') {
+                    // Fanfarra de nível concluído
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.type = 'square';
+                        o.frequency.value = freq;
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        const st = now + idx * 0.1;
+                        g.gain.setValueAtTime(0.2, st);
+                        g.gain.linearRampToValueAtTime(0.01, st + 0.12);
+                        o.start(st);
+                        o.stop(st + 0.12);
+                    });
+                } else if (type === 'gameOver') {
+                    // Som de Game Over
+                    const notes = [392.00, 349.23, 329.63, 261.63];
+                    notes.forEach((freq, idx) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.type = 'sawtooth';
+                        o.frequency.value = freq;
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        const st = now + idx * 0.15;
+                        g.gain.setValueAtTime(0.3, st);
+                        g.gain.linearRampToValueAtTime(0.01, st + 0.18);
+                        o.start(st);
+                        o.stop(st + 0.18);
+                    });
+                }
+            } catch (e) {
+                console.warn("Áudio não pôde ser reproduzido:", e);
+            }
+        }
+
+        /* =============================================================
+           INICIALIZAÇÃO E GERAÇÃO DE NÍVEIS
+           ============================================================= */
+        function initGame() {
+            score = 0;
+            level = 1;
+            lives = 3;
+            isGameOver = false;
+            isPaused = false;
+            loadLevel(level);
+        }
+
+        function loadLevel(lvl) {
+            grid = [];
+            cats = [];
+            player.isStuck = false;
+            player.stuckTimer = 0;
+            player.invincibleTimer = 0;
+
+            // Velocidade dos gatos aumenta gradualmente a cada nível (mantendo ritmo justo)
+            catMoveInterval = Math.max(450, 950 - (lvl - 1) * 45);
+
+            // 1. Inicializar grade vazia com paredes externas
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (x === 0 || x === GRID_SIZE - 1 || y === 0 || y === GRID_SIZE - 1) {
+                        grid[y][x] = TILE_WALL; // Bordas externas
+                    } else {
+                        grid[y][x] = TILE_EMPTY;
+                    }
+                }
+            }
+
+            // 2. Posicionar Rato em local seguro
+            player.x = 2;
+            player.y = 2;
+
+            // Garantir área livre ao redor do jogador
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const nx = player.x + dx;
+                    const ny = player.y + dy;
+                    if (nx > 0 && nx < GRID_SIZE - 1 && ny > 0 && ny < GRID_SIZE - 1) {
+                        grid[ny][nx] = TILE_EMPTY;
+                    }
+                }
+            }
+
+            // 3. Adicionar Paredes Internas Fixas (A partir do Nível 2)
+            if (lvl >= 2) {
+                const wallPillars = Math.min(3 + lvl * 2, 20);
+                for (let i = 0; i < wallPillars; i++) {
+                    const wx = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    const wy = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    if ((wx !== player.x || wy !== player.y) && grid[wy][wx] === TILE_EMPTY) {
+                        grid[wy][wx] = TILE_WALL;
+                    }
+                }
+            }
+
+            // 4. Adicionar Ratoeiras (Ratoeiras / Traps) (Nível 2+)
+            if (lvl >= 2) {
+                const trapCount = Math.min(lvl - 1, 6);
+                for (let i = 0; i < trapCount; i++) {
+                    const tx = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    const ty = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    if (grid[ty][tx] === TILE_EMPTY && (tx > 4 || ty > 4)) {
+                        grid[ty][tx] = TILE_TRAP;
+                    }
+                }
+            }
+
+            // 5. Adicionar Buracos no Chão (Buracos / Holes) (Nível 2+)
+            if (lvl >= 2) {
+                const holeCount = Math.min(lvl - 1, 5);
+                for (let i = 0; i < holeCount; i++) {
+                    const hx = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    const hy = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
+                    if (grid[hy][hx] === TILE_EMPTY && (hx > 4 || hy > 4)) {
+                        grid[hy][hx] = TILE_HOLE;
+                    }
+                }
+            }
+
+            // 6. Preencher o Centro com Blocos Verdes Empurráveis (~28% a 35% de densidade)
+            const blockDensity = Math.min(0.28 + (lvl * 0.01), 0.38);
+            for (let y = 1; y < GRID_SIZE - 1; y++) {
+                for (let x = 1; x < GRID_SIZE - 1; x++) {
+                    // Evitar cobrir spawn do rato
+                    if (Math.abs(x - player.x) <= 1 && Math.abs(y - player.y) <= 1) continue;
+                    
+                    if (grid[y][x] === TILE_EMPTY && Math.random() < blockDensity) {
+                        grid[y][x] = TILE_BLOCK;
+                    }
+                }
+            }
+
+            // 7. Spawn dos Gatos (Nível 1: 1 gato; Nível 2+: 2, 3, 4... gatos)
+            const catCount = Math.min(lvl, 8);
+            for (let i = 0; i < catCount; i++) {
+                let cx, cy, attempts = 0;
+                do {
+                    cx = Math.floor(Math.random() * (GRID_SIZE - 6)) + 4;
+                    cy = Math.floor(Math.random() * (GRID_SIZE - 6)) + 4;
+                    attempts++;
+                } while (
+                    (grid[cy][cx] !== TILE_EMPTY || 
+                     (Math.abs(cx - player.x) + Math.abs(cy - player.y) < 6) ||
+                     cats.some(c => c.x === cx && c.y === cy)) &&
+                    attempts < 200
+                );
+
+                // Limpar espaço para o gato se necessário
+                grid[cy][cx] = TILE_EMPTY;
+
+                cats.push({
+                    x: cx,
+                    y: cy,
+                    alive: true,
+                    isTrapped: false,
+                    animFrame: Math.random() * 10
+                });
+            }
+
+            updateHUD();
+            showStatusMessage(`Nível ${level} iniciado! Encurrale todos os gatos.`);
+            checkTrappedCats(); // Verifica se algum gato já nasce preso (raro)
+        }
+
+        /* =============================================================
+           LÓGICA DE MOVIMENTO DO JOGADOR E EMPURRÃO DE BLOCOS
+           ============================================================= */
+        function movePlayer(dx, dy) {
+            if (isGameOver || isPaused) return;
+
+            // Se o rato estiver preso no buraco
+            if (player.isStuck) {
+                showStatusMessage("Você está preso no buraco! Aguarde o tempo acabar...");
+                return;
+            }
+
+            const targetX = player.x + dx;
+            const targetY = player.y + dy;
+
+            // Proteção de limites da grade
+            if (targetX < 0 || targetX >= GRID_SIZE || targetY < 0 || targetY >= GRID_SIZE) {
+                return;
+            }
+
+            // Definir direção para animação/orientação
+            if (dx === 1) player.direction = 'RIGHT';
+            else if (dx === -1) player.direction = 'LEFT';
+            else if (dy === 1) player.direction = 'DOWN';
+            else if (dy === -1) player.direction = 'UP';
+
+            // Verificar limites e o tipo de célula destino
+            const targetTile = grid[targetY][targetX];
+
+            // 1. Parede Estática Fixa: Bloqueado
+            if (targetTile === TILE_WALL) {
+                return;
+            }
+
+            // 2. Colisão direta com Gato Vivo: Perde Vida
+            const catAtTarget = cats.find(c => c.alive && !c.isTrapped && c.x === targetX && c.y === targetY);
+            if (catAtTarget) {
+                handlePlayerDeath();
+                return;
+            }
+
+            // 3. Célula Vazia: Move diretamente
+            if (targetTile === TILE_EMPTY) {
+                player.x = targetX;
+                player.y = targetY;
+            }
+            // 4. Comer Queijo
+            else if (targetTile === TILE_CHEESE) {
+                grid[targetY][targetX] = TILE_EMPTY;
+                player.x = targetX;
+                player.y = targetY;
+                score += 100;
+                playSound('eat');
+                showStatusMessage("Queijo delicioso! +100 Pontos");
+                updateHUD();
+                checkLevelCompletion();
+            }
+            // 5. Ratoeira: Perde Vida
+            else if (targetTile === TILE_TRAP) {
+                player.x = targetX;
+                player.y = targetY;
+                playSound('loseLife');
+                showStatusMessage("Cuidado! Você pisou numa ratoeira!");
+                handlePlayerDeath();
+                return;
+            }
+            // 6. Buraco no chão: Fica preso por 3 segundos
+            else if (targetTile === TILE_HOLE) {
+                player.x = targetX;
+                player.y = targetY;
+                player.isStuck = true;
+                player.stuckTimer = 3.0; // 3 segundos
+                playSound('hole');
+                showStatusMessage("Você caiu em um buraco! Preso por 3 segundos.");
+            }
+            // 7. Blocos Móveis (Verdes): Empurrar fileira de blocos
+            else if (targetTile === TILE_BLOCK) {
+                // Encontrar o final da fileira contínua de blocos na mesma direção
+                let currX = targetX;
+                let currY = targetY;
+
+                while (
+                    currX >= 0 && currX < GRID_SIZE &&
+                    currY >= 0 && currY < GRID_SIZE &&
+                    grid[currY][currX] === TILE_BLOCK
+                ) {
+                    currX += dx;
+                    currY += dy;
+                }
+
+                // Se saiu dos limites, não pode empurrar
+                if (currX < 0 || currX >= GRID_SIZE || currY < 0 || currY >= GRID_SIZE) {
+                    return;
+                }
+
+                const endTile = grid[currY][currX];
+
+                // Verificar se o final da fileira é um Gato ocupando o espaço
+                const catAtEnd = cats.find(c => c.alive && !c.isTrapped && c.x === currX && c.y === currY);
+
+                // O final da fileira PODE ser empurrado se for um espaço VAZIO ou um BURACO
+                if (!catAtEnd && endTile === TILE_EMPTY) {
+                    // Empurra todos os blocos 1 casa para frente
+                    grid[currY][currX] = TILE_BLOCK;
+                    grid[targetY][targetX] = TILE_EMPTY;
+                    player.x = targetX;
+                    player.y = targetY;
+                    playSound('push');
+                    checkTrappedCats();
+                } else if (!catAtEnd && endTile === TILE_HOLE) {
+                    // O bloco da ponta cai e TAMPA o buraco!
+                    grid[currY][currX] = TILE_EMPTY; // Buraco tampado virou chão normal
+                    grid[targetY][targetX] = TILE_EMPTY;
+                    player.x = targetX;
+                    player.y = targetY;
+                    playSound('fillHole');
+                    showStatusMessage("Você tampou um buraco com o bloco!");
+                    checkTrappedCats();
+                } else {
+                    // Bloqueado (Parede, Gato, Ratoeira ou Queijo no final)
+                    return;
+                }
+            }
+
+            updateHUD();
+        }
+
+        /* =============================================================
+           ALGORITMO DE VERIFICAÇÃO DE GATOS ENCURRALADOS (FLOOD-FILL / BFS)
+           ============================================================= */
+        function checkTrappedCats() {
+            const aliveCats = cats.filter(c => c.alive && !c.isTrapped);
+            if (aliveCats.length === 0) return;
+
+            let newlyTrapped = 0;
+
+            // Para cada gato vivo, faz uma busca em largura (BFS) em 8 direções para checar
+            // se ele consegue alcançar QUALQUER célula vazia (TILE_EMPTY) navegável.
+            for (let cat of aliveCats) {
+                let visited = new Array(GRID_SIZE * GRID_SIZE).fill(false);
+                let queue = [{x: cat.x, y: cat.y}];
+                visited[cat.y * GRID_SIZE + cat.x] = true;
+                let canReachEmptyTile = false;
+
+                while (queue.length > 0) {
+                    let curr = queue.shift();
+
+                    // Checa todas as 8 direções (Ortogonais e Diagonais)
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+
+                            let nx = curr.x + dx;
+                            let ny = curr.y + dy;
+
+                            if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) continue;
+
+                            // Impede passagem diagonal se ambos os lados adjacentes estiverem bloqueados por parede ou bloco
+                            if (dx !== 0 && dy !== 0) {
+                                const side1 = grid[curr.y][nx];
+                                const side2 = grid[ny][curr.x];
+                                const side1Blocked = (side1 === TILE_WALL || side1 === TILE_BLOCK);
+                                const side2Blocked = (side2 === TILE_WALL || side2 === TILE_BLOCK);
+                                if (side1Blocked && side2Blocked) continue;
+                            }
+
+                            let idx = ny * GRID_SIZE + nx;
+                            if (visited[idx]) continue;
+
+                            let tile = grid[ny][nx];
+
+                            // Se encontrou uma célula vazia livre, o gato tem rota de fuga!
+                            if (tile === TILE_EMPTY) {
+                                canReachEmptyTile = true;
+                                break;
+                            }
+
+                            // O gato pode transitar por células onde há outros gatos ou o próprio rato para checar conexões
+                            const otherCat = cats.find(c => c.alive && !c.isTrapped && c.x === nx && c.y === ny);
+                            const isMouse = (nx === player.x && ny === player.y);
+                            if (isMouse || otherCat) {
+                                visited[idx] = true;
+                                queue.push({x: nx, y: ny});
+                            }
+                        }
+                        if (canReachEmptyTile) break;
+                    }
+                    if (canReachEmptyTile) break;
+                }
+
+                // Se não há NENHUMA célula vazia alcançável no bolsão, o gato está cercado!
+                if (!canReachEmptyTile) {
+                    cat.isTrapped = true;
+                    grid[cat.y][cat.x] = TILE_CHEESE; // Transforma o gato em queijo!
+                    newlyTrapped++;
+                } else {
+                    // Verifica se o gato está isolado em uma área pequena (sem acesso ao rato)
+                    cat.isCornered = !findNextStepTowardsPlayer(cat);
+                }
+            }
+
+            if (newlyTrapped > 0) {
+                playSound('trapCat');
+                score += newlyTrapped * 200;
+                showStatusMessage(`Sensacional! ${newlyTrapped} gato(s) foram encurralados e viraram queijo!`);
+                updateHUD();
+                checkLevelCompletion();
+            }
+        }
+
+        /* =============================================================
+           IA DOS GATOS (BUSCA DE CAMINHO BFS + PERSEGUIÇÃO INTELIGENTE)
+           ============================================================= */
+        function findNextStepTowardsPlayer(cat) {
+            const queue = [{ x: cat.x, y: cat.y, firstMove: null }];
+            const visited = new Array(GRID_SIZE * GRID_SIZE).fill(false);
+            visited[cat.y * GRID_SIZE + cat.x] = true;
+
+            let closestNode = null;
+            let minDistToPlayer = Math.hypot(player.x - cat.x, player.y - cat.y);
+
+            // Direções possíveis (ortogonais primeiro para caminhos naturais, depois diagonais)
+            const dirs = [
+                { dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+                { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: 1, dy: 1 }
+            ];
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+
+                // Se alcançou a posição do rato, retorna o primeiro passo desse caminho
+                if (curr.x === player.x && curr.y === player.y) {
+                    return curr.firstMove;
+                }
+
+                // Embaralha levemente direções de mesma prioridade para evitar empates rígidos
+                for (let d of dirs) {
+                    const nx = curr.x + d.dx;
+                    const ny = curr.y + d.dy;
+
+                    if (nx <= 0 || nx >= GRID_SIZE - 1 || ny <= 0 || ny >= GRID_SIZE - 1) continue;
+
+                    // Impede passagem diagonal entre quinas bloqueadas
+                    if (d.dx !== 0 && d.dy !== 0) {
+                        const side1 = grid[curr.y][nx];
+                        const side2 = grid[ny][curr.x];
+                        if ((side1 === TILE_WALL || side1 === TILE_BLOCK) &&
+                            (side2 === TILE_WALL || side2 === TILE_BLOCK)) {
+                            continue;
+                        }
+                    }
+
+                    const idx = ny * GRID_SIZE + nx;
+                    if (visited[idx]) continue;
+
+                    const tile = grid[ny][nx];
+                    const isOtherCat = cats.some(other => other.alive && !other.isTrapped && other !== cat && other.x === nx && other.y === ny);
+
+                    // Gato só anda em chão vazio (ou até a casa do rato)
+                    const isPlayerPos = (nx === player.x && ny === player.y);
+                    if ((tile === TILE_EMPTY || isPlayerPos) && !isOtherCat) {
+                        visited[idx] = true;
+                        const firstMove = curr.firstMove || { x: nx, y: ny };
+                        const dist = Math.hypot(player.x - nx, player.y - ny);
+
+                        if (dist < minDistToPlayer) {
+                            minDistToPlayer = dist;
+                            closestNode = firstMove;
+                        }
+
+                        queue.push({ x: nx, y: ny, firstMove });
+                    }
+                }
+            }
+
+            // Se não houver caminho completo até o rato (ex: rato protegido por blocos),
+            // vai para o ponto acessível mais próximo do rato
+            return closestNode;
+        }
+
+        function updateCats(deltaTime) {
+            if (isGameOver || isPaused) return;
+
+            catMoveTimer += deltaTime;
+            if (catMoveTimer < catMoveInterval) return;
+            catMoveTimer = 0;
+
+            const activeCats = cats.filter(c => c.alive && !c.isTrapped);
+
+            for (let cat of activeCats) {
+                let nextMove = findNextStepTowardsPlayer(cat);
+
+                // Se já está no ponto mais próximo possível e não consegue avançar mais,
+                // faz um movimento válido aleatório (evitando voltar imediatamente para a casa anterior)
+                if (!nextMove) {
+                    const validNeighbors = [];
+                    for (let dx = -1; dx <= 1; dx++) {
+                        for (let dy = -1; dy <= 1; dy++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const nx = cat.x + dx;
+                            const ny = cat.y + dy;
+                            if (nx <= 0 || nx >= GRID_SIZE - 1 || ny <= 0 || ny >= GRID_SIZE - 1) continue;
+
+                            if (dx !== 0 && dy !== 0) {
+                                const side1 = grid[cat.y][nx];
+                                const side2 = grid[ny][cat.x];
+                                if ((side1 === TILE_WALL || side1 === TILE_BLOCK) &&
+                                    (side2 === TILE_WALL || side2 === TILE_BLOCK)) continue;
+                            }
+
+                            const tile = grid[ny][nx];
+                            const isOtherCat = cats.some(other => other.alive && !other.isTrapped && other !== cat && other.x === nx && other.y === ny);
+                            if (tile === TILE_EMPTY && !isOtherCat) {
+                                validNeighbors.push({ x: nx, y: ny });
+                            }
+                        }
+                    }
+
+                    if (validNeighbors.length > 0) {
+                        const nonBacktrack = validNeighbors.filter(m => m.x !== cat.lastX || m.y !== cat.lastY);
+                        const pool = nonBacktrack.length > 0 ? nonBacktrack : validNeighbors;
+                        nextMove = pool[Math.floor(Math.random() * pool.length)];
+                    }
+                }
+
+                if (nextMove) {
+                    cat.lastX = cat.x;
+                    cat.lastY = cat.y;
+                    cat.x = nextMove.x;
+                    cat.y = nextMove.y;
+
+                    // Colisão com o Rato
+                    if (cat.x === player.x && cat.y === player.y && player.invincibleTimer <= 0) {
+                        handlePlayerDeath();
+                        return;
+                    }
+                }
+            }
+
+            // Após todos os gatos se moverem, checa novamente se algum ficou cercado
+            checkTrappedCats();
+        }
+
+        /* =============================================================
+           GERENCIAMENTO DE VIDAS E FIM DE JOGO
+           ============================================================= */
+        function handlePlayerDeath() {
+            if (player.invincibleTimer > 0) return;
+
+            lives--;
+            playSound('loseLife');
+            updateHUD();
+
+            if (lives <= 0) {
+                isGameOver = true;
+                playSound('gameOver');
+                showModal("Fim de Jogo!", `Infelizmente os gatos te pegaram!<br><br><b>Pontuação Final: ${score}</b><br>Nível Alcançado: ${level}`, resetGame);
+            } else {
+                showStatusMessage(`Você perdeu uma vida! Vidas restantes: ${lives}`);
+                // Respawn do jogador em local seguro
+                player.x = 2;
+                player.y = 2;
+                player.isStuck = false;
+                player.stuckTimer = 0;
+                player.invincibleTimer = 2.0; // 2 segundos de imunidade ao renascer
+            }
+        }
+
+        function checkLevelCompletion() {
+            // Condição de vitória do nível:
+            // Todos os gatos devem estar transformados em queijo E todo o queijo do mapa deve ser comido!
+            const remainingCats = cats.filter(c => c.alive && !c.isTrapped).length;
+            
+            let remainingCheese = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x] === TILE_CHEESE) remainingCheese++;
+                }
+            }
+
+            if (remainingCats === 0 && remainingCheese === 0) {
+                playSound('levelClear');
+                score += 500 * level; // Bônus de nível
+                level++;
+                updateHUD();
+                showModal("Nível Concluído!", `Excelente! Você encurralou todos os gatos e comeu todo o queijo!<br><br><b>Bônus de Nível: +${500 * (level - 1)} Pontos</b>`, () => {
+                    loadLevel(level);
+                });
+            }
+        }
+
+        /* =============================================================
+           RENDERIZADOR CANVAS (RETRO GRAPHICS ENGINES)
+           ============================================================= */
+        function drawGrid() {
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const px = x * CELL_SIZE;
+                    const py = y * CELL_SIZE;
+                    const tile = grid[y][x];
+
+                    // 1. Chão Padrão (Fundo Cinza Claro Retrô)
+                    ctx.fillStyle = (x + y) % 2 === 0 ? '#d4d4d4' : '#c8c8c8';
+                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+                    ctx.strokeStyle = '#bbbbbb';
+                    ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
+
+                    // 2. Desenhar Paredes Estáticas (Cinza Escuro 3D)
+                    if (tile === TILE_WALL) {
+                        draw3DBlock(px, py, '#505050', '#888888', '#222222');
+                    }
+                    // 3. Desenhar Blocos Empurráveis Verdes (3D Bevel)
+                    else if (tile === TILE_BLOCK) {
+                        draw3DBlock(px, py, '#2e8b57', '#66cdaa', '#145223');
+                    }
+                    // 4. Desenhar Queijo
+                    else if (tile === TILE_CHEESE) {
+                        drawCheese(px, py);
+                    }
+                    // 5. Desenhar Ratoeira
+                    else if (tile === TILE_TRAP) {
+                        drawTrap(px, py);
+                    }
+                    // 6. Desenhar Buraco no Chão
+                    else if (tile === TILE_HOLE) {
+                        drawHole(px, py);
+                    }
+                }
+            }
+
+            // 7. Desenhar Inimigos (Gatos)
+            for (let cat of cats) {
+                if (cat.alive && !cat.isTrapped) {
+                    drawCat(cat.x * CELL_SIZE, cat.y * CELL_SIZE, cat);
+                }
+            }
+
+            // 8. Desenhar Jogador (Rato)
+            drawMouse(player.x * CELL_SIZE, player.y * CELL_SIZE);
+        }
+
+        // Desenhar Bloco com Efeito 3D Retrô (Bevel)
+        function draw3DBlock(px, py, baseColor, lightColor, darkColor) {
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+
+            // Borda Superior e Esquerda (Clara)
+            ctx.fillStyle = lightColor;
+            ctx.beginPath();
+            ctx.moveTo(px, py + CELL_SIZE);
+            ctx.lineTo(px, py);
+            ctx.lineTo(px + CELL_SIZE, py);
+            ctx.lineTo(px + CELL_SIZE - 4, py + 4);
+            ctx.lineTo(px + 4, py + 4);
+            ctx.lineTo(px + 4, py + CELL_SIZE - 4);
+            ctx.fill();
+
+            // Borda Inferior e Direita (Escura)
+            ctx.fillStyle = darkColor;
+            ctx.beginPath();
+            ctx.moveTo(px + CELL_SIZE, py);
+            ctx.lineTo(px + CELL_SIZE, py + CELL_SIZE);
+            ctx.lineTo(px, py + CELL_SIZE);
+            ctx.lineTo(px + 4, py + CELL_SIZE - 4);
+            ctx.lineTo(px + CELL_SIZE - 4, py + CELL_SIZE - 4);
+            ctx.lineTo(px + CELL_SIZE - 4, py + 4);
+            ctx.fill();
+        }
+
+        // Desenhar Rato (Player)
+        function drawMouse(px, py) {
+            // Efeito de piscar se estiver invencível pós-respawn
+            if (player.invincibleTimer > 0 && Math.floor(Date.now() / 150) % 2 === 0) return;
+
+            const cx = px + CELL_SIZE / 2;
+            const cy = py + CELL_SIZE / 2;
+
+            // Corpo do Rato
+            ctx.fillStyle = '#808080';
+            ctx.beginPath();
+            ctx.arc(cx, cy, CELL_SIZE * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#404040';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Orelhas cor de rosa
+            ctx.fillStyle = '#ffb6c1';
+            ctx.beginPath();
+            ctx.arc(cx - 7, cy - 8, 4.5, 0, Math.PI * 2);
+            ctx.arc(cx + 7, cy - 8, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Olhos
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(cx - 3, cy - 2, 1.8, 0, Math.PI * 2);
+            ctx.arc(cx + 3, cy - 2, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Nariz
+            ctx.fillStyle = '#ff69b4';
+            ctx.beginPath();
+            ctx.arc(cx, cy + 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Focinho/Bigodes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx - 2, cy + 3); ctx.lineTo(cx - 10, cy + 1);
+            ctx.moveTo(cx - 2, cy + 4); ctx.lineTo(cx - 9, cy + 6);
+            ctx.moveTo(cx + 2, cy + 3); ctx.lineTo(cx + 10, cy + 1);
+            ctx.moveTo(cx + 2, cy + 4); ctx.lineTo(cx + 9, cy + 6);
+            ctx.stroke();
+
+            // Se estiver preso no buraco, desenha um relógio/barra de progresso sobre o rato
+            if (player.isStuck) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, CELL_SIZE * 0.45, 0, (player.stuckTimer / 3.0) * Math.PI * 2);
+                ctx.lineTo(cx, cy);
+                ctx.fill();
+            }
+        }
+
+        // Desenhar Gato (Inimigo)
+        function drawCat(px, py, cat) {
+            const cx = px + CELL_SIZE / 2;
+            const cy = py + CELL_SIZE / 2;
+
+            // Cabeça do Gato (Laranja Natação Retrô)
+            ctx.fillStyle = '#ff8c00';
+            ctx.beginPath();
+            ctx.arc(cx, cy, CELL_SIZE * 0.38, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#8b4513';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Orelhas pontudas
+            ctx.fillStyle = '#ff8c00';
+            ctx.beginPath();
+            ctx.moveTo(cx - 10, cy - 6); ctx.lineTo(cx - 11, cy - 13); ctx.lineTo(cx - 3, cy - 10);
+            ctx.moveTo(cx + 10, cy - 6); ctx.lineTo(cx + 11, cy - 13); ctx.lineTo(cx + 3, cy - 10);
+            ctx.fill();
+            ctx.stroke();
+
+            // Olhos Verdes Felinos
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - 2, 2.5, 0, Math.PI * 2);
+            ctx.arc(cx + 4, cy - 2, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupilas verticais
+            ctx.fillStyle = '#000';
+            ctx.fillRect(cx - 4.5, cy - 3.5, 1, 3);
+            ctx.fillRect(cx + 3.5, cy - 3.5, 1, 3);
+
+            // Indicador visual se o gato estiver encurralado (sem saída para o rato, faltando só fechar o espaço)
+            if (cat.isCornered) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText('!', cx + 8, cy - 6);
+            }
+
+            // Nariz e Boca
+            ctx.fillStyle = '#ffb6c1';
+            ctx.beginPath();
+            ctx.moveTo(cx - 2, cy + 2); ctx.lineTo(cx + 2, cy + 2); ctx.lineTo(cx, cy + 4);
+            ctx.fill();
+
+            // Bigodes
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx - 3, cy + 3); ctx.lineTo(cx - 12, cy + 2);
+            ctx.moveTo(cx - 3, cy + 4); ctx.lineTo(cx - 11, cy + 7);
+            ctx.moveTo(cx + 3, cy + 3); ctx.lineTo(cx + 12, cy + 2);
+            ctx.moveTo(cx + 3, cy + 4); ctx.lineTo(cx + 11, cy + 7);
+            ctx.stroke();
+        }
+
+        // Desenhar Fatia de Queijo
+        function drawCheese(px, py) {
+            const cx = px + CELL_SIZE / 2;
+            const cy = py + CELL_SIZE / 2;
+
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.moveTo(px + 6, py + CELL_SIZE - 6);
+            ctx.lineTo(px + CELL_SIZE - 6, py + CELL_SIZE - 6);
+            ctx.lineTo(cx + 4, py + 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#darkgoldenrod';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Buracos do queijo suíço
+            ctx.fillStyle = '#ffa500';
+            ctx.beginPath();
+            ctx.arc(px + 12, py + 18, 2.5, 0, Math.PI * 2);
+            ctx.arc(px + 20, py + 22, 2, 0, Math.PI * 2);
+            ctx.arc(px + 16, py + 14, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Desenhar Ratoeira
+        function drawTrap(px, py) {
+            // Base de madeira
+            ctx.fillStyle = '#c4a484';
+            ctx.fillRect(px + 4, py + 6, CELL_SIZE - 8, CELL_SIZE - 12);
+            ctx.strokeStyle = '#5c4033';
+            ctx.strokeRect(px + 4, py + 6, CELL_SIZE - 8, CELL_SIZE - 12);
+
+            // Mola de metal
+            ctx.strokeStyle = '#708090';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(px + 6, py + 8); ctx.lineTo(px + CELL_SIZE - 6, py + CELL_SIZE - 8);
+            ctx.stroke();
+        }
+
+        // Desenhar Buraco no Chão
+        function drawHole(px, py) {
+            const cx = px + CELL_SIZE / 2;
+            const cy = py + CELL_SIZE / 2;
+
+            ctx.fillStyle = '#1a1a1a';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, CELL_SIZE * 0.38, CELL_SIZE * 0.28, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#404040';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        /* =============================================================
+           ATUALIZAÇÃO DE INTERFACE (HUD & MENSAGENS)
+           ============================================================= */
+        function updateHUD() {
+            hudScore.textContent = String(score).padStart(6, '0');
+            hudLevel.textContent = String(level).padStart(2, '0');
+
+            // Renderiza ícones de vida
+            let livesHtml = '';
+            for (let i = 0; i < lives; i++) livesHtml += '🐭 ';
+            hudLives.innerHTML = livesHtml || 'NENHUMA';
+
+            // Contagem de gatos ativos restantes
+            const activeCats = cats.filter(c => c.alive && !c.isTrapped).length;
+            hudCatsLeft.textContent = activeCats;
+        }
+
+        function showStatusMessage(text) {
+            statusMessage.textContent = text;
+        }
+
+        function toggleSound() {
+            soundMuted = !soundMuted;
+            soundBtn.innerHTML = soundMuted ? '🔇 Som: OFF' : '🔊 Som: ON';
+            soundStatusText.textContent = soundMuted ? 'DESLIGADO' : 'LIGADO';
+            showStatusMessage(soundMuted ? 'Sons desativados.' : 'Sons ativados.');
+        }
+
+        function togglePause() {
+            if (isGameOver) return;
+            isPaused = !isPaused;
+            pauseBtn.innerHTML = isPaused ? '▶️ Continuar' : '⏸️ Pausar';
+            showStatusMessage(isPaused ? 'Jogo Pausado.' : 'Jogo Em Andamento.');
+        }
+
+        function resetGame() {
+            closeModal();
+            initGame();
+        }
+
+        /* =============================================================
+           GERENCIAMENTO DE DIÁLOGOS E MODAIS (ESTILO WINDOWS 95)
+           ============================================================= */
+        const gameModal = document.getElementById('gameModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalContent = document.getElementById('modalContent');
+        let modalCallback = null;
+
+        function showModal(title, textHtml, onConfirm) {
+            modalTitle.textContent = title;
+            modalContent.innerHTML = textHtml;
+            modalCallback = onConfirm;
+            gameModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            gameModal.classList.add('hidden');
+            if (modalCallback) {
+                const cb = modalCallback;
+                modalCallback = null;
+                cb();
+            }
+        }
+
+        function toggleHelpModal(show) {
+            if (show) {
+                showModal("Como Jogar - Rodent's Revenge 95", `
+                    <b>OBJETIVO DO JOGO:</b><br>
+                    Ajude o Rato 🐭 a encurralar todos os Gatos 🐱 empurrando os Blocos Verdes 🟩.<br><br>
+                    <b>REGRAS PRINCIPAIS:</b><br>
+                    • Use as <b>Setas do Teclado</b> ou <b>WASD</b> para mover o rato.<br>
+                    • Empurre os blocos verdes para cercar completamente os gatos. Fileiras inteiras de blocos podem ser empurradas!<br>
+                    • Quando um gato não tiver <i>nenhuma célula vazia livre</i> para onde ir, ele se transformará em <b>Queijo 🧀</b>!<br>
+                    • Coma todos os queijos para avançar para a próxima fase.<br><br>
+                    <b>PERIGOS (NÍVEL 2+):</b><br>
+                    • <b>Ratoeiras 🪤:</b> Pisou, perdeu vida!<br>
+                    • <b>Buracos 🕳️:</b> Deixam o rato preso por 3 segundos. Empurre um bloco sobre o buraco para tampá-lo!
+                `, null);
+            }
+        }
+
+        /* =============================================================
+           INPUTS DE CONTROLE (TECLADO & TOUCH/D-PAD)
+           ============================================================= */
+        function getDirectionFromKey(key) {
+            switch (key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    return { dx: 0, dy: -1, key };
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    return { dx: 0, dy: 1, key };
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    return { dx: -1, dy: 0, key };
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    return { dx: 1, dy: 0, key };
+                default:
+                    return null;
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            try { initAudio(); } catch (err) {}
+            if (e.key === 'p' || e.key === 'P') {
+                togglePause();
+                return;
+            }
+
+            const dir = getDirectionFromKey(e.key);
+            if (dir) {
+                e.preventDefault();
+                if (!e.repeat) {
+                    heldDirection = dir;
+                    moveRepeatTimer = 0;
+                    movePlayer(dir.dx, dir.dy);
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (heldDirection && heldDirection.key === e.key) {
+                heldDirection = null;
+            }
+        });
+
+        // Garante foco no tabuleiro ao clicar
+        canvas.addEventListener('click', () => {
+            window.focus();
+            try { initAudio(); } catch (err) {}
+        });
+
+        function handleDpadInput(dx, dy) {
+            try { initAudio(); } catch (err) {}
+            movePlayer(dx, dy);
+        }
+
+        /* =============================================================
+           LOOP PRINCIPAL DO JOGO (GAME LOOP & TIMERS)
+           ============================================================= */
+        let lastTime = performance.now();
+
+        function gameLoop(currentTime) {
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            if (!isPaused && !isGameOver) {
+                // Movimento contínuo ágil do rato enquanto a tecla estiver pressionada
+                if (heldDirection) {
+                    moveRepeatTimer += deltaTime;
+                    if (moveRepeatTimer >= MOVE_REPEAT_DELAY) {
+                        moveRepeatTimer = 0;
+                        movePlayer(heldDirection.dx, heldDirection.dy);
+                    }
+                }
+
+                // Atualizar temporizador de imunidade pós-respawn
+                if (player.invincibleTimer > 0) {
+                    player.invincibleTimer -= deltaTime / 1000;
+                }
+
+                // Atualizar temporizador de imobilização no buraco
+                if (player.isStuck) {
+                    player.stuckTimer -= deltaTime / 1000;
+                    if (player.stuckTimer <= 0) {
+                        player.isStuck = false;
+                        player.stuckTimer = 0;
+                        showStatusMessage("Você se libertou do buraco!");
+                    }
+                }
+
+                // Atualizar IA e movimento dos gatos
+                updateCats(deltaTime);
+            }
+
+            // Renderizar gráficos
+            drawGrid();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar jogo ao carregar a página
+        window.onload = function() {
+            initGame();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
