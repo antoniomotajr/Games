@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Conexão Tática — Quiz & Palavras Cruzadas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-board: #0b0f17;
+      --grid-line: rgba(56, 189, 248, 0.045);
+      --card-bg: #161e2e;
+      --card-border: #2a3750;
+      --card-hover: #1e293b;
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-board);
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .tactical-board {
+      background-color: var(--bg-board);
+      background-image:
+        radial-gradient(circle at 50% 45%, rgba(30, 41, 59, 0.5) 0%, rgba(11, 15, 23, 0.96) 100%),
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+      background-size: 100% 100%, 24px 24px, 24px 24px;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .game-card {
+      background: linear-gradient(145deg, #1a2336, #131a29);
+      border: 1px solid var(--card-border);
+      box-shadow:
+        0 4px 10px -2px rgba(0, 0, 0, 0.55),
+        0 1px 0 0 rgba(255, 255, 255, 0.06) inset;
+      transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+                  border-color 0.14s ease,
+                  box-shadow 0.14s ease,
+                  background 0.14s ease;
+      position: relative;
+      z-index: 10;
+    }
+
+    .game-card:hover:not(.matched):not(.disabled) {
+      transform: translateY(-1px);
+      border-color: rgba(56, 189, 248, 0.65);
+      background: linear-gradient(145deg, #202c44, #172033);
+      box-shadow:
+        0 6px 14px -2px rgba(0, 0, 0, 0.7),
+        0 0 10px rgba(56, 189, 248, 0.18);
+    }
+
+    .game-card.selected {
+      border-color: var(--accent-cyan);
+      background: linear-gradient(145deg, #1d324d, #15253b);
+      box-shadow:
+        0 0 0 1.5px rgba(56, 189, 248, 0.4),
+        0 6px 16px rgba(56, 189, 248, 0.25);
+      transform: scale(1.012);
+    }
+
+    .game-card.matched {
+      border-color: rgba(16, 185, 129, 0.65);
+      background: linear-gradient(145deg, rgba(16, 185, 129, 0.16), rgba(6, 78, 59, 0.24));
+      box-shadow: 0 2px 6px rgba(16, 185, 129, 0.12);
+      cursor: default;
+      opacity: 0.92;
+    }
+
+    .game-card.error-shake {
+      border-color: var(--accent-rose) !important;
+      background: linear-gradient(145deg, rgba(244, 63, 94, 0.24), rgba(136, 19, 55, 0.3)) !important;
+      animation: shake 0.36s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translate3d(-2px, 0, 0); }
+      20%, 80% { transform: translate3d(3px, 0, 0); }
+      30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+      40%, 60% { transform: translate3d(4px, 0, 0); }
+    }
+
+    @keyframes pulse-glow {
+      0% { filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.4)); }
+      50% { filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.9)); }
+      100% { filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.5)); }
+    }
+
+    .line-matched {
+      animation: pulse-glow 0.7s ease-out;
+    }
+
+    .connector-pin {
+      width: 9px;
+      height: 9px;
+      border-radius: 9999px;
+      background: #334155;
+      border: 2px solid #64748b;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .game-card:hover:not(.matched) .connector-pin,
+    .game-card.selected .connector-pin {
+      background: var(--accent-cyan);
+      border-color: #e0f2fe;
+      box-shadow: 0 0 7px var(--accent-cyan);
+    }
+
+    .game-card.matched .connector-pin {
+      background: var(--accent-emerald);
+      border-color: #d1fae5;
+      box-shadow: 0 0 7px var(--accent-emerald);
+    }
+
+    @keyframes timer-urgent {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .timer-critical {
+      color: #fb7185 !important;
+      border-color: rgba(244, 63, 94, 0.65) !important;
+      background: rgba(244, 63, 94, 0.15) !important;
+      animation: timer-urgent 0.6s infinite;
+    }
+
+    .modal-backdrop {
+      background: rgba(7, 10, 17, 0.88);
+      backdrop-filter: blur(8px);
+    }
+
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .level-option.active {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.16);
+      color: #f8fafc;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.22);
+    }
+  </style>
+</head>
+<body class="tactical-board flex flex-col justify-between">
+
+  <!-- ÁUDIO DE TENSÃO LOCAL -->
+  <audio id="audio-tensao" src="tensao.mp3" loop preload="auto"></audio>
+
+  <!-- HUD SUPERIOR COMPACTO -->
+  <header class="w-full border-b border-slate-800/90 bg-slate-950/85 backdrop-blur-md z-30 px-2.5 py-1.5 shrink-0">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-2">
+      
+      <!-- Identificação do Nível e Troca Rápida -->
+      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <div class="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        </div>
+        <div class="flex items-center gap-1.5 truncate">
+          <select id="hud-level-select" title="Escolher Nível" class="text-[11px] font-bold uppercase tracking-wider px-1.5 py-1 rounded bg-slate-900 text-cyan-300 border border-slate-700 hover:border-cyan-400/60 focus:outline-none cursor-pointer">
+            <option value="0">Nível 1: Fácil</option>
+            <option value="1">Nível 2: Médio</option>
+            <option value="2">Nível 3: Avançado</option>
+          </select>
+          <span id="hud-stage-info" class="text-xs text-slate-300 font-semibold hidden md:inline">
+            Fase 1 • 3 Itens
+          </span>
+        </div>
+      </div>
+
+      <!-- CRONÔMETRO DE 30s CENTRAL -->
+      <div id="hud-timer-box" class="flex items-center gap-2 bg-slate-900 border border-slate-700/80 px-2.5 sm:px-3 py-1 rounded-lg transition-colors">
+        <svg class="w-4 h-4 text-cyan-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div class="flex flex-col">
+          <div class="flex items-baseline gap-1">
+            <span id="hud-timer" class="font-mono-tech text-sm sm:text-base font-extrabold text-white leading-none">30.0s</span>
+          </div>
+          <div class="w-14 sm:w-24 h-1 bg-slate-800 rounded-full overflow-hidden mt-1">
+            <div id="hud-timer-bar" class="h-full bg-cyan-400 transition-all duration-100 ease-linear" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Métricas e Controles de Áudio -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <div class="bg-slate-900/90 border border-slate-800 px-2 py-1 rounded-lg text-center">
+          <div class="text-[9px] uppercase tracking-wider text-slate-400 leading-none">Pares</div>
+          <div id="hud-progress" class="font-mono-tech text-xs sm:text-sm font-bold text-cyan-400 leading-tight mt-0.5">0/3</div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 px-2 py-1 rounded-lg text-center hidden sm:block">
+          <div class="text-[9px] uppercase tracking-wider text-slate-400 leading-none">Combo</div>
+          <div id="hud-combo" class="font-mono-tech text-xs sm:text-sm font-bold text-amber-400 leading-tight mt-0.5">x1</div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 px-2 py-1 rounded-lg text-center">
+          <div class="text-[9px] uppercase tracking-wider text-slate-400 leading-none">Pontos</div>
+          <div id="hud-score" class="font-mono-tech text-xs sm:text-sm font-bold text-white leading-tight mt-0.5">0</div>
+        </div>
+
+        <!-- BOTÃO MUTE MÚSICA (tensao.mp3) -->
+        <button id="btn-music-mute" title="Mutar/Ativar Música de Tensão" class="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/60 text-amber-300 text-[11px] font-semibold transition cursor-pointer">
+          <svg id="icon-music-on" class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+          </svg>
+          <svg id="icon-music-off" class="w-3.5 h-3.5 text-rose-400 hidden shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+          <span id="label-music-mute" class="hidden lg:inline">Música</span>
+        </button>
+
+        <!-- BOTÃO MUTE EFEITOS SONOROS -->
+        <button id="btn-sound" title="Alternar Efeitos Sonoros" class="p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-300 transition cursor-pointer">
+          <svg id="icon-sound-on" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="icon-sound-off" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ÁREA PRINCIPAL DO TABULEIRO (100% SEM SCROLL) -->
+  <main id="board-container" class="relative flex-1 w-full max-w-6xl mx-auto px-2 sm:px-5 py-1.5 flex flex-col justify-center overflow-hidden">
+    <svg id="connections-svg" class="absolute inset-0 w-full h-full pointer-events-none z-20"></svg>
+
+    <div class="flex justify-between items-center mb-1 px-1 z-10 shrink-0">
+      <div class="w-[55%] sm:w-[56%] flex items-center justify-between">
+        <span class="text-[10px] font-mono-tech uppercase tracking-widest text-slate-400">Coluna 1 • Pergunta</span>
+        <span id="remaining-pool-badge" class="text-[10px] font-mono-tech text-slate-500">Inéditas no nível: 35</span>
+      </div>
+      <div class="w-[41%] sm:w-[38%] flex items-center justify-end">
+        <span class="text-[10px] font-mono-tech uppercase tracking-widest text-slate-400">Coluna 2 • Resposta</span>
+      </div>
+    </div>
+
+    <div id="columns-wrapper" class="relative flex-1 flex justify-between items-stretch gap-4 sm:gap-10 md:gap-16 z-10 min-h-0">
+      <div id="col-left" class="w-[56%] sm:w-[56%] flex flex-col justify-between h-full"></div>
+      <div id="col-right" class="w-[40%] sm:w-[38%] flex flex-col justify-between h-full"></div>
+    </div>
+  </main>
+
+  <!-- RODAPÉ MINIMALISTA -->
+  <footer class="w-full py-1 px-3 border-t border-slate-800/60 bg-slate-950/70 text-center text-[11px] text-slate-500 z-20 shrink-0 flex items-center justify-between max-w-6xl mx-auto">
+    <span>Arraste ou clique nos pares • Tensão sobe nos últimos 10s (tensao.mp3)</span>
+    <span id="footer-level-progress" class="font-mono-tech text-slate-400">Nível 1/3 • Rodada 1/8</span>
+  </footer>
+
+  <!-- TELA INICIAL COM SELETOR DE NÍVEL -->
+  <div id="screen-start" class="fixed inset-0 modal-backdrop z-50 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-700/80 rounded-2xl p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 mx-auto mb-2.5 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center">
+        <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-extrabold tracking-tight text-white mb-1">Conexão Tática</h1>
+      <p class="text-slate-300 text-xs sm:text-sm mb-4">
+        Escolha o nível inicial e conecte todos os pares em até <strong>30 segundos</strong> por fase.
+      </p>
+
+      <!-- SELETOR DE NÍVEL -->
+      <div class="mb-4 text-left">
+        <label class="block text-[11px] font-mono-tech uppercase tracking-wider text-slate-400 mb-1.5">
+          Escolha o Nível Inicial:
+        </label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" data-level-choice="0" class="level-option active rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 px-2 text-center transition cursor-pointer">
+            <div class="text-xs font-extrabold text-emerald-300">Fácil</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">35 questões</div>
+          </button>
+          <button type="button" data-level-choice="1" class="level-option rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 px-2 text-center transition cursor-pointer">
+            <div class="text-xs font-extrabold text-cyan-300">Médio</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">35 questões</div>
+          </button>
+          <button type="button" data-level-choice="2" class="level-option rounded-xl border border-slate-700 bg-slate-950/80 py-2.5 px-2 text-center transition cursor-pointer">
+            <div class="text-xs font-extrabold text-amber-300">Avançado</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">30 questões</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 text-left text-xs space-y-1.5 mb-5">
+        <div class="flex items-center gap-2 text-slate-200">
+          <span class="w-2 h-2 rounded-full bg-rose-400 shrink-0"></span>
+          <span><strong>30s por rodada:</strong> Nos últimos 10s, <code class="text-amber-300">tensao.mp3</code> toca e vai aumentando.</span>
+        </div>
+        <div class="flex items-center gap-2 text-slate-200">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+          <span><strong>Escalonamento:</strong> 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 itens sem repetir.</span>
+        </div>
+      </div>
+
+      <button id="btn-start-game" class="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-cyan-500/25 transition transform active:scale-98 cursor-pointer">
+        INICIAR DESAFIO
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL DE TRANSIÇÃO DE NÍVEL -->
+  <div id="screen-transition" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="max-w-sm w-full bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center">
+        <svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <div id="trans-subtitle" class="text-[11px] font-mono-tech uppercase tracking-widest text-emerald-400 mb-1">Nível Concluído</div>
+      <h2 id="trans-title" class="text-xl font-extrabold text-white mb-1.5">Nível 2: Médio</h2>
+      <p id="trans-desc" class="text-slate-300 text-xs sm:text-sm mb-4">Preparando questões de nível intermediário.</p>
+      
+      <div class="flex justify-center gap-3 mb-5">
+        <div class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+          <div class="text-[10px] text-slate-400 uppercase">Pontuação</div>
+          <div id="trans-score" class="font-mono-tech text-base font-bold text-cyan-400">0</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2">
+          <div class="text-[10px] text-slate-400 uppercase">Próxima Rodada</div>
+          <div id="trans-next-items" class="font-mono-tech text-base font-bold text-amber-400">3 Itens (30s)</div>
+        </div>
+      </div>
+
+      <button id="btn-next-level" class="w-full py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm transition cursor-pointer">
+        CONTINUAR
+      </button>
+    </div>
+  </div>
+
+  <!-- TELA DE TEMPO ESGOTADO -->
+  <div id="screen-gameover" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="max-w-sm w-full bg-slate-900 border border-rose-500/50 rounded-2xl p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-rose-500/20 border border-rose-400/50 flex items-center justify-center">
+        <svg class="w-6 h-6 text-rose-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+      <div class="text-[11px] font-mono-tech uppercase tracking-widest text-rose-400 mb-1">Fim de Jogo</div>
+      <h2 class="text-xl font-extrabold text-white mb-1">Tempo Esgotado!</h2>
+      <p class="text-slate-300 text-xs sm:text-sm mb-4">Os 30 segundos acabaram antes de completar todas as conexões.</p>
+
+      <div class="grid grid-cols-2 gap-2.5 mb-5 text-center">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <div class="text-[10px] text-slate-400 uppercase">Pontuação</div>
+          <div id="over-score" class="font-mono-tech text-lg font-extrabold text-cyan-400">0</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <div class="text-[10px] text-slate-400 uppercase">Acertos Totais</div>
+          <div id="over-matches" class="font-mono-tech text-lg font-extrabold text-emerald-400">0</div>
+        </div>
+      </div>
+
+      <button id="btn-retry-game" class="w-full py-2.5 px-5 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-white font-extrabold text-sm shadow-lg transition cursor-pointer">
+        TENTAR NOVAMENTE
+      </button>
+    </div>
+  </div>
+
+  <!-- TELA FINAL DE VITÓRIA -->
+  <div id="screen-victory" class="fixed inset-0 modal-backdrop z-50 hidden items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-amber-400/50 rounded-2xl p-6 shadow-2xl text-center">
+      <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center">
+        <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      </div>
+      <div class="text-[11px] font-mono-tech uppercase tracking-widest text-amber-400 mb-1">Desafio Completo</div>
+      <h2 class="text-2xl font-extrabold text-white mb-1">Mestre das Conexões!</h2>
+      <p class="text-slate-300 text-xs sm:text-sm mb-4">Você concluiu a jornada sem repetir nenhuma pergunta!</p>
+
+      <div class="grid grid-cols-3 gap-2 mb-5 text-center">
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <div class="text-[10px] text-slate-400 uppercase">Pontos</div>
+          <div id="final-score" class="font-mono-tech text-base sm:text-lg font-extrabold text-cyan-400">0</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <div class="text-[10px] text-slate-400 uppercase">Precisão</div>
+          <div id="final-accuracy" class="font-mono-tech text-base sm:text-lg font-extrabold text-emerald-400">100%</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+          <div class="text-[10px] text-slate-400 uppercase">Max Combo</div>
+          <div id="final-combo" class="font-mono-tech text-base sm:text-lg font-extrabold text-amber-400">x1</div>
+        </div>
+      </div>
+
+      <button id="btn-restart-game" class="w-full py-3 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-sm shadow-lg transition cursor-pointer">
+        JOGAR NOVAMENTE
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const LEVELS_DATA = [
+      {
+        id: 1,
+        name: "Nível 1: Fácil",
+        description: "Conhecimentos gerais fundamentais.",
+        pairs: [
+          { id: "f1", left: "Qual é a capital do Brasil?", right: "Brasília" },
+          { id: "f2", left: "Quantos dias tem um ano bissexto?", right: "366 dias" },
+          { id: "f3", left: "Qual é o maior planeta do Sistema Solar?", right: "Júpiter" },
+          { id: "f4", left: "De que cor é a esmeralda?", right: "Verde" },
+          { id: "f5", left: "Quantas patas tem uma aranha?", right: "Oito" },
+          { id: "f6", left: "Qual é o metal mais caro entre ouro, prata e bronze?", right: "Ouro" },
+          { id: "f7", left: "Em que continente fica o Egito?", right: "África" },
+          { id: "f8", left: "Qual é o nome do satélite natural da Terra?", right: "Lua" },
+          { id: "f9", left: "Quantos segundos tem um minuto?", right: "60 segundos" },
+          { id: "f10", left: "Qual é o animal terrestre mais rápido do mundo?", right: "Guepardo (chita)" },
+          { id: "f11", left: "Qual é o idioma oficial da Argentina?", right: "Espanhol" },
+          { id: "f12", left: "Quantos estados tem o Brasil (sem o DF)?", right: "26 estados" },
+          { id: "f13", left: "Qual órgão bombeia sangue para o corpo humano?", right: "Coração" },
+          { id: "f14", left: "Quem pintou a Mona Lisa?", right: "Leonardo da Vinci" },
+          { id: "f15", left: "Processo pelo qual as plantas produzem alimento?", right: "Fotossíntese" },
+          { id: "f16", left: "Qual é a estação do ano mais quente?", right: "Verão" },
+          { id: "f17", left: "Quantos lados tem um hexágono?", right: "Seis" },
+          { id: "f18", left: "Qual é o nome do criador do Mickey Mouse?", right: "Walt Disney" },
+          { id: "f19", left: "Qual é a moeda oficial dos Estados Unidos?", right: "Dólar" },
+          { id: "f20", left: "Qual é o maior oceano da Terra?", right: "Oceano Pacífico" },
+          { id: "f21", left: "De qual fruta se faz o vinho tradicional?", right: "Uva" },
+          { id: "f22", left: "Quantos jogadores um time de futebol tem em campo?", right: "11 jogadores" },
+          { id: "f23", left: "Qual é o menor mês do ano?", right: "Fevereiro" },
+          { id: "f24", left: "Qual planeta é conhecido como 'Planeta Vermelho'?", right: "Marte" },
+          { id: "f25", left: "Qual é o nome da torre inclinada famosa na Itália?", right: "Torre de Pisa" },
+          { id: "f26", left: "Qual é o maior mamífero do mundo?", right: "Baleia-azul" },
+          { id: "f27", left: "O que a abelha produz a partir do néctar das flores?", right: "Mel" },
+          { id: "f28", left: "Qual cor é formada pela mistura de azul e amarelo?", right: "Verde" },
+          { id: "f29", left: "Em que país fica a Torre Eiffel?", right: "França" },
+          { id: "f30", left: "Quantas letras tem o alfabeto português atual?", right: "26 letras" },
+          { id: "f31", left: "Qual é o osso mais longo do corpo humano?", right: "Fêmur" },
+          { id: "f32", left: "Qual é a fórmula química da água?", right: "H₂O" },
+          { id: "f33", left: "Quem escreveu 'Dom Casmurro'?", right: "Machado de Assis" },
+          { id: "f34", left: "Qual é a capital da França?", right: "Paris" },
+          { id: "f35", left: "Instrumento de teclas pretas e brancas na música clássica?", right: "Piano" }
+        ]
+      },
+      {
+        id: 2,
+        name: "Nível 2: Médio",
+        description: "Ciências, história, geografia e artes.",
+        pairs: [
+          { id: "m1", left: "Qual é o menor país do mundo em área territorial?", right: "Vaticano" },
+          { id: "m2", left: "Em que ano o homem pisou na Lua pela primeira vez?", right: "1969" },
+          { id: "m3", left: "Qual elemento químico tem o símbolo 'Fe'?", right: "Ferro" },
+          { id: "m4", left: "Quem descobriu o Brasil oficialmente em 1500?", right: "Pedro Álvares Cabral" },
+          { id: "m5", left: "Qual é a montanha mais alta acima do nível do mar?", right: "Monte Everest" },
+          { id: "m6", left: "Qual é o rio mais extenso do mundo?", right: "Rio Amazonas" },
+          { id: "m7", left: "Quantos ossos tem o corpo humano adulto?", right: "206 ossos" },
+          { id: "m8", left: "Qual país tem o formato de uma bota no mapa?", right: "Itália" },
+          { id: "m9", left: "Qual é a velocidade aproximada da luz no vácuo?", right: "300.000 km/s" },
+          { id: "m10", left: "Quem pintou o teto da Capela Sistina?", right: "Michelangelo" },
+          { id: "m11", left: "Qual é o maior deserto quente do mundo?", right: "Deserto do Saara" },
+          { id: "m12", left: "Qual é a capital da Austrália?", right: "Camberra" },
+          { id: "m13", left: "Em que ano começou a Segunda Guerra Mundial?", right: "1939" },
+          { id: "m14", left: "Qual é o gás mais abundante na atmosfera terrestre?", right: "Nitrogênio" },
+          { id: "m15", left: "Quem foi o primeiro presidente do Brasil?", right: "Deodoro da Fonseca" },
+          { id: "m16", left: "Linha imaginária que divide os hemisférios Norte e Sul?", right: "Linha do Equador" },
+          { id: "m17", left: "Vitamina produzida pelo corpo quando exposto ao sol?", right: "Vitamina D" },
+          { id: "m18", left: "Qual é o animal símbolo da Austrália?", right: "Canguru" },
+          { id: "m19", left: "Quem escreveu a peça 'Romeu e Julieta'?", right: "William Shakespeare" },
+          { id: "m20", left: "Qual é o maior arquipélago do mundo?", right: "Indonésia" },
+          { id: "m21", left: "Qual é o movimento artístico de Salvador Dalí?", right: "Surrealismo" },
+          { id: "m22", left: "Quantos dentes permanentes um adulto possui?", right: "32 dentes" },
+          { id: "m23", left: "Qual é a capital do Canadá?", right: "Ottawa" },
+          { id: "m24", left: "Qual cientista formulou a Teoria da Relatividade?", right: "Albert Einstein" },
+          { id: "m25", left: "Qual é o maior órgão do corpo humano?", right: "A pele" },
+          { id: "m26", left: "Em que cidade fica o Cristo Redentor?", right: "Rio de Janeiro" },
+          { id: "m27", left: "Estreito que separa a Europa da África?", right: "Estreito de Gibraltar" },
+          { id: "m28", left: "Qual metal é líquido à temperatura ambiente?", right: "Mercúrio" },
+          { id: "m29", left: "Quem compôs as 'Quatro Estações'?", right: "Antonio Vivaldi" },
+          { id: "m30", left: "Qual é o nome da moeda oficial do Japão?", right: "Iene" },
+          { id: "m31", left: "Qual é o país mais populoso do mundo atualmente?", right: "Índia" },
+          { id: "m32", left: "Em que ano foi proclamada a Independência do Brasil?", right: "1822" },
+          { id: "m33", left: "Camada da atmosfera onde ocorre a maioria do clima?", right: "Troposfera" },
+          { id: "m34", left: "Criador da tabela periódica moderna?", right: "Dmitri Mendeleev" },
+          { id: "m35", left: "Qual é o ponto mais profundo dos oceanos?", right: "Fossa das Marianas" }
+        ]
+      },
+      {
+        id: 3,
+        name: "Nível 3: Avançado",
+        description: "Desafios de alta precisão histórica e científica.",
+        pairs: [
+          { id: "a1", left: "Elemento químico mais abundante no universo?", right: "Hidrogênio" },
+          { id: "a2", left: "Em que ano caiu o Muro de Berlim?", right: "1989" },
+          { id: "a3", left: "Tratado que dividiu terras entre Portugal e Espanha em 1494?", right: "Tratado de Tordesilhas" },
+          { id: "a4", left: "Qual é a capital da Mongólia?", right: "Ulan Bator" },
+          { id: "a5", left: "Quem escreveu 'A Origem das Espécies'?", right: "Charles Darwin" },
+          { id: "a6", left: "Partícula subatômica com carga elétrica neutra?", right: "Nêutron" },
+          { id: "a7", left: "Em que país nasceu o pintor Pablo Picasso?", right: "Espanha" },
+          { id: "a8", left: "Menor unidade estrutural e funcional dos seres vivos?", right: "Célula" },
+          { id: "a9", left: "Civilização antiga que construiu Machu Picchu?", right: "Civilização Inca" },
+          { id: "a10", left: "Conflito ocorrido na Espanha entre 1936 e 1939?", right: "Guerra Civil Espanhola" },
+          { id: "a11", left: "Único mamífero capaz de voar verdadeiramente?", right: "Morcego" },
+          { id: "a12", left: "Fenômeno em que a Lua encobre totalmente o Sol?", right: "Eclipse solar total" },
+          { id: "a13", left: "Primeira mulher a ganhar um Prêmio Nobel?", right: "Marie Curie" },
+          { id: "a14", left: "Estreito que separa a Ásia da América do Norte?", right: "Estreito de Bering" },
+          { id: "a15", left: "Filósofo grego que foi mestre de Alexandre, o Grande?", right: "Aristóteles" },
+          { id: "a16", left: "Qual é a capital do Cazaquistão?", right: "Astana" },
+          { id: "a17", left: "Qual é o número atômico do carbono?", right: "6" },
+          { id: "a18", left: "Quem escreveu 'A Divina Comédia'?", right: "Dante Alighieri" },
+          { id: "a19", left: "Galáxia mais próxima da Via Láctea?", right: "Galáxia de Andrômeda" },
+          { id: "a20", left: "Em que ano ocorreu a Revolução Francesa?", right: "1789" },
+          { id: "a21", left: "Enzima na saliva que inicia a digestão do amido?", right: "Amilase salivar" },
+          { id: "a22", left: "País com o maior número de fusos horários (12)?", right: "França" },
+          { id: "a23", left: "Quem pintou a obra 'Guernica'?", right: "Pablo Picasso" },
+          { id: "a24", left: "Ponto da órbita de um planeta mais próximo do Sol?", right: "Periélio" },
+          { id: "a25", left: "Primeira civilização a criar a escrita cuneiforme?", right: "Sumérios" },
+          { id: "a26", left: "Mar interior entre Cazaquistão e Uzbequistão que secou?", right: "Mar de Aral" },
+          { id: "a27", left: "Isótopo usado na datação de fósseis antigos?", right: "Carbono-14" },
+          { id: "a28", left: "Arquiteto do projeto urbanístico de Brasília?", right: "Lúcio Costa" },
+          { id: "a29", left: "Constante da razão entre perímetro e diâmetro do círculo?", right: "Pi (π)" },
+          { id: "a30", left: "Tratado que encerrou a Primeira Guerra Mundial em 1919?", right: "Tratado de Versalhes" }
+        ]
+      }
+    ];
+
+    /**
+     * GERENCIADOR DE ÁUDIO: EFEITOS (WEB AUDIO) + MÚSICA DE TENSÃO (tensao.mp3)
+     */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.sfxEnabled = true;
+        this.musicMuted = false;
+        this.musicEl = document.getElementById('audio-tensao');
+        this.musicError = false;
+
+        if (this.musicEl) {
+          this.musicEl.addEventListener('error', () => {
+            this.musicError = true;
+          });
+        }
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setMusicMuted(muted) {
+        this.musicMuted = muted;
+        if (this.musicEl) {
+          this.musicEl.muted = muted;
+          if (muted) {
+            this.musicEl.pause();
+          }
+        }
+      }
+
+      /**
+       * Atualiza a música tensao.mp3 conforme o tempo restante (0 a 10s).
+       * Quanto menor o tempo restante, maior o volume (0.15 até 1.0) e leve aumento de velocidade (1.0x até 1.25x).
+       */
+      updateTensionMusic(timeLeft, isPaused) {
+        const tensionThreshold = 10.0; // Começa a subir nos últimos 10 segundos
+
+        if (isPaused || timeLeft <= 0 || timeLeft > tensionThreshold || this.musicMuted) {
+          if (this.musicEl && !this.musicEl.paused) {
+            this.musicEl.pause();
+          }
+          return;
+        }
+
+        // Progresso de tensão de 0.0 (em 10s) até 1.0 (em 0s)
+        const urgency = Math.min(1, Math.max(0, (tensionThreshold - timeLeft) / tensionThreshold));
+        const targetVolume = 0.15 + urgency * 0.85; // Vai de 15% até 100%
+        const targetRate = 1.0 + urgency * 0.25;    // Vai de 1.0x até 1.25x
+
+        if (this.musicEl && !this.musicError) {
+          this.musicEl.volume = targetVolume;
+          this.musicEl.playbackRate = targetRate;
+          if (this.musicEl.paused) {
+            this.musicEl.play().catch(() => {
+              // Fallback caso tensao.mp3 não exista no diretório
+              this.musicError = true;
+            });
+          }
+        }
+      }
+
+      stopTensionMusic(resetTime = true) {
+        if (this.musicEl) {
+          this.musicEl.pause();
+          if (resetTime) {
+            this.musicEl.currentTime = 0;
+            this.musicEl.volume = 0.15;
+            this.musicEl.playbackRate = 1.0;
+          }
+        }
+      }
+
+      playSelect() {
+        if (!this.sfxEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(540, now);
+        osc.frequency.exponentialRampToValueAtTime(760, now + 0.06);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+      }
+
+      playMatch(combo = 1) {
+        if (!this.sfxEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const baseFreq = 440 * Math.pow(1.05946, Math.min(combo, 12));
+        [baseFreq, baseFreq * 1.25, baseFreq * 1.5].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.045);
+          gain.gain.setValueAtTime(0.001, now + idx * 0.045);
+          gain.gain.linearRampToValueAtTime(0.13, now + idx * 0.045 + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.24);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.045);
+          osc.stop(now + idx * 0.045 + 0.25);
+        });
+      }
+
+      playError() {
+        if (!this.sfxEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(175, now);
+        osc.frequency.linearRampToValueAtTime(125, now + 0.2);
+        gain.gain.setValueAtTime(0.11, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.23);
+      }
+
+      playLevelUp() {
+        if (!this.sfxEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + i * 0.07);
+          gain.gain.setValueAtTime(0.13, now + i * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.3);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.07);
+          osc.stop(now + i * 0.07 + 0.32);
+        });
+      }
+
+      playGameOver() {
+        if (!this.sfxEnabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        [330, 293.66, 261.63, 220].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + i * 0.12);
+          gain.gain.setValueAtTime(0.09, now + i * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.12);
+          osc.stop(now + i * 0.12 + 0.26);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /**
+     * ESTADO DO JOGO
+     */
+    const ROUND_DURATION = 30.0;
+
+    const state = {
+      selectedStartLevel: 0,
+      levelIndex: 0,
+      itemCount: 3,
+      score: 0,
+      combo: 1,
+      maxCombo: 1,
+      totalAttempts: 0,
+      correctMatches: 0,
+      matchedInRound: 0,
+      currentPairs: [],
+      matchedPairIds: new Set(),
+      usedPairIds: new Set(),
+      selectedCard: null,
+      isDragging: false,
+      dragStartCard: null,
+      dragCurrentPos: { x: 0, y: 0 },
+      timeLeft: ROUND_DURATION,
+      timerInterval: null,
+      isPaused: true
+    };
+
+    const elBoard = document.getElementById('board-container');
+    const elSvg = document.getElementById('connections-svg');
+    const elColLeft = document.getElementById('col-left');
+    const elColRight = document.getElementById('col-right');
+
+    const elLevelSelect = document.getElementById('hud-level-select');
+    const elStageInfo = document.getElementById('hud-stage-info');
+    const elProgress = document.getElementById('hud-progress');
+    const elCombo = document.getElementById('hud-combo');
+    const elScore = document.getElementById('hud-score');
+    const elTimerBox = document.getElementById('hud-timer-box');
+    const elTimerText = document.getElementById('hud-timer');
+    const elTimerBar = document.getElementById('hud-timer-bar');
+    const elRemainingBadge = document.getElementById('remaining-pool-badge');
+    const elFooterProgress = document.getElementById('footer-level-progress');
+
+    const screenStart = document.getElementById('screen-start');
+    const screenTransition = document.getElementById('screen-transition');
+    const screenGameOver = document.getElementById('screen-gameover');
+    const screenVictory = document.getElementById('screen-victory');
+
+    function shuffleArray(array) {
+      const arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function updateHUD() {
+      const level = LEVELS_DATA[state.levelIndex];
+      const roundNumber = state.itemCount - 2;
+      elLevelSelect.value = String(state.levelIndex);
+      elStageInfo.textContent = `Fase ${roundNumber} • ${state.itemCount} Itens`;
+      elProgress.textContent = `${state.matchedInRound}/${state.itemCount}`;
+      elCombo.textContent = `x${state.combo}`;
+      elScore.textContent = state.score.toLocaleString('pt-BR');
+      elFooterProgress.textContent = `Nível ${state.levelIndex + 1}/${LEVELS_DATA.length} • Rodada ${roundNumber}/8`;
+
+      const unusedCount = level.pairs.filter(p => !state.usedPairIds.has(p.id)).length;
+      elRemainingBadge.textContent = `Inéditas no nível: ${unusedCount}`;
+    }
+
+    /**
+     * CRONÔMETRO DE 30s + MÚSICA DE TENSÃO CRESCENTE
+     */
+    function startRoundTimer() {
+      stopRoundTimer();
+      sound.stopTensionMusic(true);
+      state.timeLeft = ROUND_DURATION;
+      state.isPaused = false;
+      updateTimerDisplay();
+
+      let lastTime = performance.now();
+      state.timerInterval = setInterval(() => {
+        if (state.isPaused) {
+          lastTime = performance.now();
+          sound.updateTensionMusic(state.timeLeft, true);
+          return;
+        }
+        const now = performance.now();
+        const delta = (now - lastTime) / 1000;
+        lastTime = now;
+
+        state.timeLeft = Math.max(0, state.timeLeft - delta);
+        updateTimerDisplay();
+        sound.updateTensionMusic(state.timeLeft, false);
+
+        if (state.timeLeft <= 0) {
+          handleTimeOut();
+        }
+      }, 50);
+    }
+
+    function stopRoundTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+    }
+
+    function updateTimerDisplay() {
+      const pct = (state.timeLeft / ROUND_DURATION) * 100;
+      elTimerText.textContent = `${state.timeLeft.toFixed(1)}s`;
+      elTimerBar.style.width = `${pct}%`;
+
+      if (state.timeLeft <= 10.0) {
+        elTimerBox.classList.add('timer-critical');
+        elTimerBar.classList.remove('bg-cyan-400', 'bg-amber-400');
+        elTimerBar.classList.add('bg-rose-500');
+      } else if (state.timeLeft <= 16.0) {
+        elTimerBox.classList.remove('timer-critical');
+        elTimerBar.classList.remove('bg-cyan-400', 'bg-rose-500');
+        elTimerBar.classList.add('bg-amber-400');
+      } else {
+        elTimerBox.classList.remove('timer-critical');
+        elTimerBar.classList.remove('bg-amber-400', 'bg-rose-500');
+        elTimerBar.classList.add('bg-cyan-400');
+      }
+    }
+
+    function handleTimeOut() {
+      stopRoundTimer();
+      sound.stopTensionMusic(true);
+      state.isPaused = true;
+      state.isDragging = false;
+      clearSelection();
+      sound.playGameOver();
+
+      document.getElementById('over-score').textContent = state.score.toLocaleString('pt-BR');
+      document.getElementById('over-matches').textContent = state.correctMatches;
+      screenGameOver.classList.remove('hidden');
+      screenGameOver.classList.add('flex');
+    }
+
+    function pickUniquePairsForRound(level, count) {
+      let available = level.pairs.filter(p => !state.usedPairIds.has(p.id));
+
+      if (available.length < count) {
+        level.pairs.forEach(p => state.usedPairIds.delete(p.id));
+        available = [...level.pairs];
+      }
+
+      const shuffled = shuffleArray(available);
+      const selected = [];
+      const seenRightAnswers = new Set();
+
+      for (const pair of shuffled) {
+        const normalizedRight = pair.right.trim().toLowerCase();
+        if (!seenRightAnswers.has(normalizedRight)) {
+          selected.push(pair);
+          seenRightAnswers.add(normalizedRight);
+          state.usedPairIds.add(pair.id);
+          if (selected.length === count) break;
+        }
+      }
+
+      return selected;
+    }
+
+    function startRound() {
+      const level = LEVELS_DATA[state.levelIndex];
+      state.matchedInRound = 0;
+      state.matchedPairIds.clear();
+      state.selectedCard = null;
+      state.isDragging = false;
+      state.dragStartCard = null;
+
+      state.currentPairs = pickUniquePairsForRound(level, state.itemCount);
+
+      const leftItems = shuffleArray(state.currentPairs.map(p => ({ pairId: p.id, text: p.left, side: 'left' })));
+      const rightItems = shuffleArray(state.currentPairs.map(p => ({ pairId: p.id, text: p.right, side: 'right' })));
+
+      renderColumns(leftItems, rightItems);
+      updateHUD();
+      requestAnimationFrame(() => renderConnections());
+      startRoundTimer();
+    }
+
+    function getDensityClasses(count) {
+      if (count <= 4) {
+        return {
+          gap: 'gap-2.5 sm:gap-3.5',
+          cardPad: 'px-3 py-2',
+          textLeft: 'text-xs sm:text-sm font-medium leading-snug',
+          textRight: 'text-xs sm:text-sm font-bold leading-snug',
+          pinSize: 'w-2.5 h-2.5'
+        };
+      } else if (count <= 6) {
+        return {
+          gap: 'gap-2',
+          cardPad: 'px-2.5 py-1.5',
+          textLeft: 'text-[11px] sm:text-xs font-medium leading-tight',
+          textRight: 'text-[11px] sm:text-xs font-bold leading-tight',
+          pinSize: 'w-2 h-2'
+        };
+      } else if (count <= 8) {
+        return {
+          gap: 'gap-1.5',
+          cardPad: 'px-2.5 py-1',
+          textLeft: 'text-[11px] sm:text-xs font-medium leading-tight',
+          textRight: 'text-[11px] sm:text-xs font-bold leading-tight',
+          pinSize: 'w-2 h-2'
+        };
+      } else {
+        return {
+          gap: 'gap-1',
+          cardPad: 'px-2 py-0.5',
+          textLeft: 'text-[10px] sm:text-[11.5px] font-medium leading-tight',
+          textRight: 'text-[10px] sm:text-[11.5px] font-bold leading-tight',
+          pinSize: 'w-2 h-2'
+        };
+      }
+    }
+
+    function renderColumns(leftItems, rightItems) {
+      const density = getDensityClasses(state.itemCount);
+      elColLeft.className = `w-[56%] sm:w-[56%] flex flex-col justify-between h-full ${density.gap}`;
+      elColRight.className = `w-[40%] sm:w-[38%] flex flex-col justify-between h-full ${density.gap}`;
+
+      elColLeft.innerHTML = '';
+      elColRight.innerHTML = '';
+
+      leftItems.forEach(item => {
+        elColLeft.appendChild(createCardElement(item, density));
+      });
+
+      rightItems.forEach(item => {
+        elColRight.appendChild(createCardElement(item, density));
+      });
+    }
+
+    function createCardElement(item, density) {
+      const card = document.createElement('div');
+      card.className = `game-card flex-1 rounded-lg ${density.cardPad} flex items-center justify-between gap-1.5 cursor-pointer touch-none min-h-0`;
+      card.dataset.pairId = item.pairId;
+      card.dataset.side = item.side;
+
+      if (item.side === 'left') {
+        card.innerHTML = `
+          <span class="${density.textLeft} text-slate-100 line-clamp-2 text-left">${item.text}</span>
+          <span class="connector-pin ${density.pinSize}" data-pin="true"></span>
+        `;
+      } else {
+        card.innerHTML = `
+          <span class="connector-pin ${density.pinSize}" data-pin="true"></span>
+          <span class="${density.textRight} text-cyan-50 line-clamp-2 text-right">${item.text}</span>
+        `;
+      }
+
+      card.addEventListener('pointerdown', (e) => handlePointerDown(e, card));
+      return card;
+    }
+
+    function handlePointerDown(e, card) {
+      if (state.isPaused || card.classList.contains('matched')) return;
+      e.preventDefault();
+
+      const side = card.dataset.side;
+      const pairId = card.dataset.pairId;
+
+      if (state.selectedCard && state.selectedCard.side !== side) {
+        evaluateMatch(state.selectedCard.element, card);
+        return;
+      }
+
+      if (state.selectedCard && state.selectedCard.element === card) {
+        clearSelection();
+        return;
+      }
+
+      clearSelection();
+      sound.playSelect();
+      card.classList.add('selected');
+      state.selectedCard = { side, pairId, element: card };
+
+      state.isDragging = true;
+      state.dragStartCard = { side, pairId, element: card };
+      const pinPos = getPinCenter(card);
+      state.dragCurrentPos = { x: pinPos.x, y: pinPos.y };
+      renderConnections();
+    }
+
+    window.addEventListener('pointermove', (e) => {
+      if (!state.isDragging || !state.dragStartCard || state.isPaused) return;
+      const boardRect = elBoard.getBoundingClientRect();
+      state.dragCurrentPos = {
+        x: e.clientX - boardRect.left,
+        y: e.clientY - boardRect.top
+      };
+      renderConnections();
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!state.isDragging) return;
+      state.isDragging = false;
+
+      const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+      const targetCard = targetEl ? targetEl.closest('.game-card') : null;
+
+      if (
+        targetCard &&
+        !targetCard.classList.contains('matched') &&
+        targetCard !== state.dragStartCard.element &&
+        targetCard.dataset.side !== state.dragStartCard.side
+      ) {
+        evaluateMatch(state.dragStartCard.element, targetCard);
+      }
+
+      state.dragStartCard = null;
+      renderConnections();
+    });
+
+    function clearSelection() {
+      if (state.selectedCard) {
+        state.selectedCard.element.classList.remove('selected');
+        state.selectedCard = null;
+      }
+      state.isDragging = false;
+      state.dragStartCard = null;
+      renderConnections();
+    }
+
+    function evaluateMatch(cardA, cardB) {
+      state.totalAttempts++;
+      const isCorrect = cardA.dataset.pairId === cardB.dataset.pairId;
+
+      if (isCorrect) {
+        const pairId = cardA.dataset.pairId;
+        state.matchedPairIds.add(pairId);
+        state.matchedInRound++;
+        state.correctMatches++;
+
+        const pointsEarned = 100 * state.combo;
+        state.score += pointsEarned;
+        state.combo++;
+        if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+
+        cardA.classList.remove('selected');
+        cardB.classList.remove('selected');
+        cardA.classList.add('matched');
+        cardB.classList.add('matched');
+
+        state.selectedCard = null;
+        state.isDragging = false;
+        state.dragStartCard = null;
+
+        sound.playMatch(state.combo - 1);
+        updateHUD();
+        renderConnections(pairId);
+
+        if (state.matchedInRound === state.itemCount) {
+          handleRoundComplete();
+        }
+      } else {
+        state.combo = 1;
+        sound.playError();
+        updateHUD();
+
+        drawTemporaryErrorLine(cardA, cardB);
+
+        cardA.classList.remove('selected');
+        cardB.classList.remove('selected');
+        cardA.classList.add('error-shake');
+        cardB.classList.add('error-shake');
+        state.selectedCard = null;
+
+        setTimeout(() => {
+          cardA.classList.remove('error-shake');
+          cardB.classList.remove('error-shake');
+        }, 380);
+      }
+    }
+
+    function getPinCenter(card) {
+      const pin = card.querySelector('[data-pin="true"]');
+      const boardRect = elBoard.getBoundingClientRect();
+      const pinRect = pin.getBoundingClientRect();
+      return {
+        x: pinRect.left - boardRect.left + pinRect.width / 2,
+        y: pinRect.top - boardRect.top + pinRect.height / 2
+      };
+    }
+
+    function createBezierPath(x1, y1, x2, y2) {
+      const deltaX = Math.abs(x2 - x1) * 0.45;
+      const cp1x = x1 + (x2 > x1 ? deltaX : -deltaX);
+      const cp2x = x2 + (x1 > x2 ? deltaX : -deltaX);
+      return `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`;
+    }
+
+    function renderConnections(newlyMatchedId = null) {
+      elSvg.innerHTML = '';
+
+      state.matchedPairIds.forEach(pairId => {
+        const leftCard = elColLeft.querySelector(`.game-card[data-pair-id="${pairId}"]`);
+        const rightCard = elColRight.querySelector(`.game-card[data-pair-id="${pairId}"]`);
+        if (leftCard && rightCard) {
+          const p1 = getPinCenter(leftCard);
+          const p2 = getPinCenter(rightCard);
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', createBezierPath(p1.x, p1.y, p2.x, p2.y));
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', '#10b981');
+          path.setAttribute('stroke-width', '2.5');
+          path.setAttribute('stroke-linecap', 'round');
+          if (pairId === newlyMatchedId) {
+            path.classList.add('line-matched');
+          }
+          elSvg.appendChild(path);
+        }
+      });
+
+      if (state.isDragging && state.dragStartCard) {
+        const p1 = getPinCenter(state.dragStartCard.element);
+        const p2 = state.dragCurrentPos;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', createBezierPath(p1.x, p1.y, p2.x, p2.y));
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', '#38bdf8');
+        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-dasharray', '5,4');
+        path.setAttribute('stroke-linecap', 'round');
+        elSvg.appendChild(path);
+      }
+    }
+
+    function drawTemporaryErrorLine(cardA, cardB) {
+      const p1 = getPinCenter(cardA);
+      const p2 = getPinCenter(cardB);
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', createBezierPath(p1.x, p1.y, p2.x, p2.y));
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#f43f5e');
+      path.setAttribute('stroke-width', '2.5');
+      path.setAttribute('stroke-linecap', 'round');
+      elSvg.appendChild(path);
+      setTimeout(() => {
+        if (path.parentNode) path.remove();
+      }, 360);
+    }
+
+    window.addEventListener('resize', () => renderConnections());
+
+    function handleRoundComplete() {
+      stopRoundTimer();
+      sound.stopTensionMusic(true);
+      state.isPaused = true;
+
+      const timeBonus = Math.round(state.timeLeft * 15);
+      state.score += timeBonus;
+      updateHUD();
+
+      setTimeout(() => {
+        if (state.itemCount < 10) {
+          state.itemCount++;
+          startRound();
+        } else {
+          if (state.levelIndex < LEVELS_DATA.length - 1) {
+            state.levelIndex++;
+            state.itemCount = 3;
+            sound.playLevelUp();
+            showLevelTransition();
+          } else {
+            sound.playLevelUp();
+            showVictoryScreen();
+          }
+        }
+      }, 450);
+    }
+
+    function showLevelTransition() {
+      const nextLevel = LEVELS_DATA[state.levelIndex];
+      document.getElementById('trans-subtitle').textContent = `Nível ${state.levelIndex} Concluído!`;
+      document.getElementById('trans-title').textContent = nextLevel.name;
+      document.getElementById('trans-desc').textContent = nextLevel.description;
+      document.getElementById('trans-score').textContent = state.score.toLocaleString('pt-BR');
+      document.getElementById('trans-next-items').textContent = '3 Itens (30s)';
+
+      screenTransition.classList.remove('hidden');
+      screenTransition.classList.add('flex');
+    }
+
+    function showVictoryScreen() {
+      const accuracy = state.totalAttempts > 0
+        ? Math.round((state.correctMatches / state.totalAttempts) * 100)
+        : 100;
+
+      document.getElementById('final-score').textContent = state.score.toLocaleString('pt-BR');
+      document.getElementById('final-accuracy').textContent = `${accuracy}%`;
+      document.getElementById('final-combo').textContent = `x${state.maxCombo}`;
+
+      screenVictory.classList.remove('hidden');
+      screenVictory.classList.add('flex');
+    }
+
+    function startGameFromLevel(levelIdx) {
+      stopRoundTimer();
+      sound.stopTensionMusic(true);
+      state.levelIndex = levelIdx;
+      state.itemCount = 3;
+      state.score = 0;
+      state.combo = 1;
+      state.maxCombo = 1;
+      state.totalAttempts = 0;
+      state.correctMatches = 0;
+      state.usedPairIds.clear();
+      startRound();
+    }
+
+    /**
+     * EVENTOS DE CONTROLE
+     */
+    document.querySelectorAll('.level-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.level-option').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.selectedStartLevel = parseInt(btn.dataset.levelChoice, 10);
+        sound.playSelect();
+      });
+    });
+
+    elLevelSelect.addEventListener('change', (e) => {
+      const chosenLevel = parseInt(e.target.value, 10);
+      sound.playSelect();
+      screenTransition.classList.add('hidden');
+      screenTransition.classList.remove('flex');
+      screenGameOver.classList.add('hidden');
+      screenGameOver.classList.remove('flex');
+      screenVictory.classList.add('hidden');
+      screenVictory.classList.remove('flex');
+      startGameFromLevel(chosenLevel);
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', () => {
+      sound.init();
+      sound.playSelect();
+      screenStart.classList.add('hidden');
+      screenStart.classList.remove('flex');
+      startGameFromLevel(state.selectedStartLevel);
+    });
+
+    document.getElementById('btn-next-level').addEventListener('click', () => {
+      sound.playSelect();
+      screenTransition.classList.add('hidden');
+      screenTransition.classList.remove('flex');
+      startRound();
+    });
+
+    document.getElementById('btn-retry-game').addEventListener('click', () => {
+      sound.playSelect();
+      screenGameOver.classList.add('hidden');
+      screenGameOver.classList.remove('flex');
+      startGameFromLevel(state.levelIndex);
+    });
+
+    document.getElementById('btn-restart-game').addEventListener('click', () => {
+      sound.playSelect();
+      screenVictory.classList.add('hidden');
+      screenVictory.classList.remove('flex');
+      screenStart.classList.remove('hidden');
+      screenStart.classList.add('flex');
+    });
+
+    // Botão dedicado para mutar/ativar a música tensao.mp3
+    document.getElementById('btn-music-mute').addEventListener('click', () => {
+      const nextMuted = !sound.musicMuted;
+      sound.setMusicMuted(nextMuted);
+      document.getElementById('icon-music-on').classList.toggle('hidden', nextMuted);
+      document.getElementById('icon-music-off').classList.toggle('hidden', !nextMuted);
+      if (!nextMuted && !state.isPaused && state.timeLeft <= 10.0) {
+        sound.updateTensionMusic(state.timeLeft, false);
+      }
+    });
+
+    // Botão para mutar/ativar efeitos sonoros
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      sound.sfxEnabled = !sound.sfxEnabled;
+      document.getElementById('icon-sound-on').classList.toggle('hidden', !sound.sfxEnabled);
+      document.getElementById('icon-sound-off').classList.toggle('hidden', sound.sfxEnabled);
+      if (sound.sfxEnabled) sound.playSelect();
+    });
+  </script>
+</body>
+</html>
