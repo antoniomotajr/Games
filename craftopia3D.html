@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Craftopia 3D - Construtor de Cabanas & Jardim</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background-color: #7cc5eb;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    #game-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+    }
+    .glass-panel {
+      background: rgba(20, 26, 36, 0.84);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    .item-btn {
+      transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .item-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 255, 255, 0.14);
+    }
+    .item-btn.active {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(37, 99, 235, 0.7));
+      border-color: #60a5fa;
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+    }
+    .mode-btn.active {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border-color: #93c5fd;
+      color: #fff;
+    }
+    .tab-btn.active {
+      background: rgba(59, 130, 246, 0.32);
+      border-color: #60a5fa;
+      color: #fff;
+    }
+    #crosshair {
+      position: fixed;
+      top: 50%; left: 50%;
+      width: 10px; height: 10px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 15;
+      opacity: 0.65;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: #ffffff;
+      box-shadow: 0 0 3px rgba(0,0,0,0.8);
+    }
+    #crosshair::before { top: 4px; left: 0; width: 10px; height: 2px; }
+    #crosshair::after { top: 0; left: 4px; width: 2px; height: 10px; }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="crosshair"></div>
+
+  <!-- Top Bar -->
+  <div class="fixed top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- Title -->
+    <div class="glass-panel rounded-2xl px-3.5 py-2 flex items-center gap-2.5 pointer-events-auto">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white font-bold text-base shadow">
+        🏡
+      </div>
+      <div>
+        <h1 class="text-white font-bold text-xs leading-tight">Craftopia 3D</h1>
+        <p class="text-slate-300 text-[10px]">Construtor de Cabanas & Jardim</p>
+      </div>
+    </div>
+
+    <!-- Environment & Audio -->
+    <div class="glass-panel rounded-2xl p-1 flex items-center gap-1 pointer-events-auto">
+      <button id="btn-time-day" onclick="setLightingMode('day')" class="tab-btn active px-2.5 py-1 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1">
+        ☀️ Dia
+      </button>
+      <button id="btn-time-sunset" onclick="setLightingMode('sunset')" class="tab-btn px-2.5 py-1 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1">
+        🌇 Pôr do Sol
+      </button>
+      <button id="btn-time-night" onclick="setLightingMode('night')" class="tab-btn px-2.5 py-1 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1">
+        🌙 Noite
+      </button>
+      <div class="w-px h-4 bg-white/15 mx-0.5"></div>
+      <button id="btn-sound" onclick="toggleSound()" class="px-2 py-1 rounded-xl text-xs font-medium text-emerald-300 hover:bg-white/10 transition" title="Ativar/Desativar Som">
+        🔊
+      </button>
+    </div>
+
+    <!-- Actions -->
+    <div class="glass-panel rounded-2xl p-1 flex items-center gap-1 pointer-events-auto">
+      <button onclick="buildDemoCabin()" class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-emerald-600/80 hover:bg-emerald-500 text-white transition flex items-center gap-1">
+        🏠 Cabana Exemplo
+      </button>
+      <button onclick="saveWorld()" class="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1">
+        💾 Salvar
+      </button>
+      <button onclick="loadWorld()" class="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1">
+        📂 Carregar
+      </button>
+      <button onclick="confirmClearWorld()" class="px-2.5 py-1 rounded-xl text-[11px] font-medium bg-rose-500/25 hover:bg-rose-500/40 text-rose-200 transition flex items-center gap-1">
+        🗑️ Limpar
+      </button>
+    </div>
+  </div>
+
+  <!-- Left Tool & Help Panel (Minimizable) -->
+  <div class="fixed left-3 top-20 z-20 flex flex-col gap-2 pointer-events-none max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
+    <!-- Tool Panel -->
+    <div class="glass-panel rounded-2xl p-2 flex flex-col gap-1 pointer-events-auto w-[158px]">
+      <div class="flex items-center justify-between px-1 py-0.5">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Modo</span>
+        <button id="btn-min-tools" onclick="togglePanel('tools')" class="text-[11px] text-slate-300 hover:text-white px-1.5 py-0.5 rounded bg-white/10" title="Minimizar/Expandir">
+          −
+        </button>
+      </div>
+      <div id="panel-tools-body" class="flex flex-col gap-1">
+        <button id="mode-build" onclick="setToolMode('build')" class="mode-btn active px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1.5">
+          🔨 Colocar
+        </button>
+        <button id="mode-remove" onclick="setToolMode('remove')" class="mode-btn px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1.5">
+          🧨 Remover
+        </button>
+        <button id="mode-interact" onclick="setToolMode('interact')" class="mode-btn px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-200 border border-transparent flex items-center gap-1.5">
+          🚪 Interagir
+        </button>
+        <div class="h-px bg-white/15 my-0.5"></div>
+        <button onclick="rotateSelection()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/30 flex items-center justify-between gap-1 transition">
+          <span>🔄 Girar (R)</span>
+          <span id="rot-label" class="bg-amber-400/25 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-300">0°</span>
+        </button>
+        <button onclick="resetCameraPosition()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-medium bg-white/10 hover:bg-white/20 text-slate-200 flex items-center gap-1.5 transition" title="Centralizar Câmera">
+          🎥 Câmera
+        </button>
+      </div>
+    </div>
+
+    <!-- Roof Fill Style, Material & Undo (shown when using Area Roof Fill) -->
+    <div id="roof-style-box" class="glass-panel rounded-2xl p-2 pointer-events-auto w-[158px] hidden">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[9px] font-bold uppercase tracking-wider text-amber-300">Formatos Telhado</span>
+        <button id="btn-min-roof" onclick="togglePanel('roof')" class="text-[10px] text-slate-300 hover:text-white px-1 rounded bg-white/10">−</button>
+      </div>
+      <div id="panel-roof-body">
+        <div class="flex flex-col gap-1 max-h-[168px] overflow-y-auto pr-0.5">
+          <button id="roof-style-flat" onclick="setAreaRoofStyle('flat')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">⬜ Plano</button>
+          <button id="roof-style-shed" onclick="setAreaRoofStyle('shed')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">📐 Inclinado (1 água)</button>
+          <button id="roof-style-gable" onclick="setAreaRoofStyle('gable')" class="tab-btn active px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">⋀ Duas Águas (V)</button>
+          <button id="roof-style-hip" style="display:none" onclick="setAreaRoofStyle('hip')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">🔺 Piramidal / 4 Águas</button>
+          <button id="roof-style-mansard" style="display:none" onclick="setAreaRoofStyle('mansard')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">🏛️ Mansarda Aberta</button>
+          <button id="roof-style-vault" style="display:none" onclick="setAreaRoofStyle('vault')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">🌙 Abóbada / Arco</button>
+          <button id="roof-style-dormer" style="display:none" onclick="setAreaRoofStyle('dormer')" class="tab-btn px-2 py-1 rounded-lg text-[10px] text-left text-slate-200 border border-transparent">🏡 4 Águas c/ Água-Furtada</button>
+        </div>
+        <div class="mt-1.5 pt-1 border-t border-white/10">
+          <label class="block text-[9px] font-bold uppercase tracking-wider text-slate-300 mb-1">Material</label>
+          <select id="roof-material-select" onchange="setAreaRoofMaterial(this.value)" class="w-full bg-slate-800/90 text-white text-[10px] rounded-lg px-1.5 py-1 border border-white/15 focus:outline-none">
+            <option value="tile">Telha Terracota</option>
+            <option value="small_tile">Telha Pequena</option>
+            <option value="large_tile">Telha Grande</option>
+            <option value="wood">Madeira</option>
+          </select>
+        </div>
+        <div id="roof-point-status" class="mt-1.5 text-[9px] text-sky-300 bg-sky-500/15 border border-sky-400/30 rounded-lg px-1.5 py-1">
+          Clique no 1º canto
+        </div>
+        <button id="btn-undo-roof" onclick="undoLastRoofFill()" class="mt-1.5 w-full px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 border border-amber-400/30 flex items-center justify-center gap-1 transition" title="Desfazer Último Telhado (Ctrl+Z ou Z)">
+          ↩️ Desfazer Telhado
+        </button>
+      </div>
+    </div>
+
+    <!-- Controls Help (Minimized by default for clean workspace) -->
+    <div class="glass-panel rounded-2xl p-2 pointer-events-auto w-[158px]">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-semibold text-slate-200 flex items-center gap-1">⌨️ Controles</span>
+        <button id="btn-min-help" onclick="togglePanel('help')" class="text-[11px] text-slate-300 hover:text-white px-1.5 py-0.5 rounded bg-white/10" title="Expandir/Minimizar">
+          +
+        </button>
+      </div>
+      <ul id="panel-help-body" class="hidden text-[9px] text-slate-300 space-y-0.5 leading-snug mt-1.5 pt-1.5 border-t border-white/10">
+        <li><strong class="text-white">WASD/Setas:</strong> Mover</li>
+        <li><strong class="text-white">Espaço:</strong> Pular • <strong class="text-white">Shift:</strong> Correr</li>
+        <li><strong class="text-white">1–9:</strong> Escolher peça</li>
+        <li><strong class="text-white">Arrastar:</strong> Câmera</li>
+        <li><strong class="text-white">Scroll:</strong> Zoom</li>
+        <li><strong class="text-white">Clique Esq.:</strong> Pôr</li>
+        <li><strong class="text-white">Clique Dir.:</strong> Tirar</li>
+        <li><strong class="text-white">R:</strong> Girar • <strong class="text-white">E:</strong> Porta</li>
+        <li><strong class="text-white">Z / Ctrl+Z:</strong> Desfazer Telhado</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Bottom Catalog Dock (Minimizable) -->
+  <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 w-full max-w-5xl px-3 pointer-events-none">
+    <!-- Category Tabs + Minimize Button -->
+    <div class="glass-panel rounded-2xl p-1 flex flex-wrap items-center justify-center gap-1 pointer-events-auto">
+      <button id="cat-structures" onclick="selectCategory('structures')" class="tab-btn active px-3 py-1 rounded-xl text-[11px] font-semibold text-slate-200 border border-transparent flex items-center gap-1">
+        🧱 Estruturas
+      </button>
+      <button id="cat-openings" onclick="selectCategory('openings')" class="tab-btn px-3 py-1 rounded-xl text-[11px] font-semibold text-slate-200 border border-transparent flex items-center gap-1">
+        🪟 Portas, Janelas & Telhados
+      </button>
+      <button id="cat-garden" onclick="selectCategory('garden')" class="tab-btn px-3 py-1 rounded-xl text-[11px] font-semibold text-slate-200 border border-transparent flex items-center gap-1">
+        🌿 Jardim & Cercas
+      </button>
+      <button id="cat-decor" onclick="selectCategory('decor')" class="tab-btn px-3 py-1 rounded-xl text-[11px] font-semibold text-slate-200 border border-transparent flex items-center gap-1">
+        🏺 Decoração
+      </button>
+      <div class="w-px h-4 bg-white/15 mx-0.5"></div>
+      <button id="btn-min-catalog" onclick="togglePanel('catalog')" class="px-2 py-1 rounded-xl text-[11px] font-semibold text-slate-200 hover:bg-white/10 transition" title="Minimizar/Expandir Catálogo">
+        − Ocultar Peças
+      </button>
+    </div>
+
+    <!-- Item Slots -->
+    <div id="catalog-items" class="glass-panel rounded-2xl p-1.5 flex flex-wrap justify-center gap-1.5 pointer-events-auto max-h-[126px] overflow-y-auto">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-30 glass-panel text-white text-xs font-medium px-4 py-1.5 rounded-full opacity-0 pointer-events-none transition-opacity duration-300">
+    Mensagem
+  </div>
+
+  <!-- Custom Confirm Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl p-5 max-w-sm w-full text-center">
+      <div class="text-2xl mb-2">⚠️</div>
+      <h3 class="text-white font-bold text-base mb-1">Limpar toda a construção?</h3>
+      <p class="text-slate-300 text-xs mb-4">Todos os blocos e decorações colocados no terreno serão removidos.</p>
+      <div class="flex justify-center gap-2.5">
+        <button onclick="closeConfirmModal()" class="px-4 py-2 rounded-xl text-xs font-medium bg-white/10 hover:bg-white/20 text-white transition">Cancelar</button>
+        <button onclick="executeClearWorld()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white transition">Sim, Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PANEL MINIMIZE / EXPAND STATE
+    // =========================================================================
+    const panelState = {
+      tools: false,
+      roof: false,
+      help: true,
+      catalog: false
+    };
+
+    function togglePanel(name) {
+      panelState[name] = !panelState[name];
+      if (name === 'tools') {
+        document.getElementById('panel-tools-body').classList.toggle('hidden', panelState.tools);
+        document.getElementById('btn-min-tools').textContent = panelState.tools ? '+' : '−';
+      } else if (name === 'roof') {
+        document.getElementById('panel-roof-body').classList.toggle('hidden', panelState.roof);
+        document.getElementById('btn-min-roof').textContent = panelState.roof ? '+' : '−';
+      } else if (name === 'help') {
+        document.getElementById('panel-help-body').classList.toggle('hidden', panelState.help);
+        document.getElementById('btn-min-help').textContent = panelState.help ? '+' : '−';
+      } else if (name === 'catalog') {
+        document.getElementById('catalog-items').classList.toggle('hidden', panelState.catalog);
+        document.getElementById('btn-min-catalog').textContent = panelState.catalog ? '+ Mostrar Peças' : '− Ocultar Peças';
+      }
+    }
+
+    // =========================================================================
+    // 1. SAFE MATH & AUDIO ENGINE
+    // =========================================================================
+    function safeNum(val, fallback = 0) {
+      return (typeof val === 'number' && Number.isFinite(val)) ? val : fallback;
+    }
+
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      initAudio();
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'place') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(340, now + 0.08);
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else if (type === 'remove') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(190, now);
+          osc.frequency.exponentialRampToValueAtTime(90, now + 0.1);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+          osc.start(now);
+          osc.stop(now + 0.11);
+        } else if (type === 'rotate') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(420, now);
+          osc.frequency.exponentialRampToValueAtTime(520, now + 0.05);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.start(now);
+          osc.stop(now + 0.06);
+        } else if (type === 'door') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(360, now + 0.14);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        } else if (type === 'step') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.exponentialRampToValueAtTime(75, now + 0.04);
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        }
+      } catch (e) {}
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('btn-sound');
+      btn.textContent = soundEnabled ? '🔊' : '🔇';
+      showToast(soundEnabled ? 'Som ativado' : 'Som silenciado');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.opacity = '1';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2400);
+    }
+
+    // =========================================================================
+    // 2. PROCEDURAL CANVAS TEXTURES
+    // =========================================================================
+    function createProceduralTexture(drawFn, size = 128) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      drawFn(ctx, size);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.LinearMipMapLinearFilter;
+      return tex;
+    }
+
+    const textures = {
+      logSide: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#5c3c24';
+        ctx.fillRect(0, 0, s, s);
+        for (let i = 0; i < 24; i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#4a2e1a' : '#6e492d';
+          ctx.fillRect(i * (s / 24), 0, s / 26, s);
+        }
+      }),
+      logTop: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#c49a6c';
+        ctx.fillRect(0, 0, s, s);
+        ctx.strokeStyle = '#5c3c24';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(4, 4, s - 8, s - 8);
+        ctx.strokeStyle = '#a37b50';
+        ctx.lineWidth = 3;
+        for (let r = 14; r < s / 2 - 8; r += 12) {
+          ctx.beginPath();
+          ctx.arc(s / 2, s / 2, r, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }),
+      plank: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#b9834e';
+        ctx.fillRect(0, 0, s, s);
+        const rows = 4;
+        const h = s / rows;
+        for (let r = 0; r < rows; r++) {
+          ctx.fillStyle = r % 2 === 0 ? '#b27c47' : '#c28b54';
+          ctx.fillRect(0, r * h, s, h - 2);
+          ctx.fillStyle = '#7c5129';
+          ctx.fillRect(0, (r + 1) * h - 2, s, 2);
+        }
+      }),
+      stone: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#7c8288';
+        ctx.fillRect(0, 0, s, s);
+        const stones = [
+          [4, 4, 56, 36, '#8f969c'], [64, 4, 60, 44, '#6d7379'],
+          [4, 44, 42, 40, '#6a7076'], [50, 52, 74, 34, '#949ba1'],
+          [4, 88, 66, 36, '#878e94'], [74, 90, 50, 34, '#73797f']
+        ];
+        stones.forEach(([x, y, w, h, c]) => {
+          ctx.fillStyle = c;
+          ctx.fillRect(x, y, w, h);
+        });
+      }),
+      brick: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#d1cbc3';
+        ctx.fillRect(0, 0, s, s);
+        const rows = 4, cols = 2;
+        const h = s / rows, w = s / cols;
+        for (let r = 0; r < rows; r++) {
+          const offset = (r % 2) * (w / 2);
+          for (let c = -1; c <= cols; c++) {
+            ctx.fillStyle = (r + c) % 2 === 0 ? '#a84438' : '#b84d3f';
+            ctx.fillRect(c * w + offset + 2, r * h + 2, w - 4, h - 4);
+          }
+        }
+      }),
+      sandstone: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#e2cfa5';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#d6c194';
+        ctx.fillRect(0, s * 0.3, s, 4);
+        ctx.fillRect(0, s * 0.72, s, 4);
+      }),
+      grassTop: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#5da143';
+        ctx.fillRect(0, 0, s, s);
+        for (let i = 0; i < 90; i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#6bb24e' : '#4e8e36';
+          ctx.fillRect((i * 19) % s, (i * 37) % s, 6, 6);
+        }
+      }),
+      grassSide: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#7c5638';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#5da143';
+        ctx.fillRect(0, 0, s, s * 0.28);
+        for (let x = 0; x < s; x += 8) {
+          ctx.fillRect(x, s * 0.28, 6, (x % 16 === 0) ? 10 : 5);
+        }
+      }),
+      roofTile: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#8d3024';
+        ctx.fillRect(0, 0, s, s);
+        const rows = 14;
+        const h = s / rows;
+        for (let r = 0; r < rows; r++) {
+          ctx.fillStyle = r % 2 === 0 ? '#9c382b' : '#7d291e';
+          ctx.fillRect(0, r * h, s, h - 1);
+          ctx.fillStyle = '#571912';
+          ctx.fillRect(0, (r + 1) * h - 1.5, s, 1.5);
+        }
+      }),
+      gableWall: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#b9b4ac';
+        ctx.fillRect(0, 0, s, s);
+        const planks = 10;
+        const h = s / planks;
+        for (let i = 0; i < planks; i++) {
+          ctx.fillStyle = i % 2 === 0 ? '#c2bdb5' : '#b0aba3';
+          ctx.fillRect(0, i * h, s, h - 1);
+          ctx.fillStyle = '#8b867e';
+          ctx.fillRect(0, (i + 1) * h - 1, s, 1);
+        }
+      }),
+      smallTile: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#9b3828';
+        ctx.fillRect(0, 0, s, s);
+        const cols = 8, rows = 8;
+        const w = s / cols, h = s / rows;
+        for (let r = 0; r < rows; r++) {
+          const offset = (r % 2) * (w * 0.5);
+          for (let c = -1; c <= cols; c++) {
+            ctx.fillStyle = (r + c) % 2 === 0 ? '#ab402e' : '#8d3122';
+            ctx.fillRect(c * w + offset + 1, r * h + 1, w - 2, h - 2);
+          }
+        }
+      }),
+      largeTile: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#a63b29';
+        ctx.fillRect(0, 0, s, s);
+        const cols = 2, rows = 2;
+        const w = s / cols, h = s / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            ctx.fillStyle = (r + c) % 2 === 0 ? '#b54330' : '#963322';
+            ctx.fillRect(c * w + 2, r * h + 2, w - 4, h - 4);
+          }
+        }
+      }),
+      ceramic: createProceduralTexture((ctx, s) => {
+        ctx.fillStyle = '#c4683b';
+        ctx.fillRect(0, 0, s, s);
+        ctx.fillStyle = '#a8532a';
+        ctx.fillRect(0, s * 0.2, s, 8);
+        ctx.fillRect(0, s * 0.75, s, 6);
+      })
+    };
+
+    const materials = {
+      log: [
+        new THREE.MeshStandardMaterial({ map: textures.logSide, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ map: textures.logSide, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ map: textures.logTop, roughness: 0.8 }),
+        new THREE.MeshStandardMaterial({ map: textures.logTop, roughness: 0.8 }),
+        new THREE.MeshStandardMaterial({ map: textures.logSide, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ map: textures.logSide, roughness: 0.85 })
+      ],
+      plank: new THREE.MeshStandardMaterial({ map: textures.plank, roughness: 0.75 }),
+      darkWood: new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.75 }),
+      fenceWood: new THREE.MeshStandardMaterial({ map: textures.plank, color: 0xd9a773, roughness: 0.72 }),
+      stone: new THREE.MeshStandardMaterial({ map: textures.stone, roughness: 0.9 }),
+      brick: new THREE.MeshStandardMaterial({ map: textures.brick, roughness: 0.85 }),
+      sandstone: new THREE.MeshStandardMaterial({ map: textures.sandstone, roughness: 0.8 }),
+      grass: [
+        new THREE.MeshStandardMaterial({ map: textures.grassSide, roughness: 0.9 }),
+        new THREE.MeshStandardMaterial({ map: textures.grassSide, roughness: 0.9 }),
+        new THREE.MeshStandardMaterial({ map: textures.grassTop, roughness: 0.85 }),
+        new THREE.MeshStandardMaterial({ color: 0x7c5638, roughness: 0.95 }),
+        new THREE.MeshStandardMaterial({ map: textures.grassSide, roughness: 0.9 }),
+        new THREE.MeshStandardMaterial({ map: textures.grassSide, roughness: 0.9 })
+      ],
+      roof: new THREE.MeshStandardMaterial({ map: textures.roofTile, roughness: 0.65, side: THREE.DoubleSide }),
+      gableWall: new THREE.MeshStandardMaterial({ map: textures.gableWall, roughness: 0.85, side: THREE.DoubleSide }),
+      smallTile: new THREE.MeshStandardMaterial({ map: textures.smallTile, roughness: 0.68, side: THREE.DoubleSide }),
+      largeTile: new THREE.MeshStandardMaterial({ map: textures.largeTile, roughness: 0.72, side: THREE.DoubleSide }),
+      glass: new THREE.MeshStandardMaterial({
+        color: 0xa5e4ff,
+        transparent: true,
+        opacity: 0.48,
+        roughness: 0.15,
+        metalness: 0.2
+      }),
+      foliage: new THREE.MeshStandardMaterial({ color: 0x3f8f38, roughness: 0.85 }),
+      foliageLight: new THREE.MeshStandardMaterial({ color: 0x59b349, roughness: 0.8 }),
+      ceramic: new THREE.MeshStandardMaterial({ map: textures.ceramic, roughness: 0.6 }),
+      iron: new THREE.MeshStandardMaterial({ color: 0x2c323b, roughness: 0.4, metalness: 0.7 }),
+      lanternGlow: new THREE.MeshStandardMaterial({
+        color: 0xffe885,
+        emissive: 0xffaa22,
+        emissiveIntensity: 0.6,
+        roughness: 0.2
+      })
+    };
+
+    // =========================================================================
+    // 3. THREE.JS SCENE, LIGHTING & ENVIRONMENT
+    // =========================================================================
+    const canvas = document.getElementById('game-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.3;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x7cc5eb);
+    scene.fog = new THREE.Fog(0x7cc5eb, 28, 78);
+
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 150);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x4f7a3e, 0.75);
+    hemiLight.position.set(0, 30, 0);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfff5e0, 1.05);
+    dirLight.position.set(18, 32, 16);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 2;
+    dirLight.shadow.camera.far = 85;
+    const d = 26;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    dirLight.shadow.bias = -0.0005;
+    scene.add(dirLight);
+
+    let currentLighting = 'day';
+    const lanternLights = [];
+
+    function setLightingMode(mode) {
+      currentLighting = mode;
+      ['day', 'sunset', 'night'].forEach(m => {
+        document.getElementById(`btn-time-${m}`).classList.toggle('active', m === mode);
+      });
+
+      if (mode === 'day') {
+        scene.background.setHex(0x7cc5eb);
+        scene.fog.color.setHex(0x7cc5eb);
+        hemiLight.color.setHex(0xffffff);
+        hemiLight.groundColor.setHex(0x4f7a3e);
+        hemiLight.intensity = 0.5;
+        dirLight.color.setHex(0xfff5e0);
+        dirLight.intensity = 0.85;
+        dirLight.position.set(18, 32, 16);
+        materials.lanternGlow.emissiveIntensity = 0.4;
+      } else if (mode === 'sunset') {
+        scene.background.setHex(0xe88d67);
+        scene.fog.color.setHex(0xe88d67);
+        hemiLight.color.setHex(0xffcca8);
+        hemiLight.groundColor.setHex(0x4a3b32);
+        hemiLight.intensity = 0.6;
+        dirLight.color.setHex(0xff8c42);
+        dirLight.intensity = 0.95;
+        dirLight.position.set(-24, 14, 18);
+        materials.lanternGlow.emissiveIntensity = 1.4;
+      } else if (mode === 'night') {
+        scene.background.setHex(0x131c31);
+        scene.fog.color.setHex(0x131c31);
+        hemiLight.color.setHex(0x4c689c);
+        hemiLight.groundColor.setHex(0x182218);
+        hemiLight.intensity = 0.42;
+        dirLight.color.setHex(0x8ab4f8);
+        dirLight.intensity = 0.35;
+        dirLight.position.set(-15, 25, -15);
+        materials.lanternGlow.emissiveIntensity = 2.4;
+      }
+
+      lanternLights.forEach(light => {
+        light.intensity = mode === 'night' ? 1.8 : (mode === 'sunset' ? 1.0 : 0.25);
+      });
+    }
+
+    const WORLD_RADIUS = 24;
+    const groundGeo = new THREE.PlaneGeometry(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+    const groundTex = textures.grassTop.clone();
+    groundTex.needsUpdate = true;
+    groundTex.repeat.set(WORLD_RADIUS * 2, WORLD_RADIUS * 2);
+    const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9 });
+    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.receiveShadow = true;
+    groundMesh.name = 'ground';
+    scene.add(groundMesh);
+
+    const gridHelper = new THREE.GridHelper(WORLD_RADIUS * 2, WORLD_RADIUS * 2, 0xffffff, 0xffffff);
+    gridHelper.position.y = 0.005;
+    gridHelper.material.transparent = true;
+    gridHelper.material.opacity = 0.08;
+    scene.add(gridHelper);
+
+    function buildEnvironmentDecor() {
+      const decorGroup = new THREE.Group();
+      const treeCoords = [
+        [-14, -13], [-16, -5], [-15, 7], [-12, 15],
+        [14, -14], [16, -4], [15, 9], [12, 16],
+        [-6, -16], [5, -16], [-5, 16], [6, 16]
+      ];
+      treeCoords.forEach(([tx, tz], idx) => {
+        const tree = new THREE.Group();
+        tree.position.set(tx, 0, tz);
+        const h = 2.4 + (idx % 3) * 0.5;
+        const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.65, h, 0.65), materials.log);
+        trunk.position.y = h / 2;
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+        tree.add(trunk);
+
+        const crown1 = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.5, 2.4), materials.foliage);
+        crown1.position.y = h + 0.4;
+        crown1.castShadow = true;
+        tree.add(crown1);
+
+        const crown2 = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 1.6), materials.foliageLight);
+        crown2.position.y = h + 1.4;
+        crown2.castShadow = true;
+        tree.add(crown2);
+
+        decorGroup.add(tree);
+      });
+
+      const rockCoords = [[-11, -9], [12, -10], [-11, 11], [11, 10]];
+      rockCoords.forEach(([rx, rz]) => {
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.65, 0), materials.stone);
+        rock.position.set(rx, 0.35, rz);
+        rock.scale.set(1.2, 0.7, 1.0);
+        rock.castShadow = true;
+        rock.receiveShadow = true;
+        decorGroup.add(rock);
+      });
+
+      scene.add(decorGroup);
+    }
+    buildEnvironmentDecor();
+
+    // =========================================================================
+    // 4. ARTICULATED 3D PLAYER CHARACTER
+    // =========================================================================
+    const player = {
+      group: new THREE.Group(),
+      pos: new THREE.Vector3(0, 0, 6),
+      velY: 0,
+      onGround: true,
+      yaw: Math.PI,
+      walkCycle: 0,
+      actionTimer: 0,
+      parts: {}
+    };
+
+    function createPlayerModel() {
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xf1c29b, roughness: 0.7 });
+      const hairMat = new THREE.MeshStandardMaterial({ color: 0x3b2618, roughness: 0.85 });
+      const shirtMat = new THREE.MeshStandardMaterial({ color: 0x2b6cb0, roughness: 0.75 });
+      const vestMat = new THREE.MeshStandardMaterial({ color: 0x8c5830, roughness: 0.8 });
+      const pantsMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.85 });
+      const bootMat = new THREE.MeshStandardMaterial({ color: 0x1a202c, roughness: 0.7 });
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.56, 0.26), shirtMat);
+      torso.position.y = 0.86;
+      torso.castShadow = true;
+      player.group.add(torso);
+
+      const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.16), vestMat);
+      backpack.position.set(0, 0.88, -0.19);
+      backpack.castShadow = true;
+      player.group.add(backpack);
+
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, 1.36, 0);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), skinMat);
+      head.castShadow = true;
+      headGroup.add(head);
+
+      const hairTop = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.14, 0.45), hairMat);
+      hairTop.position.y = 0.18;
+      headGroup.add(hairTop);
+
+      const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.28, 0.12), hairMat);
+      hairBack.position.set(0, 0.04, -0.18);
+      headGroup.add(hairBack);
+
+      const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.03), eyeMat);
+      eyeL.position.set(-0.1, 0.02, 0.21);
+      const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.03), eyeMat);
+      eyeR.position.set(0.1, 0.02, 0.21);
+      headGroup.add(eyeL, eyeR);
+
+      player.group.add(headGroup);
+      player.parts.head = headGroup;
+
+      function makeArm(xOffset) {
+        const pivot = new THREE.Group();
+        pivot.position.set(xOffset, 1.1, 0);
+        const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.22, 0.18), shirtMat);
+        sleeve.position.y = -0.11;
+        sleeve.castShadow = true;
+        const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.28, 0.14), skinMat);
+        forearm.position.y = -0.34;
+        forearm.castShadow = true;
+        pivot.add(sleeve, forearm);
+        player.group.add(pivot);
+        return pivot;
+      }
+      player.parts.armL = makeArm(-0.32);
+      player.parts.armR = makeArm(0.32);
+
+      function makeLeg(xOffset) {
+        const pivot = new THREE.Group();
+        pivot.position.set(xOffset, 0.58, 0);
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.44, 0.2), pantsMat);
+        leg.position.y = -0.22;
+        leg.castShadow = true;
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.14, 0.24), bootMat);
+        boot.position.set(0, -0.51, 0.02);
+        boot.castShadow = true;
+        pivot.add(leg, boot);
+        player.group.add(pivot);
+        return pivot;
+      }
+      player.parts.legL = makeLeg(-0.13);
+      player.parts.legR = makeLeg(0.13);
+
+      player.group.position.copy(player.pos);
+      scene.add(player.group);
+    }
+    createPlayerModel();
+
+    // =========================================================================
+    // 5. BUILDING CATALOG, SMART FENCES & SYNCHRONIZED AREA ROOF SYSTEM
+    // =========================================================================
+    const CATALOG = {
+      structures: [
+        { id: 'log', name: 'Tronco Madeira', icon: '🪵', type: 'block' },
+        { id: 'plank', name: 'Tábua Tratada', icon: '🟫', type: 'block' },
+        { id: 'stone', name: 'Pedra / Muro', icon: '🪨', type: 'block' },
+        { id: 'brick', name: 'Tijolo Vermelho', icon: '🧱', type: 'block' },
+        { id: 'sandstone', name: 'Arenito Claro', icon: '🟨', type: 'block' },
+        { id: 'grass', name: 'Bloco Grama', icon: '🟩', type: 'block' }
+      ],
+      openings: [
+        { id: 'window', name: 'Janela Padrão', icon: '🪟', type: 'rotatable' },
+        { id: 'window_wide', name: 'Janela Panorâmica', icon: '🖼️', type: 'rotatable' },
+        { id: 'window_double', name: 'Janela Basculante', icon: '⏹️', type: 'rotatable' },
+        { id: 'door', name: 'Porta Padrão', icon: '🚪', type: 'interactive' },
+        { id: 'door_tall', name: 'Porta Alta (2m)', icon: '🏛️', type: 'interactive_tall' },
+        { id: 'door_double', name: 'Porta Dupla Alta', icon: '⛩️', type: 'interactive_tall' },
+        { id: 'roof_area', name: 'Preencher Área Telhado', icon: '🧩', type: 'roof_area' }
+      ],
+      garden: [
+        { id: 'fence', name: 'Cerca Inteligente', icon: '🚧', type: 'smart_fence' },
+        { id: 'gate', name: 'Portão Cerca', icon: '🔓', type: 'interactive' },
+        { id: 'enclosure_3', name: 'Cercado 3x3', icon: '⬜', type: 'preset_enclosure', size: 3 },
+        { id: 'enclosure_4', name: 'Cercado 4x4', icon: '🔲', type: 'preset_enclosure', size: 4 },
+        { id: 'enclosure_5', name: 'Cercado 5x5', icon: '🟩', type: 'preset_enclosure', size: 5 },
+        { id: 'flowerbed', name: 'Canteiro Flores', icon: '🌷', type: 'decor' },
+        { id: 'bush', name: 'Arbusto Jardim', icon: '🌳', type: 'decor' }
+      ],
+      decor: [
+        { id: 'sofa', name: 'Sofá', icon: '🛋️', type: 'rotatable' },
+        { id: 'coffee_table', name: 'Mesa de Centro', icon: '☕', type: 'rotatable' },
+        { id: 'tv', name: 'Televisão c/ Rack', icon: '📺', type: 'rotatable' },
+        { id: 'lamp', name: 'Abajur de Piso', icon: '💡', type: 'rotatable' },
+        { id: 'dining_set', name: 'Conjunto Mesa Jantar', icon: '🍽️', type: 'rotatable' },
+        { id: 'chair', name: 'Cadeira', icon: '🪑', type: 'rotatable' },
+        { id: 'kitchen_table', name: 'Mesa de Cozinha', icon: '🍳', type: 'rotatable' },
+        { id: 'stove', name: 'Fogão', icon: '🔥', type: 'rotatable' },
+        { id: 'fridge', name: 'Geladeira', icon: '🧊', type: 'rotatable' },
+        { id: 'sink', name: 'Pia c/ Armário', icon: '🚰', type: 'rotatable' },
+        { id: 'cabinet', name: 'Armário Balcão', icon: '🗄️', type: 'rotatable' },
+        { id: 'wall_cabinet', name: 'Armário Aéreo', icon: '🗃️', type: 'rotatable' },
+        { id: 'bed_single', name: 'Cama Solteiro (2 casas)', icon: '🛏️', type: 'rotatable' },
+        { id: 'bed_double', name: 'Cama Casal (2x2 casas)', icon: '🛌', type: 'rotatable' },
+        { id: 'wardrobe', name: 'Guarda-Roupa', icon: '👔', type: 'rotatable' },
+        { id: 'nightstand', name: 'Criado-Mudo', icon: '🧰', type: 'rotatable' },
+        { id: 'bookshelf', name: 'Estante c/ Livros', icon: '📚', type: 'rotatable' },
+        { id: 'rug', name: 'Tapete', icon: '🟫', type: 'rotatable' },
+        { id: 'toilet', name: 'Vaso Sanitário', icon: '🚽', type: 'rotatable' },
+        { id: 'vase', name: 'Vaso de Flores', icon: '💐', type: 'rotatable' },
+        { id: 'books', name: 'Pilha de Livros', icon: '📖', type: 'rotatable' },
+        { id: 'fruit', name: 'Fruteira', icon: '🍎', type: 'rotatable' },
+        { id: 'laptop', name: 'Notebook', icon: '💻', type: 'rotatable' },
+        { id: 'pot', name: 'Jarro c/ Planta', icon: '🏺', type: 'decor' },
+        { id: 'lantern', name: 'Luminária Jardim', icon: '🏮', type: 'light' },
+        { id: 'bench', name: 'Banco Rústico', icon: '🪑', type: 'rotatable' }
+      ]
+    };
+
+    let activeCategory = 'structures';
+    let selectedItemId = 'plank';
+    let currentRotation = 0;
+    let toolMode = 'build';
+    let areaRoofStyle = 'gable';
+    let areaRoofMaterial = 'tile';
+    let roofStartPoint = null;
+    const roofFillHistory = [];
+
+    const placedBlocks = new Map();
+    const buildGroup = new THREE.Group();
+    scene.add(buildGroup);
+
+    function blockKey(x, y, z) {
+      return `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+    }
+
+    function isFenceConnectable(id) {
+      return id === 'fence' || id === 'gate';
+    }
+
+    function buildSlopeGeo(width, height, depth, matRoof, matWall = materials.gableWall, flare = false) {
+      const g = new THREE.Group();
+      const hw = width / 2;
+      const hd = depth / 2;
+
+      const shape = new THREE.Shape();
+      shape.moveTo(-hw, -hd);
+      shape.lineTo(hw, -hd);
+      if (flare) {
+        shape.quadraticCurveTo(hw * 0.45, -hd * 0.15, -hw, hd);
+      } else {
+        shape.lineTo(-hw, hd);
+      }
+      shape.closePath();
+
+      const extrude = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false });
+      extrude.rotateX(-Math.PI / 2);
+      extrude.translate(0, -height / 2, 0);
+      const roofMesh = new THREE.Mesh(extrude, matRoof);
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      g.add(roofMesh);
+
+      if (matWall) {
+        const triShape = new THREE.Shape();
+        triShape.moveTo(-hw, -height / 2);
+        triShape.lineTo(hw, -height / 2);
+        if (flare) {
+          triShape.quadraticCurveTo(hw * 0.45, height * 0.35, -hw, height / 2);
+        } else {
+          triShape.lineTo(-hw, height / 2);
+        }
+        triShape.closePath();
+
+        const wallGeo = new THREE.ShapeGeometry(triShape);
+        const wallLeft = new THREE.Mesh(wallGeo, matWall);
+        wallLeft.rotation.y = Math.PI / 2;
+        wallLeft.position.x = -hw + 0.01;
+        wallLeft.castShadow = true;
+        wallLeft.receiveShadow = true;
+
+        const wallRight = new THREE.Mesh(wallGeo, matWall);
+        wallRight.rotation.y = -Math.PI / 2;
+        wallRight.position.x = hw - 0.01;
+        wallRight.castShadow = true;
+        wallRight.receiveShadow = true;
+        g.add(wallLeft, wallRight);
+      }
+
+      return g;
+    }
+
+    function buildPyramidGeo(sizeX, height, sizeZ, matRoof, flare = false) {
+      const g = new THREE.Group();
+      const segs = 12;
+      const geo = new THREE.CylinderGeometry(0.02, 0.71, height, 4, segs, false);
+      geo.rotateY(Math.PI / 4);
+      const pos = geo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const py = pos.getY(i);
+        const t = Math.max(0, Math.min(1, (py + height / 2) / height));
+        const scaleFactor = flare ? Math.pow(1 - t, 1.55) : (1 - t);
+        pos.setX(i, pos.getX(i) * (sizeX * scaleFactor) / 0.71);
+        pos.setZ(i, pos.getZ(i) * (sizeZ * scaleFactor) / 0.71);
+      }
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, matRoof);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      g.add(mesh);
+      return g;
+    }
+
+    const FURN_IDS = ['sofa', 'coffee_table', 'tv', 'lamp', 'dining_set', 'chair', 'kitchen_table', 'stove', 'fridge', 'sink', 'cabinet', 'wall_cabinet', 'bed_single', 'bed_double', 'wardrobe', 'nightstand', 'bookshelf', 'rug', 'toilet', 'vase', 'books', 'fruit', 'laptop'];
+    let FM = null;
+    function buildFurniture(id) {
+      const std = (c, r = 0.8) => new THREE.MeshStandardMaterial({ color: c, roughness: r });
+      if (!FM) {
+        FM = {
+          fab: std(0x5b7aa8, 0.95), fab2: std(0x7d98c4, 0.95), dark: std(0x1c1f24, 0.4), white: std(0xeeeeea, 0.45), cab: std(0xe3d8c4), door: std(0xd2c5ac), counter: std(0x3f4146, 0.5), mat: std(0xf5f2ea, 0.9), rug: std(0x9a4b3c, 1), rug2: std(0xd9b88a, 1), cloth: std(0xb04a4a, 0.9),
+          steel: new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.35, metalness: 0.6 }),
+          screen: new THREE.MeshStandardMaterial({ color: 0x0d1622, emissive: 0x1a3a5c, emissiveIntensity: 0.6, roughness: 0.2 }),
+          shade: new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffc766, emissiveIntensity: 0.9, roughness: 0.6 }),
+          blue: std(0x3d6fb0, 0.9), red: std(0xb04a4a, 0.9), books: [0xb5483a, 0x3f6fa0, 0x4f8a52, 0xd1a23c, 0x7a4a8a].map(c => std(c, 0.8))
+        };
+      }
+      const g = new THREE.Group(), W = materials.plank, D = materials.darkWood;
+      const P = (w, h, d, m, x, yb, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, -0.5 + yb + h / 2, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+      const C = (rt, rb, h, m, x, yb, z) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 14), m); o.position.set(x, -0.5 + yb + h / 2, z); o.castShadow = true; g.add(o); return o; };
+      const legs = (w, d, h, t, m, yb = 0) => [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => P(t, h, t, m, a * w / 2, yb, b * d / 2));
+      const bed = (w, xc, blanket, pillows) => {
+        P(w, 0.25, 1.95, D, xc, 0, 0.5); P(w, 0.65, 0.06, D, xc, 0, -0.47); P(w - 0.06, 0.18, 1.8, FM.mat, xc, 0.25, 0.53);
+        pillows.forEach(px => P(0.5, 0.1, 0.3, FM.white, px, 0.43, -0.2));
+        P(w - 0.06, 0.06, 1.15, blanket, xc, 0.43, 0.88);
+      };
+      switch (id) {
+        case 'sofa':
+          P(1, 0.2, 0.75, D, 0, 0.04, 0); P(0.72, 0.16, 0.56, FM.fab2, 0, 0.24, 0.07); P(1, 0.5, 0.2, FM.fab, 0, 0.24, -0.28);
+          P(0.14, 0.38, 0.75, FM.fab, -0.43, 0.2, 0); P(0.14, 0.38, 0.75, FM.fab, 0.43, 0.2, 0); P(0.7, 0.28, 0.1, FM.fab2, 0, 0.4, -0.16); break;
+        case 'coffee_table':
+          P(0.8, 0.06, 0.5, W, 0, 0.34, 0); legs(0.68, 0.38, 0.34, 0.06, D); P(0.68, 0.03, 0.38, D, 0, 0.12, 0); break;
+        case 'tv':
+          P(0.92, 0.3, 0.4, D, 0, 0, 0); P(0.9, 0.04, 0.42, W, 0, 0.3, 0); P(0.1, 0.08, 0.1, FM.dark, 0, 0.34, 0);
+          P(0.88, 0.5, 0.05, FM.dark, 0, 0.4, 0); P(0.82, 0.44, 0.02, FM.screen, 0, 0.43, 0.03); break;
+        case 'lamp':
+          C(0.14, 0.16, 0.04, FM.dark, 0, 0, 0); C(0.02, 0.02, 0.7, FM.dark, 0, 0.04, 0); C(0.12, 0.2, 0.24, FM.shade, 0, 0.7, 0); break;
+        case 'chair':
+          P(0.4, 0.05, 0.4, W, 0, 0.32, 0.02); P(0.4, 0.42, 0.05, W, 0, 0.37, -0.18); legs(0.32, 0.32, 0.32, 0.05, D); break;
+        case 'dining_set':
+          P(0.6, 0.05, 0.6, W, 0, 0.42, 0); legs(0.5, 0.5, 0.42, 0.06, D);
+          [[0, 0.4, 0], [0, -0.4, Math.PI], [0.4, 0, -Math.PI / 2], [-0.4, 0, Math.PI / 2]].forEach(([x, z, r]) => {
+            const c = new THREE.Group(); const s = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.22), D); s.position.y = -0.5 + 0.26; const b = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.03), D); b.position.set(0, -0.5 + 0.4, 0.1);
+            c.add(s, b); c.position.set(x, 0, z); c.rotation.y = r; g.add(c);
+          }); break;
+        case 'kitchen_table':
+          P(0.95, 0.06, 0.62, W, 0, 0.45, 0); P(0.6, 0.012, 0.4, FM.cloth, 0, 0.51, 0); legs(0.82, 0.5, 0.45, 0.07, D); break;
+        case 'stove':
+          P(0.92, 0.8, 0.8, FM.white, 0, 0, 0); P(0.92, 0.03, 0.8, FM.dark, 0, 0.8, 0);
+          [[-0.22, -0.18], [0.22, -0.18], [-0.22, 0.18], [0.22, 0.18]].forEach(([x, z]) => C(0.1, 0.1, 0.02, FM.steel, x, 0.83, z));
+          P(0.76, 0.42, 0.03, FM.dark, 0, 0.14, 0.4); P(0.6, 0.03, 0.04, FM.steel, 0, 0.52, 0.43); P(0.92, 0.12, 0.04, FM.white, 0, 0.7, -0.38); break;
+        case 'fridge':
+          P(0.9, 1.7, 0.8, FM.white, 0, 0, 0); P(0.9, 0.02, 0.01, FM.dark, 0, 1.05, 0.405); P(0.04, 0.32, 0.05, FM.steel, 0.34, 1.2, 0.42); P(0.04, 0.5, 0.05, FM.steel, 0.34, 0.45, 0.42); break;
+        case 'sink':
+          P(0.96, 0.78, 0.7, FM.cab, 0, 0, 0); P(1, 0.05, 0.74, FM.counter, 0, 0.78, 0); P(0.6, 0.02, 0.4, FM.steel, 0, 0.83, 0.05);
+          C(0.02, 0.02, 0.28, FM.steel, 0, 0.83, -0.25); P(0.03, 0.03, 0.16, FM.steel, 0, 1.08, -0.18);
+          [-1, 1].forEach(s => { P(0.44, 0.64, 0.02, FM.door, s * 0.235, 0.07, 0.36); P(0.03, 0.14, 0.03, FM.steel, s * 0.06, 0.4, 0.38); }); break;
+        case 'cabinet':
+          P(0.96, 0.78, 0.7, FM.cab, 0, 0, 0); P(1, 0.05, 0.74, FM.counter, 0, 0.78, 0);
+          [-1, 1].forEach(s => { P(0.44, 0.64, 0.02, FM.door, s * 0.235, 0.07, 0.36); P(0.03, 0.14, 0.03, FM.steel, s * 0.06, 0.4, 0.38); }); break;
+        case 'wall_cabinet':
+          P(0.96, 0.5, 0.4, FM.cab, 0, 0.5, -0.3);
+          [-1, 1].forEach(s => { P(0.44, 0.42, 0.02, FM.door, s * 0.235, 0.54, -0.09); P(0.03, 0.12, 0.03, FM.steel, s * 0.06, 0.6, -0.07); }); break;
+        case 'bed_single': bed(0.95, 0, FM.blue, [0]); break;
+        case 'bed_double': bed(1.8, 0.4, FM.red, [0, 0.8]); break;
+        case 'wardrobe':
+          P(0.98, 1.85, 0.6, D, 0, 0, -0.18); [-1, 1].forEach(s => { P(0.46, 1.74, 0.02, W, s * 0.24, 0.05, 0.13); P(0.03, 0.25, 0.03, FM.steel, s * 0.05, 0.85, 0.16); }); break;
+        case 'nightstand':
+          P(0.45, 0.42, 0.4, D, 0, 0, -0.05); P(0.4, 0.16, 0.02, W, 0, 0.2, 0.16); C(0.02, 0.02, 0.03, FM.steel, 0, 0.25, 0.18).rotation.x = 1.57; break;
+        case 'bookshelf':
+          P(0.9, 1.4, 0.03, D, 0, 0, -0.43); P(0.04, 1.4, 0.3, D, -0.43, 0, -0.3); P(0.04, 1.4, 0.3, D, 0.43, 0, -0.3);
+          for (let k = 0; k < 5; k++) { P(0.9, 0.03, 0.3, D, 0, k * 0.34, -0.3); if (k < 4) for (let i = 0; i < 6; i++) P(0.09, 0.2 + (i % 3) * 0.04, 0.2, FM.books[(i + k) % 5], -0.34 + i * 0.13, k * 0.34 + 0.03, -0.3); } break;
+        case 'rug':
+          P(0.96, 0.02, 0.96, FM.rug, 0, 0, 0); P(0.78, 0.025, 0.78, FM.rug2, 0, 0, 0); break;
+        case 'vase':
+          C(0.07, 0.09, 0.2, materials.ceramic, 0, 0, 0);
+          [[-0.04, 0], [0.04, 0.02], [0, -0.04]].forEach(([x, z], i) => { P(0.015, 0.2, 0.015, materials.foliageLight, x, 0.2, z); P(0.07, 0.07, 0.07, [FM.red, FM.shade, FM.fab2][i], x, 0.38, z); }); break;
+        case 'books':
+          P(0.3, 0.05, 0.22, FM.books[0], 0, 0, 0); P(0.28, 0.05, 0.2, FM.books[1], 0.015, 0.05, 0); P(0.26, 0.04, 0.2, FM.books[2], -0.01, 0.1, 0); break;
+        case 'fruit':
+          C(0.17, 0.1, 0.07, FM.white, 0, 0, 0); P(0.07, 0.07, 0.07, FM.red, -0.05, 0.07, 0); P(0.07, 0.07, 0.07, FM.shade, 0.05, 0.07, 0.02); P(0.07, 0.07, 0.07, materials.foliageLight, 0, 0.1, -0.04); break;
+        case 'laptop':
+          P(0.3, 0.015, 0.21, FM.steel, 0, 0, 0.02); { const sc = P(0.3, 0.2, 0.012, FM.dark, 0, 0.015, -0.09); sc.rotation.x = -0.25; const gl = P(0.27, 0.17, 0.005, FM.screen, 0, 0.02, -0.083); gl.rotation.x = -0.25; } break;
+        case 'toilet':
+          P(0.34, 0.38, 0.44, FM.white, 0, 0, 0.05); P(0.38, 0.04, 0.46, FM.white, 0, 0.38, 0.05); P(0.42, 0.5, 0.18, FM.white, 0, 0, -0.32); P(0.06, 0.03, 0.06, FM.steel, 0.14, 0.52, -0.32); break;
+      }
+      return g;
+    }
+
+    function createItemMesh(id, rot = 0, isOpen = false, neighborMask = null) {
+      const group = new THREE.Group();
+      group.rotation.y = rot * (Math.PI / 2);
+
+      if (id === 'log' || id === 'plank' || id === 'stone' || id === 'brick' || id === 'sandstone' || id === 'grass') {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), materials[id]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      } else if (id === 'roof' || id === 'roof_small_tile' || id === 'roof_large_tile' || id === 'roof_wood') {
+        const matMap = {
+          roof: materials.roof,
+          roof_small_tile: materials.smallTile,
+          roof_large_tile: materials.largeTile,
+          roof_wood: materials.plank
+        };
+        const mat = matMap[id] || materials.roof;
+        const slope = buildSlopeGeo(1, 0.9, 1, mat, null, false);
+        group.add(slope);
+      } else if (id === 'roof_gable') {
+        group.add(buildSlopeGeo(1, 0.85, 1, materials.roof, materials.gableWall, false));
+      } else if (id === 'roof_shed_wall') {
+        group.add(buildSlopeGeo(1, 0.85, 1, materials.roof, materials.gableWall, false));
+      } else if (id === 'roof_hip') {
+        group.add(buildPyramidGeo(1, 0.85, 1, materials.roof, false));
+      } else if (id === 'roof_flared' || id === 'roof_pyramid') {
+        group.add(buildPyramidGeo(1, 0.9, 1, materials.roof, true));
+      } else if (id === 'roof_mansard') {
+        const outer = buildPyramidGeo(1, 0.52, 1, materials.roof, false);
+        outer.position.y = -0.22;
+        const topRim = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.14, 0.56), materials.sandstone);
+        topRim.position.y = 0.08;
+        topRim.castShadow = true;
+        group.add(outer, topRim);
+      } else if (id === 'roof_vault') {
+        const archGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 1, false, 0, Math.PI);
+        archGeo.rotateZ(Math.PI / 2);
+        archGeo.rotateY(Math.PI / 2);
+        const archMesh = new THREE.Mesh(archGeo, materials.roof);
+        archMesh.position.y = -0.35;
+        archMesh.castShadow = true;
+        archMesh.receiveShadow = true;
+        group.add(archMesh);
+      } else if (id === 'roof_dome') {
+        const domeGeo = new THREE.SphereGeometry(0.54, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        const domeMesh = new THREE.Mesh(domeGeo, materials.roof);
+        domeMesh.position.y = -0.38;
+        domeMesh.castShadow = true;
+        domeMesh.receiveShadow = true;
+        group.add(domeMesh);
+      } else if (id === 'roof_dormer') {
+        group.add(buildPyramidGeo(1, 0.75, 1, materials.roof, true));
+        const dormer = buildSlopeGeo(0.54, 0.45, 0.56, materials.roof, materials.gableWall, false);
+        dormer.position.set(0, 0.02, 0.18);
+        group.add(dormer);
+      } else if (id === 'roof_flat_slab') {
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(1, 0.18, 1), materials.roof);
+        slab.position.y = -0.4;
+        slab.castShadow = true;
+        slab.receiveShadow = true;
+        group.add(slab);
+      } else if (id === 'window') {
+        const frameT = 0.1;
+        const top = new THREE.Mesh(new THREE.BoxGeometry(1, frameT, 0.24), materials.darkWood);
+        top.position.y = 0.5 - frameT / 2;
+        const bot = new THREE.Mesh(new THREE.BoxGeometry(1, frameT, 0.24), materials.darkWood);
+        bot.position.y = -0.5 + frameT / 2;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(frameT, 1, 0.24), materials.darkWood);
+        left.position.x = -0.5 + frameT / 2;
+        const right = new THREE.Mesh(new THREE.BoxGeometry(frameT, 1, 0.24), materials.darkWood);
+        right.position.x = 0.5 - frameT / 2;
+        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.85, 0.16), materials.darkWood);
+        const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.05, 0.16), materials.darkWood);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.84, 0.06), materials.glass);
+
+        [top, bot, left, right, crossV, crossH].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+        group.add(top, bot, left, right, crossV, crossH, pane);
+      } else if (id === 'window_wide') {
+        const top = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.22), materials.darkWood);
+        top.position.y = 0.46;
+        const bot = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 0.26), materials.darkWood);
+        bot.position.y = -0.44;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1, 0.22), materials.darkWood);
+        left.position.x = -0.46;
+        const right = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1, 0.22), materials.darkWood);
+        right.position.x = 0.46;
+        const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.86, 0.12), materials.darkWood);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.84, 0.05), materials.glass);
+        [top, bot, left, right, mullion].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+        group.add(top, bot, left, right, mullion, pane);
+      } else if (id === 'window_double') {
+        const top = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 0.24), materials.darkWood);
+        top.position.y = 0.45;
+        const bot = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 0.24), materials.darkWood);
+        bot.position.y = -0.45;
+        const left = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.24), materials.darkWood);
+        left.position.x = -0.45;
+        const right = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.24), materials.darkWood);
+        right.position.x = 0.45;
+        const midV = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.86, 0.18), materials.darkWood);
+        const midH = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 0.14), materials.darkWood);
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.82, 0.06), materials.glass);
+        [top, bot, left, right, midV, midH].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+        group.add(top, bot, left, right, midV, midH, pane);
+      } else if (id === 'door') {
+        const top = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.24), materials.darkWood);
+        top.position.y = 0.46;
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1, 0.24), materials.darkWood);
+        postL.position.x = -0.46;
+        const postR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1, 0.24), materials.darkWood);
+        postR.position.x = 0.46;
+        group.add(top, postL, postR);
+
+        const hinge = new THREE.Group();
+        hinge.position.set(-0.42, 0, 0);
+        hinge.rotation.y = isOpen ? Math.PI * 0.46 : 0;
+
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.92, 0.1), materials.plank);
+        leaf.position.set(0.42, -0.04, 0);
+        leaf.castShadow = true;
+        leaf.receiveShadow = true;
+
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), materials.iron);
+        knob.position.set(0.74, -0.04, 0.07);
+
+        hinge.add(leaf, knob);
+        group.add(hinge);
+      } else if (id === 'door_tall') {
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.12, 0.28), materials.darkWood);
+        lintel.position.y = 1.44;
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 0.26), materials.darkWood);
+        postL.position.set(-0.45, 0.5, 0);
+        const postR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 0.26), materials.darkWood);
+        postR.position.set(0.45, 0.5, 0);
+        [lintel, postL, postR].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+        group.add(lintel, postL, postR);
+
+        const hinge = new THREE.Group();
+        hinge.position.set(-0.4, -0.5, 0);
+        hinge.rotation.y = isOpen ? Math.PI * 0.46 : 0;
+
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.88, 0.11), materials.plank);
+        leaf.position.set(0.4, 0.94, 0);
+        leaf.castShadow = true;
+        leaf.receiveShadow = true;
+
+        const panelUpper = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.65, 0.13), materials.darkWood);
+        panelUpper.position.set(0.4, 1.32, 0);
+        const panelLower = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.72, 0.13), materials.darkWood);
+        panelLower.position.set(0.4, 0.52, 0);
+
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.18), materials.iron);
+        handle.position.set(0.7, 0.92, 0);
+
+        hinge.add(leaf, panelUpper, panelLower, handle);
+        group.add(hinge);
+      } else if (id === 'door_double') {
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.14, 0.28), materials.darkWood);
+        lintel.position.y = 1.43;
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 0.26), materials.darkWood);
+        postL.position.set(-0.45, 0.5, 0);
+        const postR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 0.26), materials.darkWood);
+        postR.position.set(0.45, 0.5, 0);
+        [lintel, postL, postR].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
+        group.add(lintel, postL, postR);
+
+        const hingeL = new THREE.Group();
+        hingeL.position.set(-0.4, -0.5, 0);
+        hingeL.rotation.y = isOpen ? Math.PI * 0.45 : 0;
+        const leafL = new THREE.Mesh(new THREE.BoxGeometry(0.39, 1.86, 0.1), materials.plank);
+        leafL.position.set(0.195, 0.93, 0);
+        leafL.castShadow = true;
+        const knobL = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), materials.iron);
+        knobL.position.set(0.34, 0.9, 0.07);
+        hingeL.add(leafL, knobL);
+
+        const hingeR = new THREE.Group();
+        hingeR.position.set(0.4, -0.5, 0);
+        hingeR.rotation.y = isOpen ? -Math.PI * 0.45 : 0;
+        const leafR = new THREE.Mesh(new THREE.BoxGeometry(0.39, 1.86, 0.1), materials.plank);
+        leafR.position.set(-0.195, 0.93, 0);
+        leafR.castShadow = true;
+        const knobR = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), materials.iron);
+        knobR.position.set(-0.34, 0.9, 0.07);
+        hingeR.add(leafR, knobR);
+
+        group.add(hingeL, hingeR);
+      } else if (id === 'fence') {
+        group.rotation.y = 0;
+        const mask = neighborMask || { n: false, s: false, e: false, w: false };
+        const hasAny = mask.n || mask.s || mask.e || mask.w;
+
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.95, 0.22), materials.darkWood);
+        post.position.y = -0.025;
+        post.castShadow = true;
+        post.receiveShadow = true;
+        group.add(post);
+
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.26), materials.fenceWood);
+        cap.position.y = 0.47;
+        cap.castShadow = true;
+        group.add(cap);
+
+        let { n, s, e, w } = mask;
+        if (!hasAny) {
+          if (rot % 2 === 0) { e = true; w = true; }
+          else { n = true; s = true; }
+        }
+
+        const addBars = (dx, dz, lenX, lenZ) => {
+          [0.24, -0.14].forEach(barY => {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(lenX, 0.12, lenZ), materials.fenceWood);
+            bar.position.set(dx, barY, dz);
+            bar.castShadow = true;
+            bar.receiveShadow = true;
+            group.add(bar);
+          });
+        };
+
+        if (e) addBars(0.25, 0, 0.5, 0.1);
+        if (w) addBars(-0.25, 0, 0.5, 0.1);
+        if (s) addBars(0, 0.25, 0.1, 0.5);
+        if (n) addBars(0, -0.25, 0.1, 0.5);
+      } else if (id === 'gate') {
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.95, 0.2), materials.darkWood);
+        postL.position.set(-0.4, -0.025, 0);
+        const postR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.95, 0.2), materials.darkWood);
+        postR.position.set(0.4, -0.025, 0);
+        group.add(postL, postR);
+
+        const hinge = new THREE.Group();
+        hinge.position.set(-0.3, 0, 0);
+        hinge.rotation.y = isOpen ? Math.PI * 0.48 : 0;
+
+        const topBar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 0.08), materials.fenceWood);
+        topBar.position.set(0.3, 0.22, 0);
+        const botBar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 0.08), materials.fenceWood);
+        botBar.position.set(0.3, -0.16, 0);
+        const slat1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.65, 0.09), materials.fenceWood);
+        slat1.position.set(0.18, 0.02, 0);
+        const slat2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.65, 0.09), materials.fenceWood);
+        slat2.position.set(0.42, 0.02, 0);
+
+        hinge.add(topBar, botBar, slat1, slat2);
+        group.add(hinge);
+      } else if (id === 'flowerbed') {
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.26, 0.92), materials.darkWood);
+        box.position.y = -0.37;
+        box.castShadow = true;
+        box.receiveShadow = true;
+        const soil = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.28, 0.82), materials.grass[3]);
+        soil.position.y = -0.35;
+        group.add(box, soil);
+
+        const flowerColors = [0xff5964, 0xffd166, 0xffffff, 0xc77dff];
+        const offsets = [[-0.22, -0.22], [0.22, -0.18], [-0.15, 0.22], [0.24, 0.2]];
+        offsets.forEach(([fx, fz], i) => {
+          const stem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.24, 0.05), materials.foliage);
+          stem.position.set(fx, -0.12, fz);
+          const bloom = new THREE.Mesh(
+            new THREE.BoxGeometry(0.16, 0.12, 0.16),
+            new THREE.MeshStandardMaterial({ color: flowerColors[i % flowerColors.length], roughness: 0.6 })
+          );
+          bloom.position.set(fx, 0.03, fz);
+          bloom.castShadow = true;
+          group.add(stem, bloom);
+        });
+      } else if (id === 'bush') {
+        const b1 = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.62, 0.76), materials.foliage);
+        b1.position.y = -0.19;
+        b1.castShadow = true;
+        b1.receiveShadow = true;
+        const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.42, 0.54), materials.foliageLight);
+        b2.position.y = 0.16;
+        b2.castShadow = true;
+        group.add(b1, b2);
+      } else if (id === 'pot') {
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.17, 0.36, 12), materials.ceramic);
+        base.position.y = -0.32;
+        base.castShadow = true;
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.26, 0.08, 12), materials.ceramic);
+        rim.position.y = -0.12;
+        const plant = new THREE.Mesh(new THREE.DodecahedronGeometry(0.26, 0), materials.foliageLight);
+        plant.position.y = 0.12;
+        plant.castShadow = true;
+        const flower = new THREE.Mesh(
+          new THREE.SphereGeometry(0.08, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0xff6b6b, roughness: 0.5 })
+        );
+        flower.position.set(0.08, 0.32, 0.05);
+        group.add(base, rim, plant, flower);
+      } else if (id === 'lantern') {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.85, 0.14), materials.iron);
+        post.position.y = -0.075;
+        post.castShadow = true;
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.12), materials.iron);
+        arm.position.set(0.1, 0.35, 0);
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22), materials.lanternGlow);
+        lamp.position.set(0.2, 0.18, 0);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.14, 4), materials.iron);
+        cap.position.set(0.2, 0.36, 0);
+        cap.rotation.y = Math.PI / 4;
+        group.add(post, arm, lamp, cap);
+      } else if (id === 'bench') {
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.1, 0.44), materials.plank);
+        seat.position.set(0, -0.12, 0.04);
+        seat.castShadow = true;
+        seat.receiveShadow = true;
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.34, 0.08), materials.plank);
+        back.position.set(0, 0.14, -0.16);
+        back.castShadow = true;
+        const legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.38, 0.4), materials.darkWood);
+        legL.position.set(-0.36, -0.31, 0.04);
+        const legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.38, 0.4), materials.darkWood);
+        legR.position.set(0.36, -0.31, 0.04);
+        group.add(seat, back, legL, legR);
+      } else if (FURN_IDS.includes(id)) {
+        group.add(buildFurniture(id));
+      }
+
+      return group;
+    }
+
+    function getFenceNeighbors(x, y, z) {
+      const nBlock = placedBlocks.get(blockKey(x, y, z - 1));
+      const sBlock = placedBlocks.get(blockKey(x, y, z + 1));
+      const eBlock = placedBlocks.get(blockKey(x + 1, y, z));
+      const wBlock = placedBlocks.get(blockKey(x - 1, y, z));
+      return {
+        n: !!(nBlock && isFenceConnectable(nBlock.id)),
+        s: !!(sBlock && isFenceConnectable(sBlock.id)),
+        e: !!(eBlock && isFenceConnectable(eBlock.id)),
+        w: !!(wBlock && isFenceConnectable(wBlock.id))
+      };
+    }
+
+    function refreshSmartFenceAt(x, y, z) {
+      const item = placedBlocks.get(blockKey(x, y, z));
+      if (!item || item.id !== 'fence') return;
+      buildGroup.remove(item.mesh);
+      const mask = getFenceNeighbors(x, y, z);
+      const newMesh = createItemMesh('fence', item.rot, false, mask);
+      newMesh.position.set(x, y + 0.5, z);
+      newMesh.traverse(child => {
+        if (child.isMesh) child.userData.blockKey = blockKey(x, y, z);
+      });
+      buildGroup.add(newMesh);
+      item.mesh = newMesh;
+    }
+
+    function refreshSurroundingFences(x, y, z) {
+      refreshSmartFenceAt(x, y, z);
+      refreshSmartFenceAt(x, y, z - 1);
+      refreshSmartFenceAt(x, y, z + 1);
+      refreshSmartFenceAt(x + 1, y, z);
+      refreshSmartFenceAt(x - 1, y, z);
+    }
+
+    function placeBlock(id, x, y, z, rot = 0, isOpen = false, silent = false) {
+      x = Math.round(x);
+      y = Math.round(y);
+      z = Math.round(z);
+      if (Math.abs(x) >= WORLD_RADIUS || Math.abs(z) >= WORLD_RADIUS || y < 0 || y > 22) return false;
+
+      const key = blockKey(x, y, z);
+      if (placedBlocks.has(key)) {
+        removeBlockAt(x, y, z, true);
+      }
+
+      const mesh = createItemMesh(id, rot, isOpen);
+      mesh.position.set(x, y + 0.5, z);
+      mesh.traverse(child => {
+        if (child.isMesh) child.userData.blockKey = key;
+      });
+      buildGroup.add(mesh);
+
+      let pointLight = null;
+      if (id === 'lantern' || id === 'lamp') {
+        pointLight = new THREE.PointLight(0xffaa33, currentLighting === 'night' ? 1.8 : 0.25, 7);
+        pointLight.position.set(x + 0.2, y + 0.7, z);
+        scene.add(pointLight);
+        lanternLights.push(pointLight);
+      }
+
+      placedBlocks.set(key, { id, x, y, z, rot, isOpen, mesh, pointLight });
+
+      if (isFenceConnectable(id)) {
+        refreshSurroundingFences(x, y, z);
+      }
+
+      if (!silent) {
+        playSound('place');
+        player.actionTimer = 0.25;
+      }
+      return true;
+    }
+
+    function detectFootprintTopY(minX, maxX, minZ, maxZ) {
+      let maxTopY = -1;
+      placedBlocks.forEach(b => {
+        if (b.x >= minX && b.x <= maxX && b.z >= minZ && b.z <= maxZ) {
+          if (b.y > maxTopY) maxTopY = b.y;
+        }
+      });
+      return maxTopY;
+    }
+
+    function buildSimpleRoof(p1, p2, style, mat = areaRoofMaterial, rot = currentRotation, silent = false) {
+      const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x), minZ = Math.min(p1.z, p2.z), maxZ = Math.max(p1.z, p2.z);
+      const top = detectFootprintTopY(minX, maxX, minZ, maxZ);
+      const baseY = top >= 0 ? top + 1 : Math.max(p1.y, p2.y);
+      const w = maxX - minX + 1, d = maxZ - minZ + 1, o = 0.3, t = 0.22;
+      const baseMat = { tile: materials.roof, small_tile: materials.smallTile, large_tile: materials.largeTile, wood: materials.plank }[mat] || materials.roof;
+      const mk = (len, wid) => {
+        const m = baseMat.clone();
+        if (baseMat.map) { m.map = baseMat.map.clone(); m.map.wrapS = m.map.wrapT = THREE.RepeatWrapping; m.map.repeat.set(Math.max(1, Math.round(wid)), Math.max(1, Math.round(len))); m.map.needsUpdate = true; m.bumpMap = m.map; m.bumpScale = 1.1; m.roughness = 0.85; }
+        return m;
+      };
+      const dark = materials.darkWood;
+      const g = new THREE.Group();
+      g.position.set((minX + maxX) / 2, baseY, (minZ + maxZ) / 2);
+      const r = new THREE.Group();
+      g.add(r);
+      const add = (geo, m, x, y, z, rz = 0) => {
+        const me = new THREE.Mesh(geo, m);
+        me.position.set(x, y, z); me.rotation.z = rz; me.castShadow = me.receiveShadow = true;
+        r.add(me); return me;
+      };
+      const tri = (pts, z) => {
+        const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); sh.lineTo(pts[1][0], pts[1][1]); sh.lineTo(pts[2][0], pts[2][1]); sh.closePath();
+        const me = new THREE.Mesh(new THREE.ShapeGeometry(sh), materials.gableWall);
+        me.position.z = z; me.castShadow = true; r.add(me);
+      };
+
+      if (style === 'flat') {
+        add(new THREE.BoxGeometry(w + 2 * o, t, d + 2 * o), mk(d, w), 0, t / 2, 0);
+        const b = 0.12, rim = 0.12;
+        [-1, 1].forEach(s => {
+          add(new THREE.BoxGeometry(w + 2 * o, b, rim), dark, 0, t + b / 2, s * (d / 2 + o - rim / 2));
+          add(new THREE.BoxGeometry(rim, b, d + 2 * o), dark, s * (w / 2 + o - rim / 2), t + b / 2, 0);
+        });
+      } else if (style === 'shed') {
+        const odd = rot % 2 !== 0;
+        const S = odd ? d : w, R = odd ? w : d;
+        r.rotation.y = (odd ? Math.PI / 2 : 0) + (rot >= 2 ? Math.PI : 0);
+        const rise = Math.min(2.5, Math.max(0.7, S * 0.35)), a = Math.atan(rise / S), L = (S + 2 * o) / Math.cos(a), rl = R + 2 * o;
+        add(new THREE.BoxGeometry(L, t, rl), mk(L, rl), -Math.sin(a) * t / 2, rise / 2 + Math.cos(a) * t / 2, 0, a);
+        tri([[-S / 2, 0], [S / 2, 0], [S / 2, rise]], R / 2 - 0.02);
+        tri([[-S / 2, 0], [S / 2, 0], [S / 2, rise]], -R / 2 + 0.02);
+        add(new THREE.BoxGeometry(0.12, rise, R), materials.gableWall, S / 2 - 0.06, rise / 2, 0);
+        add(new THREE.BoxGeometry(0.1, 0.1, rl), dark, -S / 2 - o, -o * Math.tan(a) + 0.04, 0);
+      } else {
+        const wide = w > d;
+        const S = wide ? d : w, R = wide ? w : d;
+        r.rotation.y = wide ? Math.PI / 2 : 0;
+        const h = S / 2, rise = Math.min(3, Math.max(0.8, h * 0.75)), a = Math.atan(rise / h), ho = h + o, L = ho / Math.cos(a), rl = R + 2 * o;
+        const yo = rise * (1 - ho / h), cy = (yo + rise) / 2;
+        [-1, 1].forEach(s => {
+          add(new THREE.BoxGeometry(L, t, rl), mk(L, rl), s * ho / 2 + s * Math.sin(a) * t / 2, cy + Math.cos(a) * t / 2, 0, -s * a);
+          add(new THREE.BoxGeometry(0.1, 0.1, rl), dark, s * ho, yo + 0.02, 0);
+        });
+        add(new THREE.BoxGeometry(0.2, 0.14, rl), dark, 0, rise + 0.1, 0);
+        tri([[-h, 0], [h, 0], [0, rise]], R / 2 - 0.02);
+        tri([[-h, 0], [h, 0], [0, rise]], -R / 2 + 0.02);
+      }
+
+      buildGroup.add(g);
+      g.traverse(c => { c.raycast = () => {}; });
+      roofFillHistory.push({ addedKeys: [], replacedBlocks: [], extras: [g], params: { p1: { x: p1.x, y: p1.y, z: p1.z }, p2: { x: p2.x, y: p2.y, z: p2.z }, style, mat, rot } });
+      updateRoofUI();
+      if (!silent) {
+        playSound('place');
+        player.actionTimer = 0.28;
+        const names = { flat: 'Plano', shed: 'Inclinado', gable: 'Duas Águas' };
+        showToast(`Telhado ${names[style] || 'Duas Águas'} criado em ${w}x${d}!`);
+      }
+    }
+
+    function fillRoofArea(p1, p2, style) {
+      return buildSimpleRoof(p1, p2, style);
+    }
+
+    function _oldFillRoofArea(p1, p2, style) {
+      const minX = Math.min(p1.x, p2.x);
+      const maxX = Math.max(p1.x, p2.x);
+      const minZ = Math.min(p1.z, p2.z);
+      const maxZ = Math.max(p1.z, p2.z);
+
+      const detectedWallY = detectFootprintTopY(minX, maxX, minZ, maxZ);
+      const baseY = (detectedWallY >= 0) ? (detectedWallY + 1) : Math.max(p1.y, p2.y);
+
+      const width = maxX - minX + 1;
+      const depth = maxZ - minZ + 1;
+      const fillBatch = { addedKeys: [], replacedBlocks: [], extras: [] };
+
+      const tileIdMap = {
+        tile: 'roof',
+        small_tile: 'roof_small_tile',
+        large_tile: 'roof_large_tile',
+        wood: 'roof_wood'
+      };
+      const tileId = tileIdMap[areaRoofMaterial] || 'roof';
+      const isWoodMat = (areaRoofMaterial === 'wood');
+      const ridgeId = isWoodMat ? 'plank' : tileId;
+
+      const safePlaceRoofBlock = (id, x, y, z, rot) => {
+        const key = blockKey(x, y, z);
+        if (placedBlocks.has(key)) {
+          const old = placedBlocks.get(key);
+          fillBatch.replacedBlocks.push({ id: old.id, x: old.x, y: old.y, z: old.z, rot: old.rot, isOpen: old.isOpen });
+        }
+        if (placeBlock(id, x, y, z, rot, false, true)) {
+          fillBatch.addedKeys.push(key);
+          return true;
+        }
+        return false;
+      };
+
+      let count = 0;
+
+      if (style === 'flat') {
+        for (let x = minX; x <= maxX; x++) {
+          for (let z = minZ; z <= maxZ; z++) {
+            if (safePlaceRoofBlock(isWoodMat ? 'plank' : 'roof_flat_slab', x, baseY, z, 0)) count++;
+          }
+        }
+      } else if (style === 'shed') {
+        const alongX = (currentRotation % 2 === 0);
+        if (alongX) {
+          for (let x = minX; x <= maxX; x++) {
+            const stepY = baseY + (x - minX);
+            for (let z = minZ; z <= maxZ; z++) {
+              const isSideCap = (z === minZ || z === maxZ);
+              const idToUse = (isSideCap && !isWoodMat) ? 'roof_shed_wall' : tileId;
+              if (safePlaceRoofBlock(idToUse, x, stepY, z, 0)) count++;
+            }
+          }
+        } else {
+          for (let z = minZ; z <= maxZ; z++) {
+            const stepY = baseY + (z - minZ);
+            for (let x = minX; x <= maxX; x++) {
+              const isSideCap = (x === minX || x === maxX);
+              const idToUse = (isSideCap && !isWoodMat) ? 'roof_shed_wall' : tileId;
+              if (safePlaceRoofBlock(idToUse, x, stepY, z, 1)) count++;
+            }
+          }
+        }
+      } else if (style === 'hip' || style === 'mansard' || style === 'dormer') {
+        const layers = Math.ceil(Math.min(width, depth) / 2);
+        for (let layer = 0; layer < layers; layer++) {
+          const lMinX = minX + layer;
+          const lMaxX = maxX - layer;
+          const lMinZ = minZ + layer;
+          const lMaxZ = maxZ - layer;
+          if (lMinX > lMaxX || lMinZ > lMaxZ) break;
+          const y = baseY + layer;
+
+          for (let x = lMinX; x <= lMaxX; x++) {
+            for (let z = lMinZ; z <= lMaxZ; z++) {
+              const onEdge = (x === lMinX || x === lMaxX || z === lMinZ || z === lMaxZ);
+              if (!onEdge && style !== 'mansard') continue;
+              let rot = 0;
+              if (z === lMaxZ) rot = 0;
+              else if (z === lMinZ) rot = 2;
+              else if (x === lMaxX) rot = 3;
+              else if (x === lMinX) rot = 1;
+
+              let pieceId = tileId;
+              if (style === 'dormer' && layer === 0 && z === lMaxZ && x === Math.floor((lMinX + lMaxX) / 2)) {
+                pieceId = 'roof_dormer';
+                rot = 0;
+              } else if (style === 'mansard' && layer === layers - 1) {
+                pieceId = 'roof_mansard';
+              } else if (!isWoodMat) {
+                pieceId = 'roof_flared';
+              }
+              if (safePlaceRoofBlock(pieceId, x, y, z, rot)) count++;
+            }
+          }
+        }
+      } else if (style === 'vault') {
+        const alongX = (depth >= width);
+        if (alongX) {
+          const layers = Math.ceil(width / 2);
+          for (let layer = 0; layer < layers; layer++) {
+            const lMinX = minX + layer;
+            const lMaxX = maxX - layer;
+            if (lMinX > lMaxX) break;
+            const y = baseY + layer;
+            for (let z = minZ; z <= maxZ; z++) {
+              if (lMinX === lMaxX) {
+                if (safePlaceRoofBlock('roof_vault', lMinX, y, z, 0)) count++;
+              } else {
+                if (safePlaceRoofBlock(tileId, lMinX, y, z, 0)) count++;
+                if (safePlaceRoofBlock(tileId, lMaxX, y, z, 2)) count++;
+              }
+            }
+          }
+        } else {
+          const layers = Math.ceil(depth / 2);
+          for (let layer = 0; layer < layers; layer++) {
+            const lMinZ = minZ + layer;
+            const lMaxZ = maxZ - layer;
+            if (lMinZ > lMaxZ) break;
+            const y = baseY + layer;
+            for (let x = minX; x <= maxX; x++) {
+              if (lMinZ === lMaxZ) {
+                if (safePlaceRoofBlock('roof_vault', x, y, lMinZ, 1)) count++;
+              } else {
+                if (safePlaceRoofBlock(tileId, x, y, lMinZ, 3)) count++;
+                if (safePlaceRoofBlock(tileId, x, y, lMaxZ, 1)) count++;
+              }
+            }
+          }
+        }
+      } else {
+        // Tipo V Invertido (Duas Águas)
+        if (depth >= width) {
+          const layers = Math.ceil(width / 2);
+          for (let layer = 0; layer < layers; layer++) {
+            const lMinX = minX + layer;
+            const lMaxX = maxX - layer;
+            if (lMinX > lMaxX) break;
+            const y = baseY + layer;
+
+            for (let z = minZ; z <= maxZ; z++) {
+              if (lMinX === lMaxX) {
+                if (safePlaceRoofBlock(ridgeId, lMinX, y, z, 0)) count++;
+              } else {
+                if (safePlaceRoofBlock(tileId, lMinX, y, z, 0)) count++;
+                if (safePlaceRoofBlock(tileId, lMaxX, y, z, 2)) count++;
+              }
+            }
+          }
+        } else {
+          const layers = Math.ceil(depth / 2);
+          for (let layer = 0; layer < layers; layer++) {
+            const lMinZ = minZ + layer;
+            const lMaxZ = maxZ - layer;
+            if (lMinZ > lMaxZ) break;
+            const y = baseY + layer;
+
+            for (let x = minX; x <= maxX; x++) {
+              if (lMinZ === lMaxZ) {
+                if (safePlaceRoofBlock(ridgeId, x, y, lMinZ, 0)) count++;
+              } else {
+                if (safePlaceRoofBlock(tileId, x, y, lMinZ, 3)) count++;
+                if (safePlaceRoofBlock(tileId, x, y, lMaxZ, 1)) count++;
+              }
+            }
+          }
+        }
+      }
+
+      if (count > 0) addRoofTrim(style, minX, maxX, minZ, maxZ, baseY, fillBatch);
+      if (fillBatch.addedKeys.length > 0) {
+        roofFillHistory.push(fillBatch);
+      }
+
+      updateRoofUI();
+      playSound('place');
+      player.actionTimer = 0.28;
+      const styleNames = {
+        flat: 'Plano',
+        shed: 'Rampa c/ Parede',
+        gable: 'Duas Águas (V)',
+        hip: 'Piramidal / 4 Águas',
+        mansard: 'Mansarda Aberta',
+        vault: 'Abóbada / Arco',
+        dormer: '4 Águas c/ Água-Furtada'
+      };
+      showToast(`Telhado ${styleNames[style] || 'Duas Águas (V)'} criado em ${width}x${depth} (${count} peças)!`);
+    }
+
+    function undoLastRoofFill() {
+      if (roofFillHistory.length === 0) {
+        showToast('Nenhum telhado para desfazer.');
+        return;
+      }
+
+      const batch = roofFillHistory.pop();
+      (batch.extras || []).forEach(m => buildGroup.remove(m));
+      let undoneCount = 0;
+
+      batch.addedKeys.forEach(key => {
+        const b = placedBlocks.get(key);
+        if (b) {
+          removeBlockAt(b.x, b.y, b.z, true);
+          undoneCount++;
+        }
+      });
+
+      batch.replacedBlocks.forEach(b => {
+        placeBlock(b.id, b.x, b.y, b.z, b.rot, b.isOpen, true);
+      });
+
+      updateRoofUI();
+      playSound('remove');
+      showToast('Telhado desfeito!');
+    }
+
+    function placeSquareEnclosure(size, cx, cy, cz) {
+      const half = Math.floor(size / 2);
+      const minX = cx - half;
+      const maxX = minX + size - 1;
+      const minZ = cz - half;
+      const maxZ = minZ + size - 1;
+      const gateX = Math.floor((minX + maxX) / 2);
+
+      for (let x = minX; x <= maxX; x++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          const isEdge = (x === minX || x === maxX || z === minZ || z === maxZ);
+          if (!isEdge) continue;
+          if (z === maxZ && x === gateX) {
+            placeBlock('gate', x, cy, z, 0, false, true);
+          } else {
+            placeBlock('fence', x, cy, z, 0, false, true);
+          }
+        }
+      }
+      playSound('place');
+      player.actionTimer = 0.28;
+      showToast(`Cercado ${size}x${size} construído!`);
+    }
+
+    function removeBlockAt(x, y, z, silent = false) {
+      const key = blockKey(x, y, z);
+      const item = placedBlocks.get(key);
+      if (!item) return false;
+
+      buildGroup.remove(item.mesh);
+      if (item.pointLight) {
+        scene.remove(item.pointLight);
+        const idx = lanternLights.indexOf(item.pointLight);
+        if (idx > -1) lanternLights.splice(idx, 1);
+      }
+      placedBlocks.delete(key);
+
+      if (isFenceConnectable(item.id)) {
+        refreshSurroundingFences(x, y, z);
+      }
+
+      if (!silent) {
+        playSound('remove');
+        player.actionTimer = 0.25;
+      }
+      return true;
+    }
+
+    function toggleBlockInteraction(x, y, z) {
+      const key = blockKey(x, y, z);
+      const item = placedBlocks.get(key);
+      if (!item) return false;
+      if (item.id === 'door' || item.id === 'door_tall' || item.id === 'door_double' || item.id === 'gate') {
+        item.isOpen = !item.isOpen;
+        buildGroup.remove(item.mesh);
+        const newMesh = createItemMesh(item.id, item.rot, item.isOpen);
+        newMesh.position.set(item.x, item.y + 0.5, item.z);
+        newMesh.traverse(child => {
+          if (child.isMesh) child.userData.blockKey = key;
+        });
+        buildGroup.add(newMesh);
+        item.mesh = newMesh;
+        playSound('door');
+        player.actionTimer = 0.2;
+        return true;
+      }
+      return false;
+    }
+
+    // =========================================================================
+    // 6. GHOST PREVIEW, AREA ROOF PREVIEW & RAYCASTING
+    // =========================================================================
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2(0, 0);
+    let ghostGroup = new THREE.Group();
+    scene.add(ghostGroup);
+    let currentTarget = null;
+
+    function updateRoofUI() {
+      const box = document.getElementById('roof-style-box');
+      const isRoofArea = (selectedItemId === 'roof_area');
+      box.classList.toggle('hidden', !isRoofArea);
+
+      ['flat', 'shed', 'gable', 'hip', 'mansard', 'vault', 'dormer'].forEach(st => {
+        const el = document.getElementById(`roof-style-${st}`);
+        if (el) el.classList.toggle('active', areaRoofStyle === st);
+      });
+
+      const matSel = document.getElementById('roof-material-select');
+      if (matSel && matSel.value !== areaRoofMaterial) {
+        matSel.value = areaRoofMaterial;
+      }
+
+      const statusEl = document.getElementById('roof-point-status');
+      if (statusEl) {
+        statusEl.textContent = roofStartPoint
+          ? `1º canto (${roofStartPoint.x}, ${roofStartPoint.z}) — clique 2º canto`
+          : 'Clique no 1º canto';
+      }
+
+      const undoBtn = document.getElementById('btn-undo-roof');
+      if (undoBtn) {
+        undoBtn.style.opacity = roofFillHistory.length > 0 ? '1' : '0.45';
+      }
+    }
+
+    function setAreaRoofStyle(style) {
+      areaRoofStyle = style;
+      updateRoofUI();
+      rebuildGhostPreview();
+    }
+
+    function setAreaRoofMaterial(mat) {
+      areaRoofMaterial = mat;
+      updateRoofUI();
+      rebuildGhostPreview();
+    }
+
+    function rebuildGhostPreview() {
+      scene.remove(ghostGroup);
+      ghostGroup = new THREE.Group();
+
+      const catItem = Object.values(CATALOG).flat().find(i => i.id === selectedItemId);
+      if (catItem && catItem.type === 'preset_enclosure') {
+        const size = catItem.size;
+        const half = Math.floor(size / 2);
+        const minX = -half;
+        const maxX = minX + size - 1;
+        const minZ = -half;
+        const maxZ = minZ + size - 1;
+        for (let x = minX; x <= maxX; x++) {
+          for (let z = minZ; z <= maxZ; z++) {
+            if (x === minX || x === maxX || z === minZ || z === maxZ) {
+              const box = new THREE.Mesh(
+                new THREE.BoxGeometry(0.95, 0.9, 0.95),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35 })
+              );
+              box.position.set(x, 0.45, z);
+              ghostGroup.add(box);
+            }
+          }
+        }
+      } else if (selectedItemId === 'roof_area') {
+        const box = new THREE.Mesh(
+          new THREE.BoxGeometry(0.98, 0.35, 0.98),
+          new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.5 })
+        );
+        box.position.set(0, 0.18, 0);
+        ghostGroup.add(box);
+      } else {
+        const previewMesh = createItemMesh(selectedItemId, currentRotation, false);
+        previewMesh.traverse(child => {
+          if (child.isMesh) {
+            child.castShadow = false;
+            child.receiveShadow = false;
+            child.material = new THREE.MeshBasicMaterial({
+              color: 0x60a5fa,
+              transparent: true,
+              opacity: 0.45
+            });
+          }
+        });
+        ghostGroup.add(previewMesh);
+      }
+
+      scene.add(ghostGroup);
+    }
+
+    let areaSelectionGroup = new THREE.Group();
+    scene.add(areaSelectionGroup);
+
+    function updateAreaSelectionPreview(endPos) {
+      scene.remove(areaSelectionGroup);
+      areaSelectionGroup = new THREE.Group();
+
+      if (selectedItemId !== 'roof_area' || !roofStartPoint || !endPos) {
+        scene.add(areaSelectionGroup);
+        return;
+      }
+
+      const minX = Math.min(roofStartPoint.x, endPos.x);
+      const maxX = Math.max(roofStartPoint.x, endPos.x);
+      const minZ = Math.min(roofStartPoint.z, endPos.z);
+      const maxZ = Math.max(roofStartPoint.z, endPos.z);
+
+      const detectedWallY = detectFootprintTopY(minX, maxX, minZ, maxZ);
+      const y = (detectedWallY >= 0) ? (detectedWallY + 1) : Math.max(roofStartPoint.y, endPos.y);
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b,
+        transparent: true,
+        opacity: 0.38
+      });
+      for (let x = minX; x <= maxX; x++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          const tile = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.25, 0.94), mat);
+          tile.position.set(x, y + 0.15, z);
+          areaSelectionGroup.add(tile);
+        }
+      }
+      scene.add(areaSelectionGroup);
+    }
+
+    // =========================================================================
+    // 7. CAMERA ORBIT & INPUT CONTROLS (WITH STRICT NaN GUARD)
+    // =========================================================================
+    const cameraOrbit = {
+      yaw: 0,
+      pitch: 0.42,
+      distance: 8.5
+    };
+
+    function sanitizeCamera() {
+      cameraOrbit.yaw = safeNum(cameraOrbit.yaw, 0);
+      cameraOrbit.pitch = Math.max(0.12, Math.min(1.38, safeNum(cameraOrbit.pitch, 0.42)));
+      cameraOrbit.distance = Math.max(3.5, Math.min(20, safeNum(cameraOrbit.distance, 8.5)));
+    }
+
+    function resetCameraPosition() {
+      cameraOrbit.yaw = 0;
+      cameraOrbit.pitch = 0.42;
+      cameraOrbit.distance = 8.5;
+      showToast('Câmera centralizada');
+    }
+
+    const keys = {};
+    window.addEventListener('keydown', (e) => {
+      keys[e.code] = true;
+      if (e.code === 'KeyZ' && (e.ctrlKey || e.metaKey || selectedItemId === 'roof_area')) {
+        undoLastRoofFill();
+      }
+      if (e.code === 'KeyR') rotateSelection();
+      if (e.code === 'KeyE' && currentTarget && currentTarget.hitBlock) {
+        toggleBlockInteraction(currentTarget.hitBlock.x, currentTarget.hitBlock.y, currentTarget.hitBlock.z);
+      }
+      if (e.code === 'Escape' && roofStartPoint) {
+        roofStartPoint = null;
+        updateRoofUI();
+        updateAreaSelectionPreview(null);
+        showToast('Seleção de área de telhado cancelada');
+      }
+      if (e.code === 'Space' && player.onGround) {
+        player.velY = 6.2;
+        player.onGround = false;
+      }
+      if (e.code.startsWith('Digit')) {
+        const idx = parseInt(e.code.replace('Digit', ''), 10) - 1;
+        const items = CATALOG[activeCategory];
+        if (items && items[idx]) {
+          selectItem(items[idx].id);
+        }
+      }
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    let isPointerDown = false;
+    let pointerButton = 0;
+    let pointerDownPos = { x: 0, y: 0 };
+    let lastPointerPos = { x: 0, y: 0 };
+    let hasDragged = false;
+
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+    canvas.addEventListener('pointerdown', (e) => {
+      initAudio();
+      isPointerDown = true;
+      pointerButton = e.button;
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+      lastPointerPos = { x: e.clientX, y: e.clientY };
+      hasDragged = false;
+      updateMouseRay(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      updateMouseRay(e.clientX, e.clientY);
+      if (!isPointerDown) return;
+
+      const dx = safeNum(e.clientX - lastPointerPos.x, 0);
+      const dy = safeNum(e.clientY - lastPointerPos.y, 0);
+      const totalDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+
+      if (totalDist > 5) {
+        hasDragged = true;
+        cameraOrbit.yaw -= dx * 0.0065;
+        cameraOrbit.pitch += dy * 0.0065;
+        sanitizeCamera();
+      }
+      lastPointerPos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (isPointerDown && !hasDragged) {
+        updateMouseRay(e.clientX, e.clientY);
+        handleWorldClick(pointerButton);
+      }
+      isPointerDown = false;
+      hasDragged = false;
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      cameraOrbit.distance += safeNum(e.deltaY, 0) * 0.008;
+      sanitizeCamera();
+    }, { passive: false });
+
+    function updateMouseRay(clientX, clientY) {
+      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+      mouseNDC.x = (clientX / window.innerWidth) * 2 - 1;
+      mouseNDC.y = -(clientY / window.innerHeight) * 2 + 1;
+    }
+
+    function updateRaycastTarget() {
+      raycaster.setFromCamera(mouseNDC, camera);
+      const targets = [groundMesh, ...buildGroup.children];
+      const hits = raycaster.intersectObjects(targets, true);
+
+      currentTarget = null;
+      for (const hit of hits) {
+        if (hit.distance > 22) continue;
+        if (hit.object.name === 'ground') {
+          const px = Math.round(hit.point.x);
+          const pz = Math.round(hit.point.z);
+          currentTarget = {
+            placePos: new THREE.Vector3(px, 0, pz),
+            hitBlock: null
+          };
+          break;
+        } else if (hit.object.userData && hit.object.userData.blockKey) {
+          const hk = hit.object.userData.blockKey;
+          const st = stackedItems.get(hk) || null;
+          const b = st ? placedBlocks.get(blockKey(st.x, st.y, st.z)) : placedBlocks.get(hk);
+          if (b) {
+            const normal = hit.face ? hit.face.normal.clone().applyQuaternion(hit.object.getWorldQuaternion(new THREE.Quaternion())) : new THREE.Vector3(0, 1, 0);
+            const stackInfo = computeStack(b, normal, hit.point);
+            if (stackInfo) {
+              currentTarget = { placePos: new THREE.Vector3(b.x, b.y, b.z), hitBlock: b, hitStacked: st, stack: stackInfo };
+              break;
+            }
+            const px = Math.round(b.x + Math.round(normal.x));
+            const py = Math.max(0, Math.round(b.y + Math.round(normal.y)));
+            const pz = Math.round(b.z + Math.round(normal.z));
+            currentTarget = {
+              placePos: new THREE.Vector3(px, py, pz),
+              hitBlock: b,
+              hitStacked: st
+            };
+            break;
+          }
+        }
+      }
+
+      if (currentTarget && toolMode === 'build') {
+        ghostGroup.visible = true;
+        const catItem = Object.values(CATALOG).flat().find(i => i.id === selectedItemId);
+        if (catItem && catItem.type === 'preset_enclosure') {
+          ghostGroup.position.set(currentTarget.placePos.x, currentTarget.placePos.y, currentTarget.placePos.z);
+        } else {
+          { const sk = currentTarget.stack; ghostGroup.position.set(currentTarget.placePos.x + (sk ? sk.ox : 0), currentTarget.placePos.y + 0.5 + (sk ? sk.sy : 0), currentTarget.placePos.z + (sk ? sk.oz : 0)); }
+        }
+        updateAreaSelectionPreview(currentTarget.placePos);
+      } else {
+        ghostGroup.visible = false;
+        updateAreaSelectionPreview(null);
+      }
+    }
+
+    function handleWorldClick(button) {
+      if (!currentTarget) return;
+
+      if (button === 2 || toolMode === 'remove') {
+        if (roofStartPoint) {
+          roofStartPoint = null;
+          updateRoofUI();
+          updateAreaSelectionPreview(null);
+        }
+        if (currentTarget.hitBlock) {
+          if (currentTarget.hitStacked) removeStacked(currentTarget.hitStacked.key); else removeBlockAt(currentTarget.hitBlock.x, currentTarget.hitBlock.y, currentTarget.hitBlock.z);
+        }
+        return;
+      }
+
+      if (toolMode === 'interact') {
+        if (currentTarget.hitBlock) {
+          const toggled = toggleBlockInteraction(currentTarget.hitBlock.x, currentTarget.hitBlock.y, currentTarget.hitBlock.z);
+          if (!toggled) showToast('Esta peça não possui abertura interativa');
+        }
+        return;
+      }
+
+      if (currentTarget.hitBlock && (
+        currentTarget.hitBlock.id === 'door' ||
+        currentTarget.hitBlock.id === 'door_tall' ||
+        currentTarget.hitBlock.id === 'door_double' ||
+        currentTarget.hitBlock.id === 'gate'
+      ) && selectedItemId !== currentTarget.hitBlock.id) {
+        toggleBlockInteraction(currentTarget.hitBlock.x, currentTarget.hitBlock.y, currentTarget.hitBlock.z);
+        return;
+      }
+
+      const { x, y, z } = currentTarget.placePos;
+      const catItem = Object.values(CATALOG).flat().find(i => i.id === selectedItemId);
+
+      if (selectedItemId === 'roof_area') {
+        if (!roofStartPoint) {
+          roofStartPoint = new THREE.Vector3(x, y, z);
+          playSound('rotate');
+          updateRoofUI();
+          showToast(`1º canto em (${x}, ${z}). Clique no 2º canto!`);
+        } else {
+          const start = roofStartPoint.clone();
+          roofStartPoint = null;
+          updateRoofUI();
+          updateAreaSelectionPreview(null);
+          fillRoofArea(start, new THREE.Vector3(x, y, z), areaRoofStyle);
+        }
+        return;
+      }
+
+      if (catItem && catItem.type === 'preset_enclosure') {
+        placeSquareEnclosure(catItem.size, x, y, z);
+      } else {
+        if (currentTarget.stack) {
+          const s = currentTarget.stack, hb = currentTarget.hitBlock;
+          placeStacked(selectedItemId, hb.x, hb.y, hb.z, s.ox, s.oz, s.sy, currentRotation, false);
+        } else {
+          placeBlock(selectedItemId, x, y, z, currentRotation, false);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 8. UI RENDERING & PRESETS
+    // =========================================================================
+    function renderCatalog() {
+      const container = document.getElementById('catalog-items');
+      container.innerHTML = '';
+      const items = CATALOG[activeCategory] || [];
+      items.forEach((item, index) => {
+        const btn = document.createElement('button');
+        btn.className = `item-btn px-2.5 py-1.5 rounded-xl border border-white/10 flex flex-col items-center min-w-[74px] ${item.id === selectedItemId ? 'active' : 'bg-white/5'}`;
+        btn.onclick = () => selectItem(item.id);
+        btn.innerHTML = `
+          <span class="text-[9px] text-slate-400 self-start leading-none">${index + 1}</span>
+          <span class="text-lg my-0.5">${item.icon}</span>
+          <span class="text-[9px] font-medium text-white text-center leading-tight">${item.name}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function selectCategory(cat) {
+      activeCategory = cat;
+      ['structures', 'openings', 'garden', 'decor'].forEach(c => {
+        document.getElementById(`cat-${c}`).classList.toggle('active', c === cat);
+      });
+      if (panelState.catalog) togglePanel('catalog');
+      const firstItem = CATALOG[cat][0];
+      if (firstItem) selectItem(firstItem.id);
+      else renderCatalog();
+    }
+
+    function selectItem(id) {
+      selectedItemId = id;
+      roofStartPoint = null;
+      updateAreaSelectionPreview(null);
+      updateRoofUI();
+      setToolMode('build');
+      renderCatalog();
+      rebuildGhostPreview();
+    }
+
+    function setToolMode(mode) {
+      toolMode = mode;
+      ['build', 'remove', 'interact'].forEach(m => {
+        document.getElementById(`mode-${m}`).classList.toggle('active', m === mode);
+      });
+    }
+
+    function rotateSelection() {
+      currentRotation = (currentRotation + 1) % 4;
+      document.getElementById('rot-label').textContent = `${currentRotation * 90}°`;
+      playSound('rotate');
+      rebuildGhostPreview();
+    }
+
+    function buildDemoCabin() {
+      executeClearWorld(true);
+
+      for (let x = -2; x <= 2; x++) {
+        for (let z = -4; z <= -1; z++) {
+          placeBlock('plank', x, 0, z, 0, false, true);
+        }
+      }
+
+      for (let y = 1; y <= 2; y++) {
+        for (let x = -2; x <= 2; x++) {
+          for (let z = -4; z <= -1; z++) {
+            const isCorner = (x === -2 || x === 2) && (z === -4 || z === -1);
+            const isWall = (x === -2 || x === 2 || z === -4 || z === -1);
+            if (!isWall) continue;
+
+            if (isCorner) {
+              placeBlock('log', x, y, z, 0, false, true);
+            } else if (z === -1 && x === 0 && y === 1) {
+              placeBlock('door_tall', x, y, z, 0, false, true);
+            } else if (z === -1 && x === 0 && y === 2) {
+              // Skip block over tall door
+            } else if (z === -1 && (x === -1 || x === 1) && y === 1) {
+              placeBlock('window_wide', x, y, z, 0, false, true);
+            } else if ((x === -2 || x === 2) && (z === -3 || z === -2) && y === 1) {
+              placeBlock('window_double', x, y, z, 1, false, true);
+            } else {
+              placeBlock('plank', x, y, z, 0, false, true);
+            }
+          }
+        }
+      }
+
+      fillRoofArea(new THREE.Vector3(-2, 3, -4), new THREE.Vector3(2, 3, -1), 'gable');
+
+      for (let x = -3; x <= 3; x++) {
+        for (let z = 0; z <= 4; z++) {
+          const isEdge = (x === -3 || x === 3 || z === 4);
+          if (!isEdge) continue;
+          if (z === 4 && x === 0) {
+            placeBlock('gate', x, 0, z, 0, false, true);
+          } else {
+            placeBlock('fence', x, 0, z, 0, false, true);
+          }
+        }
+      }
+
+      placeBlock('flowerbed', -2, 0, 1, 0, false, true);
+      placeBlock('flowerbed', 2, 0, 1, 0, false, true);
+      placeBlock('pot', -1, 0, 0, 0, false, true);
+      placeBlock('pot', 1, 0, 0, 0, false, true);
+      placeBlock('lantern', -1, 0, 4, 0, false, true);
+      placeBlock('bench', 2, 0, 3, 3, false, true);
+
+      player.pos.set(0, 0, 6.5);
+      player.yaw = Math.PI;
+      playSound('place');
+      showToast('Cabana Exemplo construída!');
+    }
+
+    function saveWorld() {
+      const data = [];
+      placedBlocks.forEach(b => {
+        data.push({ id: b.id, x: b.x, y: b.y, z: b.z, rot: b.rot, isOpen: b.isOpen });
+      });
+      localStorage.setItem('craftopia3d_world', JSON.stringify({ blocks: data, roofs: roofFillHistory.map(b => b.params).filter(Boolean), stacked: Array.from(stackedItems.values()).map(s => ({ id: s.id, x: s.x, y: s.y, z: s.z, ox: s.ox, oz: s.oz, sy: s.sy, rot: s.rot })) }));
+      showToast(`Construção salva (${data.length} peças)!`);
+    }
+
+    function loadWorld() {
+      const raw = localStorage.getItem('craftopia3d_world');
+      if (!raw) {
+        showToast('Nenhuma construção salva encontrada.');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        const data = Array.isArray(parsed) ? parsed : (parsed.blocks || []);
+        executeClearWorld(true);
+        data.forEach(b => placeBlock(b.id, b.x, b.y, b.z, b.rot, b.isOpen, true));
+        (parsed.roofs || []).forEach(rf => buildSimpleRoof(rf.p1, rf.p2, rf.style, rf.mat, rf.rot, true));
+        (parsed.stacked || []).forEach(s => placeStacked(s.id, s.x, s.y, s.z, s.ox, s.oz, s.sy, s.rot, true));
+        playSound('place');
+        showToast(`Construção carregada (${data.length} peças)!`);
+      } catch (e) {
+        showToast('Erro ao carregar construção.');
+      }
+    }
+
+    function confirmClearWorld() {
+      document.getElementById('confirm-modal').style.display = 'flex';
+    }
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').style.display = 'none';
+    }
+    function executeClearWorld(silent = false) {
+      closeConfirmModal();
+      const keysToRemove = Array.from(placedBlocks.keys());
+      keysToRemove.forEach(k => {
+        const b = placedBlocks.get(k);
+        if (b) removeBlockAt(b.x, b.y, b.z, true);
+      });
+      roofFillHistory.forEach(b => (b.extras || []).forEach(m => buildGroup.remove(m)));
+      roofFillHistory.length = 0;
+      updateRoofUI();
+      if (!silent) {
+        playSound('remove');
+        showToast('Terreno limpo!');
+      }
+    }
+
+    // =========================================================================
+    // 9. MAIN ANIMATION & MOVEMENT LOOP
+    // =========================================================================
+    const clock = new THREE.Clock();
+    let stepSoundCooldown = 0;
+
+    function updatePlayer(dt) {
+      const moveSpeed = keys['ShiftLeft'] || keys['ShiftRight'] ? 9 : 5.4;
+      let moveForward = 0;
+      let moveRight = 0;
+
+      if (keys['KeyW'] || keys['ArrowUp']) moveForward += 1;
+      if (keys['KeyS'] || keys['ArrowDown']) moveForward -= 1;
+      if (keys['KeyD'] || keys['ArrowRight']) moveRight += 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) moveRight -= 1;
+
+      const isMoving = (moveForward !== 0 || moveRight !== 0);
+
+      if (isMoving) {
+        const forwardVec = new THREE.Vector3(-Math.sin(cameraOrbit.yaw), 0, -Math.cos(cameraOrbit.yaw));
+        const rightVec = new THREE.Vector3(Math.cos(cameraOrbit.yaw), 0, -Math.sin(cameraOrbit.yaw));
+        const moveDir = new THREE.Vector3()
+          .addScaledVector(forwardVec, moveForward)
+          .addScaledVector(rightVec, moveRight)
+          .normalize();
+
+        const nextX = player.pos.x + moveDir.x * moveSpeed * dt;
+        const nextZ = player.pos.z + moveDir.z * moveSpeed * dt;
+
+        const stuck = blockedAt(player.pos.x, player.pos.z);
+        if (Math.abs(nextX) < WORLD_RADIUS - 1 && (stuck || !blockedAt(nextX, player.pos.z))) player.pos.x = nextX;
+        if (Math.abs(nextZ) < WORLD_RADIUS - 1 && (stuck || !blockedAt(player.pos.x, nextZ))) player.pos.z = nextZ;
+
+        const targetYaw = Math.atan2(moveDir.x, moveDir.z);
+        let diff = targetYaw - player.yaw;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        player.yaw += diff * Math.min(1, dt * 12);
+
+        player.walkCycle += dt * 11;
+        const swing = Math.sin(player.walkCycle) * 0.65;
+        player.parts.legL.rotation.x = swing;
+        player.parts.legR.rotation.x = -swing;
+        player.parts.armL.rotation.x = -swing * 0.85;
+        player.parts.armR.rotation.x = swing * 0.85;
+
+        stepSoundCooldown -= dt;
+        if (stepSoundCooldown <= 0 && player.onGround) {
+          playSound('step');
+          stepSoundCooldown = 0.34;
+        }
+      } else {
+        const idle = Math.sin(clock.elapsedTime * 2.5) * 0.04;
+        player.parts.legL.rotation.x *= 0.85;
+        player.parts.legR.rotation.x *= 0.85;
+        player.parts.armL.rotation.x = idle;
+        player.parts.armR.rotation.x = -idle;
+      }
+
+      if (player.actionTimer > 0) {
+        player.actionTimer -= dt;
+        player.parts.armR.rotation.x = -1.2 * Math.sin((player.actionTimer / 0.25) * Math.PI);
+      }
+
+      if (!player.onGround) {
+        player.velY -= 16 * dt;
+        player.pos.y += player.velY * dt;
+        if (player.pos.y <= 0) {
+          player.pos.y = 0;
+          player.velY = 0;
+          player.onGround = true;
+        }
+      }
+
+      player.group.position.copy(player.pos);
+      player.group.rotation.y = player.yaw;
+    }
+
+    function updateCamera() {
+      sanitizeCamera();
+      const targetPos = new THREE.Vector3(player.pos.x, player.pos.y + 1.15, player.pos.z);
+      const offsetX = Math.sin(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance;
+      const offsetY = Math.sin(cameraOrbit.pitch) * cameraOrbit.distance;
+      const offsetZ = Math.cos(cameraOrbit.yaw) * Math.cos(cameraOrbit.pitch) * cameraOrbit.distance;
+
+      const camX = safeNum(targetPos.x + offsetX, 0);
+      const camY = Math.max(0.8, safeNum(targetPos.y + offsetY, 4));
+      const camZ = safeNum(targetPos.z + offsetZ, 12);
+
+      camera.position.set(camX, camY, camZ);
+      camera.lookAt(targetPos);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, safeNum(clock.getDelta(), 0.016));
+      updatePlayer(dt);
+      tickExtras(dt);
+      updateCamera();
+      updateRaycastTarget();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+
+    // =========================================================================
+    // 10. MELHORIAS: CÉU, CENÁRIO, PARTÍCULAS, COLISÃO, TRIM DO TELHADO
+    // =========================================================================
+    const rnd = (() => { let a = 7; return () => (a = (a * 16807) % 2147483647) / 2147483647; })();
+
+    // Céu em degradê
+    const skyMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { top: { value: new THREE.Color(0x3d8fd6) }, bottom: { value: new THREE.Color(0xbfe6f7) } },
+      vertexShader: 'varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying float h; void main(){ gl_FragColor = vec4(mix(bottom, top, pow(max(h,0.0), 0.55)), 1.0); }'
+    });
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(120, 24, 16), skyMat);
+    scene.add(sky);
+    const SKY = { day: [0x4a86c0, 0xa9cfe0, 0xe6ecef], sunset: [0x5b5a9c, 0xf5a26b, 0xffd2b0], night: [0x050914, 0x1c2b4d, 0x4a5878] };
+
+    // Chão externo + montanhas
+    const outer = new THREE.Mesh(new THREE.CircleGeometry(130, 40), new THREE.MeshStandardMaterial({ color: 0x4f7a3e, roughness: 1 }));
+    outer.rotation.x = -Math.PI / 2; outer.position.y = -0.03; outer.receiveShadow = true; scene.add(outer);
+    const mtMat = new THREE.MeshStandardMaterial({ color: 0x5f7f78, roughness: 1, flatShading: true });
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2 + rnd() * 0.2, r = 62 + rnd() * 14, h = 14 + rnd() * 16;
+      const m = new THREE.Mesh(new THREE.ConeGeometry(10 + rnd() * 8, h, 5), mtMat);
+      m.position.set(Math.cos(a) * r, h / 2 - 1, Math.sin(a) * r); m.rotation.y = rnd() * 3; scene.add(m);
+    }
+
+    // Lago com pedras
+    const pondMat = new THREE.MeshStandardMaterial({ color: 0x3aa6d8, roughness: 0.08, metalness: 0.5, transparent: true, opacity: 0.82 });
+    const pond = new THREE.Mesh(new THREE.CircleGeometry(3.4, 32), pondMat);
+    pond.rotation.x = -Math.PI / 2; pond.position.set(10, 0.04, -9); scene.add(pond);
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2, st = new THREE.Mesh(new THREE.BoxGeometry(0.5 + rnd() * 0.3, 0.3, 0.5), materials.stone);
+      st.position.set(10 + Math.cos(a) * 3.5, 0.12, -9 + Math.sin(a) * 3.5); st.rotation.y = a; st.castShadow = true; scene.add(st);
+    }
+
+    // Caminho de pedras até a entrada
+    for (let i = 0; i < 9; i++) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.8), materials.stone);
+      p.position.set(Math.sin(i * 0.9) * 0.35, 0.03, 8 + i * 1.3); p.rotation.y = rnd() * 0.5; p.receiveShadow = true; scene.add(p);
+    }
+
+    // Capim e flores (instanciados)
+    const tufts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.38, 0.07), new THREE.MeshStandardMaterial({ color: 0x4caf45 }), 220);
+    const heads = new THREE.InstancedMesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), new THREE.MeshStandardMaterial({ color: 0xffffff }), 220);
+    const fc = [0xff6b8b, 0xffd23f, 0xffffff, 0xb78bff, 0xff9f43], dm = new THREE.Object3D();
+    for (let i = 0; i < 220; i++) {
+      let x, z; do { x = (rnd() - 0.5) * 44; z = (rnd() - 0.5) * 44; } while (Math.hypot(x - 10, z + 9) < 4.6 || (Math.abs(x) < 7 && Math.abs(z) < 7));
+      dm.position.set(x, 0.19, z); dm.rotation.y = rnd() * 3; dm.updateMatrix(); tufts.setMatrixAt(i, dm.matrix);
+      dm.position.y = 0.42; dm.updateMatrix(); heads.setMatrixAt(i, dm.matrix); heads.setColorAt(i, new THREE.Color(fc[i % 5]));
+    }
+    tufts.castShadow = false; scene.add(tufts, heads);
+
+    // Nuvens
+    const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, fog: false });
+    const clouds = [];
+    for (let i = 0; i < 10; i++) {
+      const c = new THREE.Group();
+      for (let j = 0; j < 4; j++) { const b = new THREE.Mesh(new THREE.BoxGeometry(4 + rnd() * 4, 1.6 + rnd(), 3 + rnd() * 2), cloudMat); b.position.set(j * 3 - 4, rnd(), rnd() * 2); c.add(b); }
+      c.position.set((rnd() - 0.5) * 160, 32 + rnd() * 10, (rnd() - 0.5) * 160); scene.add(c); clouds.push(c);
+    }
+
+    // Vagalumes
+    const ffGeo = new THREE.BufferGeometry(), ffPos = new Float32Array(60 * 3);
+    for (let i = 0; i < 60; i++) { ffPos[i * 3] = (rnd() - 0.5) * 40; ffPos[i * 3 + 1] = 0.6 + rnd() * 3; ffPos[i * 3 + 2] = (rnd() - 0.5) * 40; }
+    ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
+    const fireflies = new THREE.Points(ffGeo, new THREE.PointsMaterial({ color: 0xfff3a0, size: 0.22, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    scene.add(fireflies);
+
+    const _baseLighting = setLightingMode;
+    setLightingMode = function (m) {
+      _baseLighting(m);
+      const c = SKY[m]; skyMat.uniforms.top.value.setHex(c[0]); skyMat.uniforms.bottom.value.setHex(c[1]);
+      cloudMat.color.setHex(c[2]); scene.fog.color.setHex(c[1]); pondMat.color.setHex(m === 'night' ? 0x1b3a66 : 0x3aa6d8);
+      fireflies.material.opacity = m === 'night' ? 0.95 : (m === 'sunset' ? 0.35 : 0);
+    };
+    setLightingMode(currentLighting);
+
+    // Partículas ao colocar
+    const parts = [], pGeo = new THREE.BoxGeometry(0.09, 0.09, 0.09), pMat = new THREE.MeshBasicMaterial({ color: 0xf1d9a8 });
+    const _placeBlock = placeBlock;
+    placeBlock = function (id, x, y, z, rot, isOpen, silent) {
+      const ok = _placeBlock(id, x, y, z, rot, isOpen, silent);
+      if (ok && !silent) for (let i = 0; i < 8; i++) {
+        const m = new THREE.Mesh(pGeo, pMat); m.position.set(x, y + 0.5, z);
+        m.userData = { v: new THREE.Vector3((rnd() - 0.5) * 3, 1.5 + rnd() * 2, (rnd() - 0.5) * 3), life: 0.55 };
+        m.raycast = () => {}; scene.add(m); parts.push(m);
+      }
+      return ok;
+    };
+
+    function tickExtras(dt) {
+      const t = clock.elapsedTime;
+      clouds.forEach((c, i) => { c.position.x += dt * (0.8 + (i % 3) * 0.4); if (c.position.x > 90) c.position.x = -90; });
+      pond.material.opacity = 0.78 + Math.sin(t * 1.5) * 0.05;
+      if (fireflies.material.opacity > 0) { const a = ffGeo.attributes.position; for (let i = 0; i < 60; i++) { a.setY(i, 0.8 + Math.abs(Math.sin(t * 0.6 + i)) * 2.6); a.setX(i, a.getX(i) + Math.sin(t + i * 2) * dt * 0.4); } a.needsUpdate = true; }
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i], u = p.userData; u.life -= dt; u.v.y -= 9 * dt; p.position.addScaledVector(u.v, dt); p.scale.setScalar(Math.max(0.05, u.life * 1.8));
+        if (u.life <= 0) { scene.remove(p); parts.splice(i, 1); }
+      }
+    }
+
+    // Colisão simples (paredes, janelas, cercas e portas fechadas)
+    // --- Menos brilho + relevo nas texturas ---
+    renderer.toneMappingExposure = 0.85;
+    dirLight.shadow.normalBias = 0.03;
+    groundMat.color.setHex(0xa9b89f); groundMat.bumpMap = groundTex; groundMat.bumpScale = 0.6; groundMat.needsUpdate = true;
+    Object.values(materials).flat().forEach(m => {
+      if (!m || !m.map) return;
+      m.bumpMap = m.map; m.bumpScale = 1.1; m.roughness = Math.max(m.roughness, 0.82); m.map.anisotropy = 8; m.needsUpdate = true;
+    });
+    document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(10,15,25,0.38) 100%)"></div>');
+
+    // --- Detalhes de cenário ---
+    const sm = (c, f = true) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, flatShading: f });
+    const rockMat = sm(0x7d7f7a), bushMats = [sm(0x2f7d32), sm(0x3f9a3a)], pineMat = sm(0x2d6a3a), capMat = sm(0xc0392b), ringMat = sm(0xc9a06a, false);
+    const free = () => { let x, z; do { x = (rnd() - 0.5) * 46; z = (rnd() - 0.5) * 46; } while (Math.hypot(x - 10, z + 9) < 5.2 || (Math.abs(x) < 8 && Math.abs(z) < 9)); return [x, z]; };
+    const put = (o, x, z, y = 0) => { o.position.set(x, y, z); o.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } }); scene.add(o); return o; };
+    for (let i = 0; i < 16; i++) {
+      const [x, z] = free(), k = 0.25 + rnd() * 0.5, rk = new THREE.Mesh(new THREE.DodecahedronGeometry(k, 0), rockMat);
+      rk.scale.y = 0.55 + rnd() * 0.4; rk.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); put(rk, x, z, k * 0.35);
+    }
+    for (let i = 0; i < 14; i++) {
+      const [x, z] = free(), b = new THREE.Group();
+      for (let j = 0; j < 3; j++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4 + rnd() * 0.25, 0), bushMats[j % 2]); s.position.set((j - 1) * 0.4, 0.3 + rnd() * 0.15, rnd() * 0.3); b.add(s); }
+      put(b, x, z);
+    }
+    for (let i = 0; i < 6; i++) {
+      const [x, z] = free(), st = new THREE.Group();
+      st.add(new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.4, 0.45, 8), materials.darkWood));
+      const rg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 8), ringMat); rg.position.y = 0.23; st.add(rg);
+      put(st, x, z, 0.22);
+    }
+    for (let i = 0; i < 9; i++) {
+      const [x, z] = free(), m = new THREE.Group();
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.18, 6), sm(0xeee3cf, false)); stem.position.y = 0.09; m.add(stem);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), capMat); cap.position.y = 0.17; m.add(cap);
+      put(m, x, z);
+    }
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + rnd() * 0.3, r = 19 + rnd() * 4, p = new THREE.Group(), sc = 0.9 + rnd() * 0.7;
+      const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.2, 6), materials.darkWood); tr.position.y = 0.6; p.add(tr);
+      [[1.5, 1.7, 1.6], [1.15, 1.5, 2.6], [0.8, 1.3, 3.5]].forEach(([rad, h, y]) => { const c = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 7), pineMat); c.position.y = y; p.add(c); });
+      p.scale.setScalar(sc); put(p, Math.cos(a) * r, Math.sin(a) * r);
+    }
+    for (let i = 0; i < 5; i++) {
+      const l = new THREE.Mesh(new THREE.CircleGeometry(0.22 + rnd() * 0.1, 10), sm(0x3d9a45, false));
+      l.rotation.x = -Math.PI / 2; l.position.set(10 + (rnd() - 0.5) * 3.4, 0.06, -9 + (rnd() - 0.5) * 3.4); scene.add(l);
+    }
+    const sign = new THREE.Group();
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 0.12), materials.darkWood); post.position.y = 0.55; sign.add(post);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.35, 0.07), materials.plank); board.position.y = 1.0; sign.add(board);
+    put(sign, 1.7, 7.4); sign.rotation.y = -0.3;
+
+    const SOLID = /^(log|plank|stone|brick|sandstone|grass|window|fence)/;
+    function blockedAt(x, z) {
+      const r = 0.28, y0 = Math.floor(player.pos.y), y1 = Math.floor(player.pos.y + 1.5);
+      for (const [dx, dz] of [[-r, -r], [r, -r], [-r, r], [r, r]]) {
+        const cx = Math.round(x + dx), cz = Math.round(z + dz);
+        for (let y = y0; y <= y1; y++) {
+          const b = placedBlocks.get(blockKey(cx, y, cz));
+          if (b && (SOLID.test(b.id) || (/^(door|gate)/.test(b.id) && !b.isOpen))) return true;
+        }
+      }
+      return false;
+    }
+
+    // Acabamento do telhado: cumeeira + beirais (rodapé de madeira)
+    function addRoofTrim(style, minX, maxX, minZ, maxZ, baseY, batch) {
+      const add = (w, h, d, x, y, z) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), materials.darkWood);
+        m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; m.raycast = () => {};
+        buildGroup.add(m); batch.extras.push(m);
+      };
+      const w = maxX - minX + 1, d = maxZ - minZ + 1, cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2, o = 0.14, fy = baseY + 0.04;
+      const alongZ = d >= w;
+      const eaveX = ['gable', 'vault'].includes(style) ? alongZ : true;
+      const eaveZ = ['gable', 'vault'].includes(style) ? !alongZ : true;
+      if (eaveX) { add(0.1, 0.12, d + o * 2, minX - 0.5 - 0.02, fy, cz); add(0.1, 0.12, d + o * 2, maxX + 0.5 + 0.02, fy, cz); }
+      if (eaveZ) { add(w + o * 2, 0.12, 0.1, cx, fy, minZ - 0.5 - 0.02); add(w + o * 2, 0.12, 0.1, cx, fy, maxZ + 0.5 + 0.02); }
+      if (style === 'gable') {
+        const top = baseY + Math.ceil((alongZ ? w : d) / 2) + 0.04;
+        if (alongZ) add(0.2, 0.14, d + o * 2, cx, top, cz); else add(w + o * 2, 0.14, 0.2, cx, top, cz);
+      }
+    }
+
+    // Atalhos 1–9 para escolher peças do catálogo
+    window.addEventListener('keydown', (e) => {
+      if (/^Digit[1-9]$/.test(e.code) && !e.ctrlKey && !e.metaKey) {
+        const btn = document.querySelectorAll('#catalog-items > *')[Number(e.code[5]) - 1];
+        if (btn) btn.click();
+      }
+    });
+
+    // =========================================================================
+    // 11. CENÁRIOS (Campo, Neve, Deserto, Fazenda, Cidade, Praia)
+    // =========================================================================
+    const scenGroup = new THREE.Group(); scene.add(scenGroup);
+    const keepSet = new Set([sky, groundMesh, gridHelper, buildGroup, player.group, fireflies, outer, scenGroup, ...clouds]);
+    const baseObjs = scene.children.filter(o => !o.isLight && !keepSet.has(o));
+    let scenTicks = [];
+    const at = (g, o, x, z, y = 0) => { o.position.set(x, y, z); o.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } }); g.add(o); return o; };
+    const bx = (g, w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); return at(g, o, x, z, y); };
+    const cy = (g, rt, rb, h, m, x, y, z, s = 10) => at(g, new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, s), m), x, z, y);
+    const cn = (g, r, h, m, x, y, z, s = 8) => at(g, new THREE.Mesh(new THREE.ConeGeometry(r, h, s), m), x, z, y);
+    const sp = (g, r, m, x, y, z, sy = 1) => { const o = at(g, new THREE.Mesh(new THREE.SphereGeometry(r, 12, 9), m), x, z, y); o.scale.y = sy; return o; };
+    const K = { trunk: sm(0x5c3a21), snow: sm(0xf4f8fb, false), pine: sm(0x2d6a3a), pineS: sm(0x2c5a45), leaf: sm(0x3f9a3a), sand: [sm(0xd8b576), sm(0xcfa968), sm(0xe0c288)], mesa: [sm(0xb5603a), sm(0x9c4a2c), sm(0xc9784a)], cactus: sm(0x4c8a3c), red: sm(0xa83232), white: sm(0xf1efe8, false), hay: sm(0xd9b848), soil: sm(0x6b4a2e), crop: sm(0x8bbd3a), black: sm(0x1d1d1d), gray: sm(0x9aa1a8), road: sm(0x2b2e33, false), paint: sm(0xeeeeee, false), plaza: sm(0x8a8f95, false), umb: [sm(0xe8453c, false), sm(0xf6f1e4, false)], boat: sm(0x8a5a35), coal: sm(0x222222), carrot: sm(0xe9812b) };
+    const free2 = () => free();
+    const tree = (g, x, z, s = 1, c = 0x3f8f38) => { const t = new THREE.Group(); bx(t, .5, 2 * s, .5, K.trunk, 0, s, 0); sp(t, 1.1 * s, sm(c), 0, 2.4 * s, 0); at(g, t, x, z); };
+    const pine = (g, x, z, s = 1, snow = false) => { const p = new THREE.Group(); cy(p, .18, .26, 1.2, K.trunk, 0, .6, 0, 6); [[1.5, 1.7, 1.6], [1.15, 1.5, 2.6], [.8, 1.3, 3.5]].forEach(([r, h, y]) => { cn(p, r, h, snow ? K.pineS : K.pine, 0, y, 0, 7); if (snow) cn(p, r * .78, h * .55, K.snow, 0, y + h * .25, 0, 7); }); p.scale.setScalar(s); at(g, p, x, z); };
+    const ring = (n, r0, r1) => Array.from({ length: n }, (_, i) => { const a = i / n * 6.283 + rnd() * .3, r = r0 + rnd() * (r1 - r0); return [Math.cos(a) * r, Math.sin(a) * r, a]; });
+    const cow = (g, x, z) => { const c = new THREE.Group(); bx(c, 1.3, .7, .6, K.white, 0, .8, 0); bx(c, .45, .4, .45, K.white, .85, 1, 0); bx(c, .4, .3, .62, K.black, -.2, 1.05, 0); [[-.5, -.2], [-.5, .2], [.5, -.2], [.5, .2]].forEach(([a, b]) => bx(c, .14, .5, .14, K.black, a, .25, b)); at(g, c, x, z).rotation.y = rnd() * 6; };
+    const car = (g, x, z, col, ry) => { const c = new THREE.Group(); bx(c, 2.2, .6, 1.1, sm(col, false), 0, .5, 0); bx(c, 1.1, .5, .95, K.gray, -.1, 1, 0); at(g, c, x, z).rotation.y = ry; };
+    const wtex = (wall, lit) => { const c = document.createElement('canvas'); c.width = 64; c.height = 128; const x = c.getContext('2d'); x.fillStyle = lit ? '#000' : wall; x.fillRect(0, 0, 64, 128); let a = 5; for (let j = 0; j < 6; j++) for (let i = 0; i < 3; i++) { a = (a * 7 + 3) % 11; if (lit && a > 7) continue; x.fillStyle = lit ? '#ffcf70' : '#9fc4d8'; x.fillRect(7 + i * 18, 8 + j * 20, 12, 12); } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
+    const bldMats = [];
+    const building = (g, x, z, w, h, d, wall) => { const m = new THREE.MeshStandardMaterial({ map: wtex(wall, false), emissiveMap: wtex(wall, true), emissive: 0xffffff, emissiveIntensity: 0.05, roughness: 0.85 }); m.map.repeat.set(Math.round(w), Math.round(h / 3)); m.emissiveMap.repeat.copy(m.map.repeat); bldMats.push(m); bx(g, w, h, d, m, x, h / 2, z); bx(g, w + .3, .3, d + .3, K.gray, x, h + .15, z); };
+    const lamp = (g, x, z) => { bx(g, .12, 3.2, .12, K.gray, x, 1.6, z); bx(g, .5, .15, .3, sm(0xffe9a8, false), x, 3.25, z); };
+
+    const SC = {
+      meadow: { name: 'Campo', map: true, color: 0xa9b89f, outer: 0x4f7a3e, day: [0x4a86c0, 0xa9cfe0, 0xe6ecef], sunset: [0x5b5a9c, 0xf5a26b, 0xffd2b0] },
+      snow: { name: 'Neve', color: 0xeef3f7, outer: 0xdfe8ee, day: [0x7f9bb5, 0xcfdbe6, 0xf2f5f8], sunset: [0x6a6a9a, 0xe8b0a0, 0xf3d9d0], build(g) {
+        ring(14, 19, 24).forEach(([x, z]) => pine(g, x, z, .9 + rnd() * .7, true));
+        ring(10, 7, 22).forEach(([x, z]) => { const r = at(g, new THREE.Mesh(new THREE.DodecahedronGeometry(.3 + rnd() * .4, 0), K.snow), x, z, .15); });
+        [[-12, 10], [12, 12]].forEach(([x, z]) => { const s = new THREE.Group(); sp(s, .6, K.snow, 0, .6, 0); sp(s, .45, K.snow, 0, 1.4, 0); sp(s, .32, K.snow, 0, 2, 0); cn(s, .06, .4, K.carrot, 0, 2, .3, 6).rotation.x = 1.57; bx(s, .08, .08, .08, K.coal, -.12, 2.08, .27); bx(s, .08, .08, .08, K.coal, .12, 2.08, .27); at(g, s, x, z).rotation.y = rnd() * 6; });
+        const ice = new THREE.Mesh(new THREE.CircleGeometry(3.4, 32), new THREE.MeshStandardMaterial({ color: 0xbfe3ee, roughness: .1, metalness: .4 })); ice.rotation.x = -1.5708; at(g, ice, 10, -9, .04);
+        for (let i = 0; i < 14; i++) { const a = rnd() * 6.283, r = 55 + rnd() * 15, h = 14 + rnd() * 14, m = new THREE.Group(); cn(m, 12, h, sm(0x8f9fb0), 0, h / 2, 0, 5); cn(m, 6, h * .4, K.snow, 0, h * .8, 0, 5); m.position.set(Math.cos(a) * r, -1, Math.sin(a) * r); g.add(m); }
+        const pg = new THREE.BufferGeometry(), pa = new Float32Array(600 * 3); for (let i = 0; i < 600; i++) { pa[i * 3] = (rnd() - .5) * 70; pa[i * 3 + 1] = rnd() * 25; pa[i * 3 + 2] = (rnd() - .5) * 70; } pg.setAttribute('position', new THREE.BufferAttribute(pa, 3));
+        g.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: 0xffffff, size: .16, transparent: true, opacity: .9 })));
+        scenTicks.push(dt => { const a = pg.attributes.position; for (let i = 0; i < 600; i++) { let y = a.getY(i) - dt * 1.8; if (y < 0) y = 25; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(y + i) * dt * .3); } a.needsUpdate = true; });
+      } },
+      desert: { name: 'Deserto', color: 0xd8b576, outer: 0xcfa968, day: [0x5a9fd0, 0xf0dcb0, 0xf6efe2], sunset: [0x7a4a6a, 0xff9a52, 0xffd0a0], build(g) {
+        ring(10, 24, 44).forEach(([x, z], i) => { const r = 5 + rnd() * 5; sp(g, r, K.sand[i % 3], x, 0, z, .3); });
+        ring(8, 60, 75).forEach(([x, z]) => { const m = new THREE.Group(), h = 10 + rnd() * 10; bx(m, 14, h, 10, K.mesa[0], 0, h / 2, 0); bx(m, 14.2, 2, 10.2, K.mesa[1], 0, h * .4, 0); bx(m, 11, 3, 8, K.mesa[2], 0, h + 1.5, 0); m.rotation.y = rnd() * 3; at(g, m, x, z, -1); });
+        for (let i = 0; i < 14; i++) { const [x, z] = free(), c = new THREE.Group(), h = 1.4 + rnd() * 1.2; cy(c, .25, .3, h, K.cactus, 0, h / 2, 0, 8); cy(c, .16, .16, .6, K.cactus, .5, h * .55, 0, 8); bx(c, .5, .3, .3, K.cactus, .3, h * .45, 0); if (rnd() > .4) { cy(c, .16, .16, .5, K.cactus, -.45, h * .7, 0, 8); bx(c, .5, .3, .3, K.cactus, -.25, h * .6, 0); } at(g, c, x, z); }
+        for (let i = 0; i < 18; i++) { const [x, z] = free(); sp(g, .25 + rnd() * .2, sm(0x7a5a3a), x, .15, z, .6); }
+        for (let i = 0; i < 12; i++) { const [x, z] = free(); at(g, new THREE.Mesh(new THREE.DodecahedronGeometry(.3 + rnd() * .5, 0), sm(0xa86a48)), x, z, .2); }
+      } },
+      farm: { name: 'Fazenda', map: true, color: 0xc4c07a, outer: 0x7a8f4a, day: [0x4f8fc8, 0xb7d8e6, 0xeef2f2], sunset: [0x5b5a9c, 0xf5a26b, 0xffd2b0], build(g) {
+        const b = new THREE.Group(); bx(b, 6, 3.5, 5, K.red, 0, 1.75, 0); [-1, 1].forEach(s => { const p = bx(b, 4, .25, 5.6, sm(0x5a3a2a), s * 1.65, 4.6, 0); p.rotation.z = -s * .62; }); bx(b, 2, 2.4, .1, K.white, 0, 1.2, 2.55); bx(b, 2.2, .15, .12, K.white, 0, 2.5, 2.57); at(g, b, -17, -14);
+        const s = new THREE.Group(); cy(s, 1.2, 1.2, 6, K.gray, 0, 3, 0, 14); cn(s, 1.35, 1.4, K.red, 0, 6.7, 0, 14); at(g, s, -12.5, -17);
+        for (let i = 0; i < 5; i++) cy(g, .8, .85, .9, K.hay, -9 + i * 1.8, .45, -19 + (i % 2), 10);
+        const rows = new THREE.InstancedMesh(new THREE.BoxGeometry(.3, .5, .3), K.crop, 220), dm = new THREE.Object3D(); let n = 0;
+        for (let r = 0; r < 8; r++) { bx(g, .7, .12, 9, K.soil, 13 + r * 1.2, .06, 8); for (let j = 0; j < 26 && n < 220; j++) { dm.position.set(13 + r * 1.2, .3, 3.6 + j * .35); dm.scale.y = .8 + rnd() * .6; dm.updateMatrix(); rows.setMatrixAt(n++, dm.matrix); } }
+        rows.castShadow = true; g.add(rows);
+        const sc = new THREE.Group(); bx(sc, .1, 2, .1, K.trunk, 0, 1, 0); bx(sc, 1.4, .1, .1, K.trunk, 0, 1.5, 0); sp(sc, .25, K.hay, 0, 1.85, 0); cn(sc, .3, .35, K.trunk, 0, 2.2, 0, 8); at(g, sc, 17, 3);
+        [[-12, 6], [-15, 9], [-10, 12], [-14, 13]].forEach(([x, z]) => cow(g, x, z));
+        for (let i = 0; i < 18; i++) { const a = -10 + i * 1.2; bx(g, .1, .8, .1, K.trunk, a, .4, 16); bx(g, 1.2, .1, .08, K.trunk, a + .6, .6, 16); }
+        ring(9, 19, 24).forEach(([x, z]) => tree(g, x, z, 1 + rnd() * .5));
+      } },
+      city: { name: 'Cidade', color: 0x5a5f66, outer: 0x3a3d42, day: [0x6a8aa8, 0xc3ccd3, 0xdfe3e6], sunset: [0x4a4a78, 0xe08a70, 0xf0c0a8], build(g) {
+        bx(g, 18, .06, 20, K.plaza, 0, .03, 0);
+        [-15, 15].forEach(p => { bx(g, 48, .05, 4, K.road, 0, .025, p); bx(g, 4, .05, 48, K.road, p, .03, 0); for (let i = -11; i <= 11; i++) { bx(g, 1.2, .06, .12, K.paint, i * 2, .06, p); bx(g, .12, .06, 1.2, K.paint, p, .07, i * 2); } });
+        const cols = ['#b7aea0', '#9aa7b4', '#c7b08f', '#a8a4b8', '#8f9b95'];
+        [[-19, -19], [19, -19], [-19, 19], [19, 19], [-19, 0], [19, 0], [0, -19], [0, 19]].forEach(([x, z], i) => building(g, x, z, 4, 7 + (i * 5) % 9, 4, cols[i % 5]));
+        [[-9, -15, 0x2f6fb5], [8, -15, 0xc23a3a], [-6, 15, 0xe0b030], [12, 15, 0x3a8a4a], [-15, 6, 0x555555], [15, -7, 0xeeeeee]].forEach(([x, z, c], i) => car(g, x, z, c, i < 4 ? 0 : 1.57));
+        [[-10, -10], [10, -10], [-10, 10], [10, 10], [-13, 0], [13, 0]].forEach(([x, z]) => lamp(g, x, z));
+        [[-12, -12], [12, 12], [-12, 12], [12, -12]].forEach(([x, z]) => tree(g, x, z, .8));
+        scenTicks.push(() => { const v = currentLighting === 'night' ? 1.3 : (currentLighting === 'sunset' ? .5 : .05); bldMats.forEach(m => m.emissiveIntensity = v); });
+      } },
+      beach: { name: 'Praia', color: 0xe3d3a1, outer: 0xd7c590, day: [0x3a95d0, 0xbfe3ee, 0xffffff], sunset: [0x7a4a7a, 0xff9a6a, 0xffd2b0], build(g) {
+        const oc = new THREE.Mesh(new THREE.PlaneGeometry(300, 110), new THREE.MeshStandardMaterial({ color: 0x2a9fd6, roughness: .2, metalness: .3, transparent: true, opacity: .92 })); oc.rotation.x = -1.5708; oc.position.set(0, .02, -79); g.add(oc);
+        bx(g, 48, .03, .6, K.white, 0, .05, -24.3);
+        scenTicks.push((dt, t) => { oc.position.y = .02 + Math.sin(t * 1.2) * .04; });
+        [[-10, -14], [-4, -17], [14, -13], [-16, 4], [17, 6]].forEach(([x, z]) => { const p = new THREE.Group(); for (let i = 0; i < 6; i++) { const q = bx(p, .3 - .02 * i, .9, .3 - .02 * i, sm(0x7a5a3a), i * .1, i * .88 + .45, 0); q.rotation.z = -.08 * i; } for (let i = 0; i < 7; i++) { const l = bx(p, .3, .05, 2.2, K.leaf, .6, 5.3, 0); l.geometry.translate(0, 0, 1.1); l.rotation.order = 'YXZ'; l.rotation.set(.5, i * .9, 0); } at(g, p, x, z); });
+        [[-6, -10], [3, -12], [8, -9], [-13, -7]].forEach(([x, z], i) => { const u = new THREE.Group(); cy(u, .04, .04, 2.2, K.white, 0, 1.1, 0, 6); cn(u, 1.5, .6, K.umb[i % 2], 0, 2.3, 0, 8); bx(u, 1.4, .05, .7, sm([0x3a7bd5, 0xe8a030, 0xd5527a, 0x4ab08a][i], false), 1.2, .03, .2); at(g, u, x, z); });
+        const bt = new THREE.Group(); bx(bt, 3, .5, 1.1, K.boat, 0, .35, 0); bx(bt, .6, .5, 1, K.boat, 1.7, .5, 0); bx(bt, 2.6, .08, .9, sm(0xa77b50), 0, .62, 0); at(g, bt, 12, -21).rotation.y = .3;
+        ring(8, 60, 70).forEach(([x, z]) => { if (z > 5) { const h = 10 + rnd() * 8; cn(g, 10, h, sm(0x6f93a8), x, h / 2 - 1, z, 5); } });
+        for (let i = 0; i < 12; i++) { const [x, z] = free(); at(g, new THREE.Mesh(new THREE.DodecahedronGeometry(.3 + rnd() * .35, 0), rockMat), x, z, .15); }
+      } }
+    };
+    SC.meadow.build = null;
+    let currentScenario = 'meadow';
+    function setScenario(name) {
+      const c = SC[name]; if (!c) return;
+      currentScenario = name; scenGroup.clear(); scenTicks = []; bldMats.length = 0;
+      baseObjs.forEach(o => { o.visible = (name === 'meadow'); });
+      groundMat.map = c.map ? groundTex : null; groundMat.bumpMap = c.map ? groundTex : null; groundMat.color.setHex(c.color); groundMat.needsUpdate = true;
+      outer.material.color.setHex(c.outer);
+      SKY.day = c.day; SKY.sunset = c.sunset;
+      if (c.build) c.build(scenGroup);
+      setLightingMode(currentLighting);
+      showToast('Cenário: ' + c.name);
+    }
+    const _te = tickExtras;
+    tickExtras = function (dt) { _te(dt); const t = clock.elapsedTime; scenTicks.forEach(f => f(dt, t)); };
+    document.getElementById('btn-sound').insertAdjacentHTML('beforebegin', '<select id="scenario-select" title="Escolher cenário" class="bg-slate-800/90 text-white text-[11px] rounded-xl px-1.5 py-1 border border-white/15 focus:outline-none"><option value="meadow">🌿 Campo</option><option value="snow">❄️ Neve</option><option value="desert">🏜️ Deserto</option><option value="farm">🚜 Fazenda</option><option value="city">🏙️ Cidade</option><option value="beach">🏖️ Praia</option></select>');
+    // =========================================================================
+    // 12. EMPILHAR OBJETOS (abajur sobre mesa, móveis sobre tapete etc.)
+    // =========================================================================
+    const SURFACE = { coffee_table: 0.4, dining_set: 0.47, kitchen_table: 0.51, nightstand: 0.42, stove: 0.83, sink: 0.83, cabinet: 0.83, wall_cabinet: 1, bookshelf: 1.4, wardrobe: 1.85, fridge: 1.7, bed_single: 0.49, bed_double: 0.49, chair: 0.37, rug: 0.02 };
+    const TOPPERS = ['lamp', 'pot', 'lantern', 'tv', 'vase', 'books', 'fruit', 'laptop'];
+    const stackedItems = new Map();
+    const stackKey = (x, y, z, ox, oz) => `${x},${y},${z}|${ox.toFixed(2)},${oz.toFixed(2)}`;
+    function computeStack(b, normal, pt) {
+      if (toolMode !== 'build' || normal.y < 0.6) return null;
+      const sy = SURFACE[b.id];
+      if (sy === undefined) return null;
+      const sel = selectedItemId;
+      if (b.id === 'rug') {
+        const ok = (FURN_IDS.includes(sel) && !['rug', 'bed_single', 'bed_double'].includes(sel)) || sel === 'bench' || TOPPERS.includes(sel);
+        return ok ? { ox: 0, oz: 0, sy } : null;
+      }
+      if (!TOPPERS.includes(sel)) return null;
+      const q = 0.28, c = v => Math.max(-1, Math.min(1, Math.round(v / q))) * q;
+      return { ox: c(pt.x - b.x), oz: c(pt.z - b.z), sy };
+    }
+    function placeStacked(id, x, y, z, ox, oz, sy, rot, silent) {
+      const key = stackKey(x, y, z, ox, oz);
+      if (stackedItems.has(key)) removeStacked(key, true);
+      const mesh = createItemMesh(id, rot, false);
+      mesh.position.set(x + ox, y + sy + 0.5, z + oz);
+      mesh.traverse(c => { if (c.isMesh) c.userData.blockKey = key; });
+      buildGroup.add(mesh);
+      let pl = null;
+      if (id === 'lamp' || id === 'lantern') {
+        pl = new THREE.PointLight(0xffaa33, currentLighting === 'night' ? 1.8 : 0.25, 7);
+        pl.position.set(x + ox, y + sy + 0.7, z + oz);
+        scene.add(pl); lanternLights.push(pl);
+      }
+      stackedItems.set(key, { key, id, x, y, z, ox, oz, sy, rot, mesh, pointLight: pl });
+      if (!silent) { playSound('place'); player.actionTimer = 0.25; }
+      return true;
+    }
+    function removeStacked(key, silent) {
+      const s = stackedItems.get(key);
+      if (!s) return;
+      buildGroup.remove(s.mesh);
+      if (s.pointLight) { scene.remove(s.pointLight); const i = lanternLights.indexOf(s.pointLight); if (i >= 0) lanternLights.splice(i, 1); }
+      stackedItems.delete(key);
+      if (!silent) playSound('remove');
+    }
+    const _rba = removeBlockAt;
+    removeBlockAt = function (x, y, z, silent) {
+      const rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
+      Array.from(stackedItems.values()).forEach(s => { if (s.x === rx && s.y === ry && s.z === rz) removeStacked(s.key, true); });
+      return _rba(x, y, z, silent);
+    };
+    const _ecw = executeClearWorld;
+    executeClearWorld = function (silent) { _ecw(silent); Array.from(stackedItems.keys()).forEach(k => removeStacked(k, true)); };
+
+    // =========================================================================
+    // 13. MÚSICA DE FUNDO (craftopia3D.mp3) + MUTE
+    // =========================================================================
+    const music = new Audio('craftopia3D.mp3');
+    music.loop = true; music.volume = 0.35; music.preload = 'auto';
+    let musicMuted = false, musicFailed = false, musicStarted = false;
+    try {
+      musicMuted = localStorage.getItem('craftopia3d_music_muted') === '1';
+      const sv = parseFloat(localStorage.getItem('craftopia3d_music_vol'));
+      if (sv >= 0 && sv <= 1) music.volume = sv;
+    } catch (e) {}
+    document.getElementById('btn-sound').insertAdjacentHTML('beforebegin',
+      '<button id="btn-music" title="Ligar/Desligar música (M)" class="px-2 py-1 rounded-xl text-xs font-medium text-emerald-300 hover:bg-white/10 transition">🎵</button>' +
+      '<input id="music-vol" type="range" min="0" max="100" title="Volume da música" style="width:56px;accent-color:#34d399">' +
+      '<button id="btn-music-file" title="Escolher arquivo de música" class="px-1.5 py-1 rounded-xl text-xs hover:bg-white/10 transition">📁</button>' +
+      '<input type="file" id="music-file" accept="audio/*" class="hidden">');
+    const musicBtn = document.getElementById('btn-music'), musicVol = document.getElementById('music-vol'), musicFile = document.getElementById('music-file');
+    musicVol.value = Math.round(music.volume * 100);
+    function updateMusicBtn() {
+      const off = musicMuted || musicFailed;
+      musicBtn.textContent = off ? '🔇' : '🎵';
+      musicBtn.classList.toggle('text-emerald-300', !off);
+      musicBtn.classList.toggle('text-rose-300', off);
+    }
+    function tryPlayMusic() {
+      if (musicMuted || musicFailed || musicStarted) return;
+      music.play().then(() => { musicStarted = true; }).catch(() => {});
+    }
+    function toggleMusic() {
+      if (musicFailed) { musicFile.click(); return; }
+      musicMuted = !musicMuted;
+      try { localStorage.setItem('craftopia3d_music_muted', musicMuted ? '1' : '0'); } catch (e) {}
+      if (musicMuted) music.pause(); else { musicStarted = false; tryPlayMusic(); }
+      updateMusicBtn();
+      showToast(musicMuted ? 'Música desligada' : 'Música ligada');
+    }
+    music.addEventListener('error', () => {
+      musicFailed = true; updateMusicBtn();
+      showToast('craftopia3D.mp3 não encontrado. Clique em 📁 para escolher o arquivo.');
+    });
+    musicBtn.addEventListener('click', toggleMusic);
+    document.getElementById('btn-music-file').addEventListener('click', () => musicFile.click());
+    musicFile.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      music.src = URL.createObjectURL(f);
+      musicFailed = false; musicStarted = false; updateMusicBtn();
+      if (!musicMuted) tryPlayMusic();
+      showToast('Música: ' + f.name);
+    });
+    musicVol.addEventListener('input', () => {
+      music.volume = musicVol.value / 100;
+      try { localStorage.setItem('craftopia3d_music_vol', String(music.volume)); } catch (e) {}
+    });
+    musicVol.addEventListener('change', () => musicVol.blur());
+    ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, tryPlayMusic));
+    window.addEventListener('keydown', e => { if (e.code === 'KeyM' && !e.ctrlKey && !e.metaKey) toggleMusic(); });
+    updateMusicBtn();
+    tryPlayMusic();
+
+    document.getElementById('scenario-select').addEventListener('change', e => { setScenario(e.target.value); e.target.blur(); });
+
+    renderCatalog();
+    updateRoofUI();
+    rebuildGhostPreview();
+    updateCamera();
+    animate();
+  </script>
+</body>
+</html>
