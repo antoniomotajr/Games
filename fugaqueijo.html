@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Fuja do Queijo! — O Rato Frescurento</title>
+  <style>
+    :root {
+      --bg-dark: #19120b;
+      --panel-bg: rgba(34, 23, 14, 0.92);
+      --accent-cheese: #ffc82c;
+      --accent-cheese-dark: #d99b00;
+      --accent-danger: #ff4d4d;
+      --accent-stink: #6ee755;
+      --text-light: #fff8e7;
+      --border-wood: #6e3f1d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top, #382516 0%, var(--bg-dark) 75%);
+      color: var(--text-light);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .game-wrapper {
+      width: 100%;
+      max-width: 540px;
+      height: 100%;
+      max-height: 860px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      gap: 8px;
+    }
+
+    /* Cabeçalho com HUD */
+    .hud {
+      width: 100%;
+      background: var(--panel-bg);
+      border: 2px solid var(--border-wood);
+      border-radius: 14px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    }
+
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #d6be9c;
+      font-weight: 700;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: var(--accent-cheese);
+      line-height: 1.1;
+    }
+
+    .stat-value.record {
+      color: var(--accent-stink);
+    }
+
+    .icon-btn {
+      background: #472b16;
+      color: var(--text-light);
+      border: 2px solid #8c552b;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: #5c381d;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.94);
+    }
+
+    /* Container do Canvas */
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 280px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 3px solid var(--border-wood);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
+      background: #2b1d12;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Overlays de Início e Game Over */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(18, 11, 6, 0.84);
+      backdrop-filter: blur(3px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 22px;
+      z-index: 10;
+      transition: opacity 0.2s ease;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .game-title {
+      font-size: clamp(1.8rem, 6vw, 2.5rem);
+      font-weight: 900;
+      color: var(--accent-cheese);
+      text-shadow: 0 4px 0 #8a5600, 0 8px 18px rgba(0, 0, 0, 0.7);
+      margin-bottom: 6px;
+      line-height: 1.05;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #f3dfc1;
+      max-width: 390px;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .controls-hint {
+      font-size: 0.82rem;
+      background: rgba(255, 200, 44, 0.12);
+      border: 1px dashed rgba(255, 200, 44, 0.45);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #ffe89e;
+      margin-bottom: 18px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #ffd84d 0%, #f2a900 100%);
+      color: #241300;
+      border: none;
+      border-bottom: 5px solid #9c6500;
+      border-radius: 14px;
+      padding: 13px 28px;
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+      transition: transform 0.08s ease, filter 0.15s ease;
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.06);
+    }
+
+    .btn-primary:active {
+      transform: translateY(3px);
+      border-bottom-width: 2px;
+    }
+
+    /* Tela de Game Over Cômica */
+    .gameover-badge {
+      background: rgba(255, 77, 77, 0.2);
+      border: 1px solid rgba(255, 77, 77, 0.6);
+      color: #ff8a8a;
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .gameover-title {
+      font-size: clamp(1.6rem, 5.5vw, 2.2rem);
+      font-weight: 900;
+      color: #ff6b6b;
+      text-shadow: 0 3px 0 #7a1414;
+      margin-bottom: 10px;
+    }
+
+    .funny-quote {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff3c4;
+      background: rgba(255, 255, 255, 0.07);
+      border-left: 4px solid var(--accent-cheese);
+      padding: 10px 14px;
+      border-radius: 8px;
+      max-width: 400px;
+      margin-bottom: 14px;
+      line-height: 1.35;
+    }
+
+    .score-summary {
+      display: flex;
+      gap: 18px;
+      margin-bottom: 18px;
+      font-size: 0.95rem;
+      color: #e6d2b5;
+    }
+
+    .score-summary strong {
+      color: var(--accent-cheese);
+    }
+
+    /* Controles Touch / Botões na Tela */
+    .touch-controls {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .touch-btn {
+      background: linear-gradient(180deg, #54331a 0%, #361f0e 100%);
+      color: #fff3d6;
+      border: 2px solid #8a542b;
+      border-bottom: 5px solid #241307;
+      border-radius: 14px;
+      padding: 14px 0;
+      font-size: 1.45rem;
+      font-weight: 900;
+      cursor: pointer;
+      touch-action: none;
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.4);
+      transition: transform 0.06s ease, background 0.12s ease;
+    }
+
+    .touch-btn.active,
+    .touch-btn:active {
+      transform: translateY(3px);
+      border-bottom-width: 2px;
+      background: linear-gradient(180deg, #754826 0%, #4a2b14 100%);
+    }
+
+    @media (min-width: 768px) {
+      .touch-btn {
+        padding: 11px 0;
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- HUD Superior -->
+    <header class="hud">
+      <div class="hud-group">
+        <div class="stat">
+          <span class="stat-label">Pontos</span>
+          <span id="scoreDisplay" class="stat-value">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Recorde</span>
+          <span id="highScoreDisplay" class="stat-value record">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Nível</span>
+          <span id="levelDisplay" class="stat-value">1</span>
+        </div>
+      </div>
+      <button id="muteBtn" class="icon-btn" title="Ligar/Desligar Som" aria-label="Ligar ou desligar som">🔊</button>
+    </header>
+
+    <!-- Área Principal do Jogo -->
+    <main class="canvas-container" id="canvasContainer">
+      <canvas id="gameCanvas"></canvas>
+
+      <!-- Tela Inicial -->
+      <div id="startOverlay" class="overlay">
+        <div class="game-title">🧀 FUJA DO QUEIJO!</div>
+        <p class="subtitle">
+          Você é um rato extremamente frescurento com aversão mortal a queijo.
+          Desvie da chuva láctea fedorenta a qualquer custo!
+        </p>
+        <div class="controls-hint">
+          ⌨️ <strong>Setas ◀ ▶</strong> ou <strong>A / D</strong> &nbsp;|&nbsp; 📱 <strong>Toque na tela ou botões</strong>
+        </div>
+        <button id="startBtn" class="btn-primary">CORRER DO QUEIJO!</button>
+      </div>
+
+      <!-- Tela de Game Over Cômica -->
+      <div id="gameOverOverlay" class="overlay hidden">
+        <div class="gameover-badge">☠️ Derrota Láctea</div>
+        <h2 class="gameover-title">FOI ATINGIDO EM CHEIO!</h2>
+        <p id="funnyQuote" class="funny-quote">Frase engraçada aqui.</p>
+        <div class="score-summary">
+          <span>Pontuação: <strong id="finalScore">0</strong></span>
+          <span>Recorde: <strong id="finalHighScore">0</strong></span>
+        </div>
+        <button id="restartBtn" class="btn-primary">Tentar Novamente</button>
+      </div>
+    </main>
+
+    <!-- Botões Touch para Celular e Mouse -->
+    <nav class="touch-controls" aria-label="Controles de movimento">
+      <button id="leftBtn" class="touch-btn" aria-label="Mover para a esquerda">◀ ESQUERDA</button>
+      <button id="rightBtn" class="touch-btn" aria-label="Mover para a direita">DIREITA ▶</button>
+    </nav>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ==========================================
+      // 1. SINTETIZADOR DE ÁUDIO (WEB AUDIO API)
+      // ==========================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.lastStepTime = 0;
+        }
+
+        ensureContext() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+        }
+
+        toggleMute() {
+          this.muted = !this.muted;
+          return this.muted;
+        }
+
+        // Passos rápidos e agudos do rato correndo
+        playStep(nowMs) {
+          if (this.muted) return;
+          if (nowMs - this.lastStepTime < 95) return;
+          this.lastStepTime = nowMs;
+
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const t = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          const baseFreq = 520 + Math.random() * 140;
+          osc.frequency.setValueAtTime(baseFreq, t);
+          osc.frequency.exponentialRampToValueAtTime(240, t + 0.045);
+
+          gain.gain.setValueAtTime(0.06, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(t);
+          osc.stop(t + 0.05);
+        }
+
+        // Som engraçado de "eca / argh" quando um queijo passa raspando
+        playNearMiss() {
+          if (this.muted) return;
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const t = this.ctx.currentTime;
+
+          // Oscilador principal com modulação cômica de nojo
+          const osc = this.ctx.createOscillator();
+          const lfo = this.ctx.createOscillator();
+          const lfoGain = this.ctx.createGain();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(640, t);
+          osc.frequency.linearRampToValueAtTime(430, t + 0.09);
+          osc.frequency.linearRampToValueAtTime(760, t + 0.16);
+          osc.frequency.exponentialRampToValueAtTime(280, t + 0.28);
+
+          lfo.type = 'sine';
+          lfo.frequency.setValueAtTime(28, t);
+          lfoGain.gain.setValueAtTime(55, t);
+
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc.frequency);
+
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(0.14, t + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.29);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          lfo.start(t);
+          osc.start(t);
+          lfo.stop(t + 0.3);
+          osc.stop(t + 0.3);
+        }
+
+        // Som dramático/cômico de derrota ao ser atingido por queijo
+        playGameOver() {
+          if (this.muted) return;
+          this.ensureContext();
+          if (!this.ctx) return;
+
+          const t = this.ctx.currentTime;
+
+          // "Splat" grave inicial
+          const thud = this.ctx.createOscillator();
+          const thudGain = this.ctx.createGain();
+          thud.type = 'square';
+          thud.frequency.setValueAtTime(190, t);
+          thud.frequency.exponentialRampToValueAtTime(48, t + 0.24);
+          thudGain.gain.setValueAtTime(0.22, t);
+          thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+          thud.connect(thudGain);
+          thudGain.connect(this.ctx.destination);
+          thud.start(t);
+          thud.stop(t + 0.26);
+
+          // Slide descendente cômico ("wah-wah-waaaah")
+          const notes = [392.0, 369.99, 349.23, 261.63];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const start = t + 0.16 + idx * 0.14;
+            const dur = idx === notes.length - 1 ? 0.45 : 0.13;
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, start);
+            if (idx === notes.length - 1) {
+              osc.frequency.linearRampToValueAtTime(155, start + dur);
+            }
+
+            gain.gain.setValueAtTime(0.12, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + dur + 0.02);
+          });
+        }
+      }
+
+      // ==========================================
+      // 2. FRASES ENGRAÇADAS DE DERROTA (16 OPÇÕES)
+      // ==========================================
+      const GAME_OVER_QUOTES = [
+        'Você foi soterrado por Gorgonzola!',
+        'Um rato com intolerância à lactose não sobrevive a isso.',
+        'Que morte cafona... literalmente.',
+        'Faltou coragem e sobrou cheddar.',
+        'O famoso "descanse em parmesão".',
+        'A física do queijo suíço não perdoou o seu bigode!',
+        'Você foi derrotado por um pedaço de muçarela com atitude.',
+        'O cheiro de Roquefort nocauteou antes mesmo do impacto.',
+        'Seu frescor não resistiu a essa avalanche láctea.',
+        'Virou patê no chão da cozinha!',
+        'Até o gato riu dessa escorregada no provolone.',
+        'Queijo 1 x 0 Rato Frescurento.',
+        'Não era armadilha de mola, era ataque aéreo de Brie!',
+        'A dieta sem queijo durou menos que o esperado.',
+        'Faltou reflexo e sobrou chulé de queijo curado!',
+        'A chuva de requeijão e suíço foi fatal para o seu nariz sensível.'
+      ];
+
+      const NEAR_MISS_WORDS = [
+        'Eca!',
+        'Que fedor!',
+        'Sai pra lá!',
+        'Credo, queijo!',
+        'Ufa, quase!',
+        'Argh, fedido!'
+      ];
+
+      // ==========================================
+      // 3. REFERÊNCIAS DO DOM E ESTADO DO JOGO
+      // ==========================================
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+      const container = document.getElementById('canvasContainer');
+
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const highScoreDisplay = document.getElementById('highScoreDisplay');
+      const levelDisplay = document.getElementById('levelDisplay');
+      const muteBtn = document.getElementById('muteBtn');
+
+      const startOverlay = document.getElementById('startOverlay');
+      const gameOverOverlay = document.getElementById('gameOverOverlay');
+      const startBtn = document.getElementById('startBtn');
+      const restartBtn = document.getElementById('restartBtn');
+      const funnyQuoteEl = document.getElementById('funnyQuote');
+      const finalScoreEl = document.getElementById('finalScore');
+      const finalHighScoreEl = document.getElementById('finalHighScore');
+
+      const leftBtn = document.getElementById('leftBtn');
+      const rightBtn = document.getElementById('rightBtn');
+
+      const sound = new SoundEngine();
+
+      const STORAGE_KEY = 'fuja_do_queijo_highscore_v1';
+      let highScore = Number(localStorage.getItem(STORAGE_KEY) || 0);
+      highScoreDisplay.textContent = highScore;
+
+      // Dimensões lógicas do jogo (escaladas para DPR)
+      let width = 480;
+      let height = 640;
+      let floorY = 560;
+
+      // Estado da partida
+      let gameState = 'START'; // 'START' | 'PLAYING' | 'GAMEOVER'
+      let score = 0;
+      let survivalTime = 0;
+      let level = 1;
+      let spawnTimer = 0;
+      let lastFrameTime = 0;
+      let screenShake = 0;
+
+      // Controles ativos
+      const keys = {
+        left: false,
+        right: false
+      };
+      const touchInput = {
+        left: false,
+        right: false,
+        pointerX: null
+      };
+
+      // Jogador (Rato frescurento)
+      const mouse = {
+        x: 240,
+        y: 560,
+        vx: 0,
+        width: 58,
+        height: 44,
+        facing: 1, // 1 = direita, -1 = esquerda
+        runPhase: 0,
+        grossTimer: 0 // Tempo de careta de nojo após near miss
+      };
+
+      // Entidades ativas
+      let cheeses = [];
+      let popups = [];
+      let crumbs = [];
+
+      // ==========================================
+      // 4. REDIMENSIONAMENTO E CENÁRIO
+      // ==========================================
+      function resizeCanvas() {
+        const rect = container.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        width = Math.max(300, Math.floor(rect.width));
+        height = Math.max(320, Math.floor(rect.height));
+        floorY = height - Math.max(68, Math.floor(height * 0.13));
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        mouse.y = floorY;
+        mouse.x = Math.max(mouse.width * 0.6, Math.min(width - mouse.width * 0.6, mouse.x));
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // ==========================================
+      // 5. LÓGICA DE JOGO
+      // ==========================================
+      function resetGame() {
+        score = 0;
+        survivalTime = 0;
+        level = 1;
+        spawnTimer = 0.35;
+        screenShake = 0;
+
+        cheeses = [];
+        popups = [];
+        crumbs = [];
+
+        mouse.x = width * 0.5;
+        mouse.y = floorY;
+        mouse.vx = 0;
+        mouse.facing = 1;
+        mouse.runPhase = 0;
+        mouse.grossTimer = 0;
+
+        updateHud();
+      }
+
+      function startGame() {
+        sound.ensureContext();
+        resetGame();
+        gameState = 'PLAYING';
+        startOverlay.classList.add('hidden');
+        gameOverOverlay.classList.add('hidden');
+        lastFrameTime = performance.now();
+      }
+
+      function triggerGameOver() {
+        gameState = 'GAMEOVER';
+        screenShake = 14;
+        sound.playGameOver();
+
+        if (score > highScore) {
+          highScore = Math.floor(score);
+          localStorage.setItem(STORAGE_KEY, String(highScore));
+        }
+
+        const randomQuote = GAME_OVER_QUOTES[Math.floor(Math.random() * GAME_OVER_QUOTES.length)];
+        funnyQuoteEl.textContent = `“${randomQuote}”`;
+        finalScoreEl.textContent = String(Math.floor(score));
+        finalHighScoreEl.textContent = String(highScore);
+        highScoreDisplay.textContent = String(highScore);
+
+        gameOverOverlay.classList.remove('hidden');
+      }
+
+      function updateHud() {
+        scoreDisplay.textContent = String(Math.floor(score));
+        highScoreDisplay.textContent = String(Math.max(highScore, Math.floor(score)));
+        levelDisplay.textContent = String(level);
+      }
+
+      function createCheese() {
+        const isBlock = Math.random() < 0.38;
+        const baseSize = isBlock
+          ? 44 + Math.random() * 18
+          : 38 + Math.random() * 16;
+
+        // Gera furos relativos para o queijo suíço
+        const holes = [];
+        const holeCount = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < holeCount; i++) {
+          holes.push({
+            rx: -0.22 + Math.random() * 0.44,
+            ry: -0.15 + Math.random() * 0.32,
+            r: 0.06 + Math.random() * 0.06
+          });
+        }
+
+        const speedBoost = 1 + (level - 1) * 0.13;
+        const vy = (145 + Math.random() * 95) * speedBoost;
+        const vx = (Math.random() - 0.5) * 35 * Math.min(level, 6) * 0.25;
+
+        cheeses.push({
+          x: baseSize * 0.75 + Math.random() * Math.max(40, width - baseSize * 1.5),
+          y: -baseSize,
+          size: baseSize,
+          isBlock,
+          vy,
+          vx,
+          gravity: (240 + Math.random() * 110) * speedBoost,
+          rotation: (Math.random() - 0.5) * 0.4,
+          rotSpeed: (Math.random() - 0.5) * 3.2,
+          stinkPhase: Math.random() * Math.PI * 2,
+          holes,
+          nearMissed: false
+        });
+      }
+
+      function spawnPopup(x, y, text, color = '#fff799') {
+        popups.push({
+          x,
+          y,
+          vy: -62,
+          text,
+          color,
+          life: 0.95,
+          maxLife: 0.95
+        });
+      }
+
+      function spawnCrumbs(x, y, count = 8) {
+        for (let i = 0; i < count; i++) {
+          crumbs.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * 190,
+            vy: -40 - Math.random() * 140,
+            r: 3 + Math.random() * 4,
+            rot: Math.random() * Math.PI * 2,
+            life: 0.55 + Math.random() * 0.25
+          });
+        }
+      }
+
+      function updatePlaying(dt, nowMs) {
+        survivalTime += dt;
+        level = 1 + Math.floor(survivalTime / 9);
+
+        // Pontos por tempo sobrevivido
+        score += dt * (12 + level * 2.5);
+
+        // Movimento horizontal do rato
+        let moveDir = 0;
+        if (keys.left || touchInput.left) moveDir -= 1;
+        if (keys.right || touchInput.right) moveDir += 1;
+
+        const maxSpeed = Math.min(540, 390 + level * 14);
+        if (moveDir !== 0) {
+          mouse.vx = moveDir * maxSpeed;
+          mouse.facing = moveDir;
+        } else if (touchInput.pointerX !== null) {
+          const diff = touchInput.pointerX - mouse.x;
+          if (Math.abs(diff) > 6) {
+            mouse.vx = Math.max(-maxSpeed, Math.min(maxSpeed, diff * 9));
+            mouse.facing = diff >= 0 ? 1 : -1;
+          } else {
+            mouse.vx *= 0.65;
+          }
+        } else {
+          mouse.vx *= Math.pow(0.001, dt);
+          if (Math.abs(mouse.vx) < 8) mouse.vx = 0;
+        }
+
+        mouse.x += mouse.vx * dt;
+        const halfW = mouse.width * 0.52;
+        if (mouse.x < halfW) {
+          mouse.x = halfW;
+          mouse.vx = 0;
+        } else if (mouse.x > width - halfW) {
+          mouse.x = width - halfW;
+          mouse.vx = 0;
+        }
+
+        if (Math.abs(mouse.vx) > 25) {
+          mouse.runPhase += dt * 22;
+          sound.playStep(nowMs);
+        } else {
+          mouse.runPhase += dt * 4;
+        }
+
+        if (mouse.grossTimer > 0) {
+          mouse.grossTimer = Math.max(0, mouse.grossTimer - dt);
+        }
+
+        // Geração de chuvas de queijo
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+          createCheese();
+          const baseInterval = Math.max(0.24, 0.95 - (level - 1) * 0.085);
+          spawnTimer = baseInterval * (0.7 + Math.random() * 0.6);
+        }
+
+        // Hitbox do rato (levemente tolerante para jogabilidade justa)
+        const ratHitX = mouse.x;
+        const ratHitY = mouse.y - mouse.height * 0.45;
+        const ratRadiusX = mouse.width * 0.36;
+        const ratRadiusY = mouse.height * 0.38;
+
+        // Atualizar queijos
+        for (let i = cheeses.length - 1; i >= 0; i--) {
+          const c = cheeses[i];
+          c.vy += c.gravity * dt;
+          c.x += c.vx * dt;
+          c.y += c.vy * dt;
+          c.rotation += c.rotSpeed * dt;
+          c.stinkPhase += dt * 7;
+
+          // Rebater suavemente nas laterais
+          const cHalf = c.size * 0.5;
+          if (c.x < cHalf) {
+            c.x = cHalf;
+            c.vx = Math.abs(c.vx);
+          } else if (c.x > width - cHalf) {
+            c.x = width - cHalf;
+            c.vx = -Math.abs(c.vx);
+          }
+
+          // Distância normalizada elíptica para colisão e "quase"
+          const dx = Math.abs(c.x - ratHitX);
+          const dy = Math.abs(c.y - ratHitY);
+          const cheeseRadius = c.size * 0.44;
+
+          const hitDist = Math.hypot(
+            dx / (ratRadiusX + cheeseRadius * 0.85),
+            dy / (ratRadiusY + cheeseRadius * 0.85)
+          );
+
+          if (hitDist < 0.92) {
+            // Colisão direta!
+            mouse.x = c.x;
+            spawnCrumbs(c.x, Math.min(c.y, floorY - 8), 12);
+            triggerGameOver();
+            return;
+          }
+
+          // Detecção de "Quase" (Near Miss)
+          const nearDist = Math.hypot(
+            dx / (ratRadiusX + cheeseRadius + 34),
+            dy / (ratRadiusY + cheeseRadius + 30)
+          );
+          if (!c.nearMissed && nearDist < 1.0 && c.y <= floorY + 12) {
+            c.nearMissed = true;
+            mouse.grossTimer = 0.65;
+            score += 15;
+            const phrase = NEAR_MISS_WORDS[Math.floor(Math.random() * NEAR_MISS_WORDS.length)];
+            spawnPopup(mouse.x, mouse.y - mouse.height - 16, phrase, '#b7ff7a');
+            sound.playNearMiss();
+          }
+
+          // Chegou ao chão sem acertar o rato
+          if (c.y + cHalf >= floorY) {
+            score += 10;
+            spawnCrumbs(c.x, floorY - 3, 6);
+            spawnPopup(c.x, floorY - 22, '+10', '#ffd84d');
+            cheeses.splice(i, 1);
+          }
+        }
+
+        // Atualizar balões/textos flutuantes
+        for (let i = popups.length - 1; i >= 0; i--) {
+          const p = popups[i];
+          p.y += p.vy * dt;
+          p.vy *= 0.95;
+          p.life -= dt;
+          if (p.life <= 0) {
+            popups.splice(i, 1);
+          }
+        }
+
+        // Atualizar migalhas de queijo
+        for (let i = crumbs.length - 1; i >= 0; i--) {
+          const cr = crumbs[i];
+          cr.vy += 520 * dt;
+          cr.x += cr.vx * dt;
+          cr.y += cr.vy * dt;
+          cr.rot += 8 * dt;
+          cr.life -= dt;
+          if (cr.y > floorY) {
+            cr.y = floorY;
+            cr.vy *= -0.35;
+            cr.vx *= 0.7;
+          }
+          if (cr.life <= 0) {
+            crumbs.splice(i, 1);
+          }
+        }
+
+        if (screenShake > 0) {
+          screenShake = Math.max(0, screenShake - dt * 36);
+        }
+
+        updateHud();
+      }
+
+      // ==========================================
+      // 6. RENDERIZAÇÃO NO CANVAS (ESTILO CARTOON)
+      // ==========================================
+      function drawKitchenBackground() {
+        // Parede de cozinha estilizada
+        const wallGrad = ctx.createLinearGradient(0, 0, 0, floorY);
+        wallGrad.addColorStop(0, '#4c321e');
+        wallGrad.addColorStop(1, '#2b1b0f');
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(0, 0, width, floorY);
+
+        // Azulejos sutis ao fundo
+        const tileSize = 48;
+        ctx.strokeStyle = 'rgba(255, 232, 194, 0.05)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < width; x += tileSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, floorY);
+          ctx.stroke();
+        }
+        for (let y = 0; y < floorY; y += tileSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+
+        // Prateleira / rodapé decorativo simples
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillRect(0, floorY - 8, width, 8);
+
+        // Piso de madeira na parte inferior
+        const plankH = Math.max(18, (height - floorY) / 2);
+        for (let row = 0; row < 2; row++) {
+          const py = floorY + row * plankH;
+          const woodGrad = ctx.createLinearGradient(0, py, 0, py + plankH);
+          if (row === 0) {
+            woodGrad.addColorStop(0, '#9c5a28');
+            woodGrad.addColorStop(1, '#784118');
+          } else {
+            woodGrad.addColorStop(0, '#85491d');
+            woodGrad.addColorStop(1, '#5e300e');
+          }
+          ctx.fillStyle = woodGrad;
+          ctx.fillRect(0, py, width, plankH);
+
+          // Divisória das tábuas
+          ctx.strokeStyle = '#3d1e07';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(width, py);
+          ctx.stroke();
+
+          // Juntas verticais da madeira
+          const plankW = 96;
+          const offset = (row * plankW) / 2;
+          for (let px = offset; px < width; px += plankW) {
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px, py + plankH);
+            ctx.stroke();
+          }
+        }
+      }
+
+      function drawCheese(c) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+
+        // Linhas de fedor (ondinhas verdes subindo, sem rotacionar junto ao bloco)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(110, 231, 85, 0.72)';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        for (let s = -1; s <= 1; s++) {
+          const sx = s * (c.size * 0.26);
+          const syBase = -c.size * 0.45;
+          ctx.beginPath();
+          for (let step = 0; step <= 14; step++) {
+            const t = step / 14;
+            const waveX = sx + Math.sin(c.stinkPhase + t * 5 + s) * 4.5;
+            const waveY = syBase - t * 18;
+            if (step === 0) ctx.moveTo(waveX, waveY);
+            else ctx.lineTo(waveX, waveY);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Corpo do queijo
+        ctx.rotate(c.rotation);
+        const s = c.size;
+        const half = s * 0.5;
+
+        const cheeseGrad = ctx.createLinearGradient(-half, -half, half, half);
+        cheeseGrad.addColorStop(0, '#ffe45e');
+        cheeseGrad.addColorStop(0.65, '#ffc414');
+        cheeseGrad.addColorStop(1, '#d98f00');
+
+        ctx.fillStyle = cheeseGrad;
+        ctx.strokeStyle = '#7a4b00';
+        ctx.lineWidth = 2.5;
+
+        ctx.beginPath();
+        if (c.isBlock) {
+          // Bloco quadrado arredondado
+          const r = 7;
+          ctx.roundRect(-half, -half, s, s, r);
+        } else {
+          // Fatia triangular de queijo suíço
+          ctx.moveTo(-half * 0.95, half * 0.8);
+          ctx.lineTo(half * 0.95, half * 0.85);
+          ctx.lineTo(0, -half * 0.95);
+          ctx.closePath();
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Furos característicos do queijo
+        ctx.fillStyle = '#b87200';
+        for (const h of c.holes) {
+          const hx = h.rx * s;
+          const hy = h.ry * s;
+          const hr = Math.max(2.5, h.r * s);
+          if (!c.isBlock && hy < -half * 0.35) continue;
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      function drawMouse() {
+        ctx.save();
+        ctx.translate(mouse.x, mouse.y);
+
+        // Sombra no chão
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(0, 2, mouse.width * 0.48, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (gameState === 'GAMEOVER') {
+          // Rato desmaiado de pernas para o ar com cara de enjoo (língua para fora e olhos em X)
+          const bodyY = -16;
+
+          // Rabo estirado
+          ctx.strokeStyle = '#d98a9c';
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(20, bodyY + 4);
+          ctx.quadraticCurveTo(36, bodyY - 8, 42, bodyY + 3);
+          ctx.stroke();
+
+          // Patinhas para o alto
+          ctx.strokeStyle = '#f2b8c6';
+          ctx.lineWidth = 3.5;
+          const legOffsets = [-12, -4, 6, 14];
+          legOffsets.forEach((lx) => {
+            ctx.beginPath();
+            ctx.moveTo(lx, bodyY - 6);
+            ctx.lineTo(lx + (lx < 0 ? -5 : 5), bodyY - 16);
+            ctx.stroke();
+          });
+
+          // Corpo barriga para cima
+          ctx.fillStyle = '#9aa3ad';
+          ctx.strokeStyle = '#383e45';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(0, bodyY, 24, 13, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Barriguinha clara
+          ctx.fillStyle = '#e7ecf2';
+          ctx.beginPath();
+          ctx.ellipse(0, bodyY + 1, 15, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Cabeça tombada
+          ctx.fillStyle = '#a8b1bc';
+          ctx.beginPath();
+          ctx.arc(-18, bodyY - 2, 13, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Orelhas caídas
+          ctx.fillStyle = '#f2b8c6';
+          ctx.beginPath();
+          ctx.ellipse(-25, bodyY - 12, 6, 4, -0.5, 0, Math.PI * 2);
+          ctx.ellipse(-10, bodyY - 12, 6, 4, 0.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Olhos em X
+          ctx.strokeStyle = '#1f2328';
+          ctx.lineWidth = 2.3;
+          const drawXEye = (ex, ey) => {
+            ctx.beginPath();
+            ctx.moveTo(ex - 3.5, ey - 3.5);
+            ctx.lineTo(ex + 3.5, ey + 3.5);
+            ctx.moveTo(ex + 3.5, ey - 3.5);
+            ctx.lineTo(ex - 3.5, ey + 3.5);
+            ctx.stroke();
+          };
+          drawXEye(-22, bodyY - 4);
+          drawXEye(-13, bodyY - 4);
+
+          // Língua para fora com cara de enjoo
+          ctx.fillStyle = '#ff6b8b';
+          ctx.beginPath();
+          ctx.ellipse(-18, bodyY + 6, 4, 6.5, 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.restore();
+          return;
+        }
+
+        // Estado normal / correndo: vira conforme a direção
+        ctx.scale(mouse.facing, 1);
+
+        const bounce = Math.abs(Math.sin(mouse.runPhase)) * 4.5;
+        const bodyY = -17 - bounce;
+
+        // Rabo animado
+        ctx.strokeStyle = '#e08b9e';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-18, bodyY + 2);
+        const tailWave = Math.sin(mouse.runPhase * 0.9) * 8;
+        ctx.quadraticCurveTo(-34, bodyY - 10 + tailWave, -42, bodyY - 3 - tailWave);
+        ctx.stroke();
+
+        // Patinhas correndo
+        const legSwing = Math.sin(mouse.runPhase) * 7;
+        ctx.strokeStyle = '#f5bcc8';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-8, -3);
+        ctx.lineTo(-8 - legSwing, 0);
+        ctx.moveTo(8, -3);
+        ctx.lineTo(8 + legSwing, 0);
+        ctx.stroke();
+
+        // Corpo do rato
+        ctx.fillStyle = '#9ea8b3';
+        ctx.strokeStyle = '#33383e';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(-2, bodyY, 20, 13, -0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Orelhas grandes e expressivas
+        ctx.fillStyle = '#9ea8b3';
+        ctx.beginPath();
+        ctx.arc(4, bodyY - 15, 9.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f5bcc8';
+        ctx.beginPath();
+        ctx.arc(4, bodyY - 15, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cabeça
+        ctx.fillStyle = '#aeb8c4';
+        ctx.beginPath();
+        ctx.ellipse(12, bodyY - 5, 14, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Olho arregalado de pânico
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(15, bodyY - 8, 6.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pupila minúscula tremendo de medo
+        const jitterX = Math.sin(mouse.runPhase * 3.7) * 1.1;
+        const jitterY = Math.cos(mouse.runPhase * 4.3) * 1.1;
+        ctx.fillStyle = '#111315';
+        ctx.beginPath();
+        ctx.arc(16.2 + jitterX, bodyY - 8 + jitterY, 2.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Narizinho rosa
+        ctx.fillStyle = '#ff7a96';
+        ctx.beginPath();
+        ctx.arc(25.5, bodyY - 4, 3.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Boca de frescura/nojo quando passou perto de queijo
+        if (mouse.grossTimer > 0) {
+          ctx.fillStyle = '#5c1424';
+          ctx.beginPath();
+          ctx.ellipse(18, bodyY + 2, 5, 3.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = '#33383e';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(15, bodyY + 2);
+          ctx.lineTo(21, bodyY + 1);
+          ctx.stroke();
+        }
+
+        // Bigodes tremendo
+        const whiskerTremor = Math.sin(mouse.runPhase * 5) * 2.5;
+        ctx.strokeStyle = '#262a2e';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(18, bodyY - 2);
+        ctx.lineTo(31, bodyY - 6 + whiskerTremor);
+        ctx.moveTo(18, bodyY + 1);
+        ctx.lineTo(31, bodyY + 3 - whiskerTremor);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawEffects() {
+        // Migalhas de queijo
+        for (const cr of crumbs) {
+          ctx.save();
+          ctx.translate(cr.x, cr.y);
+          ctx.rotate(cr.rot);
+          ctx.globalAlpha = Math.max(0, cr.life / 0.75);
+          ctx.fillStyle = '#ffcf33';
+          ctx.fillRect(-cr.r, -cr.r, cr.r * 2, cr.r * 2);
+          ctx.restore();
+        }
+
+        // Balões / textos flutuantes ("Eca!", "Que fedor!", "+10")
+        for (const p of popups) {
+          const alpha = Math.min(1, (p.life / p.maxLife) * 1.4);
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, alpha);
+          ctx.font = '900 15px "Segoe UI", sans-serif';
+          ctx.textAlign = 'center';
+
+          const textW = ctx.measureText(p.text).width;
+          const boxW = textW + 18;
+          const boxH = 26;
+
+          ctx.fillStyle = 'rgba(22, 14, 8, 0.88)';
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(p.x - boxW * 0.5, p.y - boxH * 0.72, boxW, boxH, 10);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = p.color;
+          ctx.fillText(p.text, p.x, p.y);
+          ctx.restore();
+        }
+      }
+
+      function render() {
+        ctx.save();
+        if (screenShake > 0) {
+          const sx = (Math.random() - 0.5) * screenShake;
+          const sy = (Math.random() - 0.5) * screenShake;
+          ctx.translate(sx, sy);
+        }
+
+        drawKitchenBackground();
+        for (const c of cheeses) {
+          drawCheese(c);
+        }
+        drawMouse();
+        drawEffects();
+
+        ctx.restore();
+      }
+
+      // ==========================================
+      // 7. LOOP PRINCIPAL DO JOGO
+      // ==========================================
+      function gameLoop(nowMs) {
+        if (!lastFrameTime) lastFrameTime = nowMs;
+        const dt = Math.min(0.05, (nowMs - lastFrameTime) / 1000);
+        lastFrameTime = nowMs;
+
+        if (gameState === 'PLAYING') {
+          updatePlaying(dt, nowMs);
+        } else if (gameState === 'START') {
+          mouse.runPhase += dt * 4;
+        } else if (screenShake > 0) {
+          screenShake = Math.max(0, screenShake - dt * 36);
+        }
+
+        render();
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ==========================================
+      // 8. EVENTOS DE TECLADO, TOQUE E BOTÕES
+      // ==========================================
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          keys.left = true;
+          touchInput.pointerX = null;
+        } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          keys.right = true;
+          touchInput.pointerX = null;
+        } else if (e.key === ' ' || e.key === 'Enter') {
+          if (gameState === 'START') {
+            e.preventDefault();
+            startGame();
+          } else if (gameState === 'GAMEOVER') {
+            e.preventDefault();
+            startGame();
+          }
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+          keys.left = false;
+        } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+          keys.right = false;
+        }
+      });
+
+      // Botões touch/mouse esquerda e direita
+      function bindHoldButton(btn, side) {
+        const press = (e) => {
+          e.preventDefault();
+          sound.ensureContext();
+          touchInput[side] = true;
+          touchInput.pointerX = null;
+          btn.classList.add('active');
+        };
+        const release = (e) => {
+          e.preventDefault();
+          touchInput[side] = false;
+          btn.classList.remove('active');
+        };
+
+        btn.addEventListener('pointerdown', press);
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+        btn.addEventListener('pointercancel', release);
+      }
+
+      bindHoldButton(leftBtn, 'left');
+      bindHoldButton(rightBtn, 'right');
+
+      // Toque direto no canvas para mover na horizontal
+      canvas.addEventListener('pointerdown', (e) => {
+        if (gameState !== 'PLAYING') return;
+        sound.ensureContext();
+        const rect = canvas.getBoundingClientRect();
+        touchInput.pointerX = e.clientX - rect.left;
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (gameState !== 'PLAYING' || touchInput.pointerX === null) return;
+        const rect = canvas.getBoundingClientRect();
+        touchInput.pointerX = e.clientX - rect.left;
+      });
+
+      window.addEventListener('pointerup', () => {
+        touchInput.pointerX = null;
+      });
+
+      // Botões de início, reiniciar e som
+      startBtn.addEventListener('click', startGame);
+      restartBtn.addEventListener('click', startGame);
+
+      muteBtn.addEventListener('click', () => {
+        const isMuted = sound.toggleMute();
+        muteBtn.textContent = isMuted ? '🔇' : '🔊';
+      });
+
+      // Inicia renderização contínua
+      resetGame();
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>

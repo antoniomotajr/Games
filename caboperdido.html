@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cabo Perdido — É esse? Não... é esse? NÃO!</title>
+  <style>
+    :root {
+      --bg-dark: #090b10;
+      --panel-bg: rgba(18, 22, 32, 0.86);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-red: #ef4444;
+      --accent-amber: #f59e0b;
+      --accent-green: #10b981;
+      --accent-cyan: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    #game-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 45%, #161b26 0%, #090b10 100%);
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* HUD Superior */
+    #hud {
+      position: fixed;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px);
+      padding: 8px 14px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 0.4px;
+      color: #fff;
+    }
+
+    .brand-slogan {
+      font-size: 0.78rem;
+      color: var(--accent-amber);
+      font-style: italic;
+      font-weight: 600;
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      min-width: 76px;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-value.danger {
+      color: var(--accent-red);
+      text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    .stress-meter {
+      width: 145px;
+      height: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .stress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981 0%, #f59e0b 55%, #ef4444 100%);
+      transition: width 0.18s ease-out;
+    }
+
+    button.btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button.btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.16);
+      transform: translateY(-1px);
+    }
+
+    button.btn:active:not(:disabled) {
+      transform: translateY(1px) scale(0.98);
+    }
+
+    button.btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    button.btn-tap {
+      background: rgba(245, 158, 11, 0.18);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fde68a;
+    }
+
+    button.btn-tap:hover:not(:disabled) {
+      background: rgba(245, 158, 11, 0.3);
+    }
+
+    button.btn-primary {
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      border-color: rgba(125, 211, 252, 0.45);
+      color: #fff;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+
+    /* Banner de piada / comentário sarcástico */
+    #comedy-toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      z-index: 25;
+      max-width: min(92vw, 680px);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      color: #fef2f2;
+      padding: 11px 18px;
+      border-radius: 12px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      text-align: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    #comedy-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #comedy-toast.good {
+      border-color: rgba(16, 185, 129, 0.65);
+      background: rgba(6, 78, 59, 0.92);
+      color: #ecfdf5;
+    }
+
+    /* Pop-ups irritantes de Suporte Técnico */
+    .tech-popup {
+      position: fixed;
+      z-index: 35;
+      width: 285px;
+      background: #1e293b;
+      border: 2px solid #f59e0b;
+      border-radius: 10px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+      overflow: hidden;
+      animation: popIn 0.16s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.82); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .tech-popup-header {
+      background: linear-gradient(90deg, #b45309, #d97706);
+      color: #fff;
+      padding: 6px 10px;
+      font-size: 0.76rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .tech-popup-close {
+      background: rgba(0, 0, 0, 0.28);
+      border: none;
+      color: #fff;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .tech-popup-close:hover {
+      background: #ef4444;
+    }
+
+    .tech-popup-body {
+      padding: 11px 12px;
+      font-size: 0.82rem;
+      line-height: 1.38;
+      color: #e2e8f0;
+    }
+
+    .tech-popup-footer {
+      padding: 0 12px 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Modais de Início e Fim */
+    .overlay-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(5, 8, 14, 0.84);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .overlay-modal.hidden {
+      display: none;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 520px;
+      background: #111622;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 18px;
+      padding: 26px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+      text-align: center;
+    }
+
+    .modal-card h1 {
+      margin: 0 0 6px;
+      font-size: 1.85rem;
+      letter-spacing: 0.5px;
+    }
+
+    .slogan-banner {
+      display: inline-block;
+      margin: 6px 0 16px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .modal-card p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      margin: 0 0 18px;
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .diff-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 12px 8px;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .diff-btn:hover {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .diff-btn.active {
+      border-color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.16);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
+    }
+
+    .diff-title {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .diff-sub {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 18px 0 22px;
+    }
+
+    .summary-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .summary-item .val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .summary-item .lbl {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD Principal -->
+    <div id="hud">
+      <div class="hud-group">
+        <div>
+          <div class="brand-title">🔌 CABO PERDIDO</div>
+          <div class="brand-slogan">É esse? Não... é esse? NÃO!</div>
+        </div>
+      </div>
+
+      <div class="hud-group">
+        <div class="stat-box">
+          <span class="stat-label">Tempo</span>
+          <span class="stat-value" id="hud-time">01:30</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Erros</span>
+          <span class="stat-value danger" id="hud-errors">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Estresse</span>
+          <div class="stress-meter" title="Nível de frustração do TI">
+            <div class="stress-fill" id="hud-stress-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-group">
+        <button class="btn btn-tap" id="btn-tap" title="Faz o cabo certo vibrar por 0.5s, mas aumenta o estresse">
+          👊 Dar um Tapinha (<span id="hud-taps">3</span>)
+        </button>
+        <button class="btn" id="btn-sound" title="Ligar/Desligar som">🔊 Som</button>
+        <button class="btn" id="btn-restart" title="Reiniciar emaranhado">↻ Novo</button>
+      </div>
+    </div>
+
+    <!-- Comentários Sarcásticos -->
+    <div id="comedy-toast"></div>
+
+    <!-- Modal Inicial -->
+    <div class="overlay-modal" id="start-modal">
+      <div class="modal-card">
+        <h1>🔌 CABO PERDIDO</h1>
+        <div class="slogan-banner">“É esse? Não... é esse? NÃO!”</div>
+        <p>
+          O servidor principal entrou em colapso iminente e o roteador caiu! Encontre e conecte
+          <strong>o único cabo certo</strong> no meio de um ninho de cabos quase idênticos antes que
+          o tempo acabe — ou que o seu estresse chegue a 100%.
+        </p>
+
+        <div class="diff-grid" id="diff-grid">
+          <button class="diff-btn" data-mode="intern">
+            <span class="diff-title">Modo Estagiário</span>
+            <span class="diff-sub">30 cabos • 01:30</span>
+          </button>
+          <button class="diff-btn" data-mode="tech">
+            <span class="diff-title">Modo Técnico de TI</span>
+            <span class="diff-sub">60 cabos • 01:45</span>
+          </button>
+          <button class="diff-btn active" data-mode="chaos">
+            <span class="diff-title">Modo Caos Corporativo</span>
+            <span class="diff-sub">100 cabos • 02:00</span>
+          </button>
+        </div>
+
+        <button class="btn btn-primary" id="btn-start" style="width: 100%; padding: 12px; font-size: 1rem;">
+          ⚡ ENCARAR O EMARANHADO
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal de Vitória / Derrota -->
+    <div class="overlay-modal hidden" id="end-modal">
+      <div class="modal-card">
+        <h1 id="end-title">SERVIDOR SALVO!</h1>
+        <div class="slogan-banner" id="end-subtitle">Milagre corporativo aconteceu.</div>
+        <p id="end-flavor">O link voltou e o RH não precisou abrir chamado.</p>
+
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="val" id="end-time">00:00</div>
+            <div class="lbl">Tempo Gasto</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" id="end-errors">0</div>
+            <div class="lbl">Cabos Errados</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" id="end-stress">0%</div>
+            <div class="lbl">Estresse Final</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-play-again" style="width: 100%; padding: 12px; font-size: 1rem;">
+          🔄 TENTAR DE NOVO
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      // =========================================================================
+      // 1. CONFIGURAÇÕES DE DIFICULDADE E HUMOR CORPORATIVO
+      // =========================================================================
+      const MODES = {
+        intern: { name: "Modo Estagiário", cables: 30, timeLimit: 90, stressPerError: 10 },
+        tech:   { name: "Modo Técnico de TI", cables: 60, timeLimit: 105, stressPerError: 13 },
+        chaos:  { name: "Modo Caos Corporativo", cables: 100, timeLimit: 120, stressPerError: 16 }
+      };
+
+      const ERROR_JOKES = [
+        "Você desligou a cafeteira do andar de baixo. O estagiário está chorando.",
+        "Isso era um fio de macarrão cozido há três dias. Por que estava aqui?!",
+        "Parabéns, você reiniciou o Wi-Fi da vizinha. Ela mandou um 'oi' no WhatsApp.",
+        "Quase! (Mentira, passou longe. Muito longe.)",
+        "Você desconectou o monitor do CEO durante uma call com investidores.",
+        "BZZZT! Esse cabo só serve para acumular poeira e culpa.",
+        "Você desligou a impressora que ninguém usa desde 2019. Nada mudou.",
+        "Choque! Esse cabo tem mais resistência que a paciência do Scrum Master.",
+        "Parabéns, agora o ar-condicionado do CPD está soprando ar quente.",
+        "Esse cabo leva a lugar nenhum. Literalmente. É só um laço de vergonha.",
+        "Você derrubou o sistema de ponto. Todo mundo foi embora mais cedo (ou não).",
+        "ZAP! O roteador piscou em deboche."
+      ];
+
+      const POPUP_MESSAGES = [
+        { title: "⚠️ SUPORTE TÉCNICO — TICKET #404", body: "Você já tentou tirar o cabo da tomada e colocar de volta? Não vale mentir." },
+        { title: "📢 AVISO DO RH", body: "Lembramos que gritar 'VAI LOGO, DESGRAÇA!' com o switch viola o código de conduta." },
+        { title: "🧠 DICA DO ARQUITETO DE TI", body: "Todos os cabos são pretos porque a estética sombria combina com o nosso burnout." },
+        { title: "🔥 ALERTA DO NOC", body: "O servidor está esquentando. Se explodir, a culpa será do estagiário ausente." },
+        { title: "☕ CAFETERIA CORP", body: "A máquina de café offline reduziu a produtividade da empresa em 74%." }
+      ];
+
+      // =========================================================================
+      // 2. SINTETIZADOR DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+      // =========================================================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.enabled = true;
+        }
+
+        ensureContext() {
+          if (!this.enabled) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume().catch(() => {});
+          }
+          return this.ctx;
+        }
+
+        playClick(pitch = 520) {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(pitch, now);
+          osc.frequency.exponentialRampToValueAtTime(160, now + 0.055);
+          gain.gain.setValueAtTime(0.16, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.065);
+        }
+
+        playShock() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+
+          // Zumbido elétrico de 60Hz/120Hz + ruído estalado
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(115, now);
+          osc.frequency.linearRampToValueAtTime(62, now + 0.28);
+
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.31);
+
+          // Estalo de faísca
+          const bufferSize = Math.floor(ctx.sampleRate * 0.14);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.035));
+          }
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+          const nGain = ctx.createGain();
+          nGain.gain.setValueAtTime(0.28, now);
+          nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          noise.connect(nGain);
+          nGain.connect(ctx.destination);
+          noise.start(now);
+        }
+
+        playErrorBeep() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          [240, 175].forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+            gain.gain.setValueAtTime(0.09, now + idx * 0.09);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.085);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.09);
+            osc.stop(now + idx * 0.09 + 0.09);
+          });
+        }
+
+        playSigh() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const gain = ctx.createGain();
+
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.exponentialRampToValueAtTime(92, now + 0.65);
+
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(520, now);
+          filter.frequency.exponentialRampToValueAtTime(180, now + 0.65);
+
+          gain.gain.setValueAtTime(0.01, now);
+          gain.gain.linearRampToValueAtTime(0.18, now + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.68);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.7);
+        }
+
+        playTap() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(135, now);
+          osc.frequency.exponentialRampToValueAtTime(42, now + 0.12);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        }
+
+        playFanfare() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+          const now = ctx.currentTime;
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const start = now + i * 0.11;
+            const dur = i === notes.length - 1 ? 0.55 : 0.14;
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.2, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + dur + 0.02);
+          });
+        }
+      }
+
+      // =========================================================================
+      // 3. ESTADO DO JOGO E ELEMENTOS DOM
+      // =========================================================================
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const sound = new SoundEngine();
+
+      const dom = {
+        wrapper: document.getElementById("game-wrapper"),
+        time: document.getElementById("hud-time"),
+        errors: document.getElementById("hud-errors"),
+        stressFill: document.getElementById("hud-stress-fill"),
+        taps: document.getElementById("hud-taps"),
+        btnTap: document.getElementById("btn-tap"),
+        btnSound: document.getElementById("btn-sound"),
+        btnRestart: document.getElementById("btn-restart"),
+        toast: document.getElementById("comedy-toast"),
+        startModal: document.getElementById("start-modal"),
+        endModal: document.getElementById("end-modal"),
+        diffGrid: document.getElementById("diff-grid"),
+        btnStart: document.getElementById("btn-start"),
+        btnPlayAgain: document.getElementById("btn-play-again"),
+        endTitle: document.getElementById("end-title"),
+        endSubtitle: document.getElementById("end-subtitle"),
+        endFlavor: document.getElementById("end-flavor"),
+        endTime: document.getElementById("end-time"),
+        endErrors: document.getElementById("end-errors"),
+        endStress: document.getElementById("end-stress")
+      };
+
+      const state = {
+        modeKey: "chaos",
+        running: false,
+        won: false,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        timeLeft: 120,
+        elapsed: 0,
+        errors: 0,
+        stress: 0,
+        tapsLeft: 3,
+        routerPulseTimer: 0,
+        shakeIntensity: 0,
+        flashAlpha: 0,
+        toastTimer: null,
+        lastSighStressMilestone: 0,
+        lastPopupTime: 0,
+        mouse: { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5, inside: false },
+        hoveredCableId: null,
+        draggingCable: null,
+        cables: [],
+        correctCableId: -1,
+        sparks: [],
+        router: { x: 0, y: 0, w: 220, h: 108, portX: 0, portY: 0, portRadius: 16 },
+        lastFrameTime: performance.now(),
+        secondAccumulator: 0
+      };
+
+      // =========================================================================
+      // 4. GERAÇÃO PROCEDURAL DO EMARANHADO E ROTEADOR
+      // =========================================================================
+      function resizeCanvas() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        state.width = window.innerWidth;
+        state.height = window.innerHeight;
+        canvas.width = Math.floor(state.width * dpr);
+        canvas.height = Math.floor(state.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // Posiciona o roteador na lateral direita inferior com margem segura
+        state.router.w = Math.min(230, Math.max(175, state.width * 0.17));
+        state.router.h = 104;
+        state.router.x = state.width - state.router.w - 28;
+        state.router.y = Math.max(115, state.height * 0.5 - state.router.h * 0.5);
+        state.router.portX = state.router.x - 6;
+        state.router.portY = state.router.y + state.router.h * 0.58;
+
+        if (state.cables.length > 0) {
+          recomputeCableGeometry();
+        }
+      }
+
+      function createCable(index, total) {
+        // Variações sutis de espessura, tonalidade escura, poeira e etiquetas rasgadas
+        const shades = ["#14171f", "#1a1e28", "#10131a", "#222733", "#171b24"];
+        const thickness = 3.2 + ((index * 17) % 10) * 0.22; // 3.2px a 5.2px
+        const color = shades[index % shades.length];
+        const hasDust = index % 3 === 0;
+        const tagTypes = ["NONE", "TORN_A", "TORN_B", "FADED"];
+        const tagType = index % 2 === 0 ? tagTypes[index % tagTypes.length] : "NONE";
+
+        return {
+          id: index,
+          isCorrect: false,
+          testedWrong: false,
+          connected: false,
+          thickness,
+          color,
+          hasDust,
+          tagType,
+          // Posições normalizadas para responsividade
+          originNormX: 0.06 + ((index * 0.61803398875) % 0.42),
+          originNormY: 0,
+          cp1NormX: 0.25 + ((index * 37) % 30) * 0.01,
+          cp1NormY: 0.12 + ((index * 53) % 76) * 0.01,
+          cp2NormX: 0.52 + ((index * 71) % 32) * 0.01,
+          cp2NormY: 0.14 + ((index * 29) % 72) * 0.01,
+          // Pontos computados em pixels
+          originX: 80,
+          originY: 200,
+          cp1X: 250,
+          cp1Y: 150,
+          cp2X: 550,
+          cp2Y: 450,
+          tipX: 240,
+          tipY: 320,
+          baseTipX: 240,
+          baseTipY: 320,
+          coiledOffset: 0,
+          wobbleSeed: index * 1.37
+        };
+      }
+
+      function recomputeCableGeometry() {
+        const topSafe = 96;
+        const bottomSafe = state.height - 84;
+        const usableH = Math.max(220, bottomSafe - topSafe);
+        const total = state.cables.length;
+
+        state.cables.forEach((c, idx) => {
+          const ratio = total > 1 ? idx / (total - 1) : 0.5;
+          // Distribui origens à esquerda e pontas soltas no miolo caótico
+          const stagger = Math.sin(idx * 2.4) * 26;
+          c.originX = Math.max(52, Math.min(state.width * 0.24, 65 + (idx % 5) * 28));
+          c.originY = topSafe + ratio * usableH;
+
+          // Pontas soltas espalhadas no centro/esquerda-centro para o jogador clicar ou arrastar
+          const clusterCol = idx % 6;
+          const clusterRow = Math.floor(idx / 6);
+          const rowsTotal = Math.ceil(total / 6);
+          const rowRatio = rowsTotal > 1 ? clusterRow / (rowsTotal - 1) : 0.5;
+
+          const spreadX = state.width * (0.24 + clusterCol * 0.072) + Math.cos(idx * 3.1) * 18;
+          const spreadY = topSafe + 24 + rowRatio * (usableH - 48) + Math.sin(idx * 4.2) * 22;
+
+          c.baseTipX = Math.min(state.router.x - 95, Math.max(150, spreadX));
+          c.baseTipY = Math.min(bottomSafe - 16, Math.max(topSafe + 16, spreadY));
+
+          // Pontos de controle Bézier com laços e cruzamentos densos
+          const loopAmp = 135 + ((idx * 43) % 140);
+          const dir = idx % 2 === 0 ? 1 : -1;
+          c.cp1X = c.originX + (c.baseTipX - c.originX) * 0.42 + Math.cos(idx * 1.9) * 85;
+          c.cp1Y = Math.max(topSafe - 20, Math.min(state.height - 30, c.originY + dir * loopAmp));
+
+          c.cp2X = c.originX + (c.baseTipX - c.originX) * 0.78 - Math.cos(idx * 2.7) * 95;
+          c.cp2Y = Math.max(topSafe - 20, Math.min(state.height - 30, c.baseTipY - dir * loopAmp * 0.85));
+
+          if (!c.connected && state.draggingCable !== c) {
+            c.tipX = c.baseTipX;
+            c.tipY = c.baseTipY;
+          } else if (c.connected) {
+            c.tipX = state.router.portX;
+            c.tipY = state.router.portY;
+          }
+        });
+      }
+
+      function initGame(modeKey = state.modeKey) {
+        clearPopups();
+        const cfg = MODES[modeKey] || MODES.chaos;
+        state.modeKey = modeKey;
+        state.running = true;
+        state.won = false;
+        state.timeLeft = cfg.timeLimit;
+        state.elapsed = 0;
+        state.errors = 0;
+        state.stress = 0;
+        state.tapsLeft = 3;
+        state.routerPulseTimer = 0;
+        state.shakeIntensity = 0;
+        state.flashAlpha = 0;
+        state.lastSighStressMilestone = 0;
+        state.lastPopupTime = 0;
+        state.draggingCable = null;
+        state.hoveredCableId = null;
+        state.sparks = [];
+
+        state.cables = [];
+        for (let i = 0; i < cfg.cables; i++) {
+          state.cables.push(createCable(i, cfg.cables));
+        }
+
+        const chosenIdx = Math.floor(Math.random() * state.cables.length);
+        state.cables[chosenIdx].isCorrect = true;
+        state.correctCableId = state.cables[chosenIdx].id;
+
+        recomputeCableGeometry();
+        updateHUD();
+        showToast("O roteador caiu! Ache o ÚNICO cabo certo antes que o tempo ou a paciência acabem!", false);
+      }
+
+      // =========================================================================
+      // 5. FEEDBACK HUMORÍSTICO, ESTRESSE E POP-UPS DO SUPORTE
+      // =========================================================================
+      function showToast(message, isGood = false) {
+        dom.toast.textContent = message;
+        dom.toast.classList.toggle("good", isGood);
+        dom.toast.classList.add("show");
+        if (state.toastTimer) clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => {
+          dom.toast.classList.remove("show");
+        }, 3600);
+      }
+
+      function spawnSparks(x, y, count = 22, color = "#f59e0b") {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 70 + Math.random() * 260;
+          state.sparks.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 60,
+            life: 0.35 + Math.random() * 0.4,
+            maxLife: 0.75,
+            size: 2 + Math.random() * 3.2,
+            color: i % 3 === 0 ? "#fef08a" : color
+          });
+        }
+      }
+
+      function spawnTechPopup() {
+        const existing = document.querySelectorAll(".tech-popup").length;
+        if (existing >= 3) return;
+
+        const tpl = POPUP_MESSAGES[Math.floor(Math.random() * POPUP_MESSAGES.length)];
+        const el = document.createElement("div");
+        el.className = "tech-popup";
+
+        const maxX = Math.max(20, state.width - 310);
+        const maxY = Math.max(95, state.height - 190);
+        el.style.left = `${20 + Math.random() * maxX}px`;
+        el.style.top = `${95 + Math.random() * maxY}px`;
+
+        el.innerHTML = `
+          <div class="tech-popup-header">
+            <span>${tpl.title}</span>
+            <button class="tech-popup-close" aria-label="Fechar">✕</button>
+          </div>
+          <div class="tech-popup-body">${tpl.body}</div>
+          <div class="tech-popup-footer">
+            <button class="btn tech-popup-ok" style="padding: 4px 10px; font-size: 0.74rem;">Ignorar e sofrer</button>
+          </div>
+        `;
+
+        const closePopup = () => {
+          sound.playClick(640);
+          el.remove();
+        };
+
+        el.querySelector(".tech-popup-close").addEventListener("click", closePopup);
+        el.querySelector(".tech-popup-ok").addEventListener("click", closePopup);
+        document.body.appendChild(el);
+      }
+
+      function clearPopups() {
+        document.querySelectorAll(".tech-popup").forEach((p) => p.remove());
+      }
+
+      function handleWrongCable(cable) {
+        if (!state.running) return;
+        const cfg = MODES[state.modeKey] || MODES.chaos;
+
+        cable.testedWrong = true;
+        cable.coiledOffset = 14;
+        state.errors += 1;
+        state.stress = Math.min(100, state.stress + cfg.stressPerError);
+        state.shakeIntensity = Math.min(18, 7 + state.stress * 0.12);
+        state.flashAlpha = 0.24;
+
+        sound.playShock();
+        setTimeout(() => sound.playErrorBeep(), 110);
+        spawnSparks(cable.tipX, cable.tipY, 26, "#ef4444");
+
+        // Suspiro alto quando o estresse cruza marcos de 30%, 60% e 85%
+        const milestone = Math.floor(state.stress / 30);
+        if (milestone > state.lastSighStressMilestone && state.stress > 0) {
+          state.lastSighStressMilestone = milestone;
+          setTimeout(() => sound.playSigh(), 260);
+        }
+
+        // Pop-ups irritantes aparecem acima de 40% de estresse
+        if (state.stress >= 40 && state.elapsed - state.lastPopupTime > 4.5) {
+          state.lastPopupTime = state.elapsed;
+          spawnTechPopup();
+        }
+
+        const joke = ERROR_JOKES[(state.errors - 1 + Math.floor(Math.random() * 2)) % ERROR_JOKES.length];
+        showToast(`⚡ ${joke}`, false);
+
+        updateHUD();
+
+        if (state.stress >= 100) {
+          finishGame(false, "COLAPSO NERVOSO DE TI!", "Seu estresse chegou a 100% e você tentou reiniciar o servidor com um soco.");
+        }
+      }
+
+      function handleCorrectCable(cable) {
+        if (!state.running) return;
+        cable.connected = true;
+        cable.tipX = state.router.portX;
+        cable.tipY = state.router.portY;
+        state.won = true;
+        state.running = false;
+        state.flashAlpha = 0.28;
+
+        sound.playClick(780);
+        setTimeout(() => sound.playFanfare(), 120);
+        spawnSparks(state.router.portX, state.router.portY, 45, "#10b981");
+        showToast("🎉 GLÓRIA ETERNA! O link subiu e o café voltou a esquentar!", true);
+        clearPopups();
+        updateHUD();
+
+        setTimeout(() => {
+          finishGame(true, "ROTEADOR RECONECTADO!", "O sinal verde brilhou e o apocalipse corporativo foi adiado por hoje.");
+        }, 650);
+      }
+
+      function finishGame(won, title, flavor) {
+        state.running = false;
+        state.won = won;
+        clearPopups();
+
+        dom.endTitle.textContent = title;
+        dom.endTitle.style.color = won ? "#34d399" : "#f87171";
+        dom.endSubtitle.textContent = won
+          ? "Milagre de TI: funcionou de primeira (ou quase)!"
+          : "“É esse? Não... é esse? NÃO!” — Fim da linha.";
+        dom.endFlavor.textContent = flavor;
+        dom.endTime.textContent = formatSeconds(Math.floor(state.elapsed));
+        dom.endErrors.textContent = String(state.errors);
+        dom.endStress.textContent = `${Math.round(state.stress)}%`;
+        dom.endModal.classList.remove("hidden");
+      }
+
+      // =========================================================================
+      // 6. INTERAÇÃO DO JOGADOR (HOVER, CLIQUE, ARRASTAR E TAPINHA)
+      // =========================================================================
+      function getDistanceToPoint(px, py, qx, qy) {
+        return Math.hypot(px - qx, py - qy);
+      }
+
+      function getDistanceToBezier(px, py, c) {
+        let minDist = Infinity;
+        const steps = 28;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const mt = 1 - t;
+          const x =
+            mt * mt * mt * c.originX +
+            3 * mt * mt * t * c.cp1X +
+            3 * mt * t * t * c.cp2X +
+            t * t * t * c.tipX;
+          const y =
+            mt * mt * mt * c.originY +
+            3 * mt * mt * t * c.cp1Y +
+            3 * mt * t * t * c.cp2Y +
+            t * t * t * c.tipY;
+          const d = getDistanceToPoint(px, py, x, y);
+          if (d < minDist) minDist = d;
+        }
+        return minDist;
+      }
+
+      function findCableAt(px, py) {
+        // Primeiro checa pontas soltas (prioridade para clique/arraste fácil)
+        for (let i = state.cables.length - 1; i >= 0; i--) {
+          const c = state.cables[i];
+          if (getDistanceToPoint(px, py, c.tipX, c.tipY) <= 18) {
+            return { cable: c, hitTip: true };
+          }
+        }
+        // Depois checa o corpo do cabo para destaque ao passar o mouse
+        for (let i = state.cables.length - 1; i >= 0; i--) {
+          const c = state.cables[i];
+          if (getDistanceToBezier(px, py, c) <= 8) {
+            return { cable: c, hitTip: false };
+          }
+        }
+        return null;
+      }
+
+      canvas.addEventListener("pointermove", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        state.mouse.x = e.clientX - rect.left;
+        state.mouse.y = e.clientY - rect.top;
+        state.mouse.inside = true;
+
+        if (!state.running) return;
+
+        if (state.draggingCable) {
+          state.draggingCable.tipX = state.mouse.x;
+          state.draggingCable.tipY = state.mouse.y;
+          canvas.style.cursor = "grabbing";
+          return;
+        }
+
+        const hit = findCableAt(state.mouse.x, state.mouse.y);
+        state.hoveredCableId = hit ? hit.cable.id : null;
+        canvas.style.cursor = hit && hit.hitTip ? "grab" : hit ? "pointer" : "crosshair";
+      });
+
+      canvas.addEventListener("pointerdown", (e) => {
+        if (!state.running || e.button !== 0) return;
+        sound.ensureContext();
+
+        const rect = canvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        const hit = findCableAt(px, py);
+        if (!hit) return;
+
+        // Inicia arraste a partir da ponta ou testa direto se clicou no meio
+        sound.playClick(540);
+        if (hit.hitTip) {
+          state.draggingCable = hit.cable;
+          canvas.style.cursor = "grabbing";
+        } else {
+          evaluateCableConnection(hit.cable);
+        }
+      });
+
+      window.addEventListener("pointerup", (e) => {
+        if (!state.draggingCable) return;
+        const cable = state.draggingCable;
+        state.draggingCable = null;
+        canvas.style.cursor = "crosshair";
+
+        if (!state.running) {
+          cable.tipX = cable.baseTipX;
+          cable.tipY = cable.baseTipY;
+          return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const distToPort = getDistanceToPoint(px, py, state.router.portX, state.router.portY);
+        const movedDist = getDistanceToPoint(px, py, cable.baseTipX, cable.baseTipY);
+
+        // Se arrastou até a porta do roteador ou apenas clicou na ponta para testar
+        if (distToPort <= 54 || movedDist < 14) {
+          evaluateCableConnection(cable);
+        } else {
+          // Soltou longe do roteador: volta para a posição base
+          cable.tipX = cable.baseTipX;
+          cable.tipY = cable.baseTipY;
+        }
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        state.mouse.inside = false;
+        state.hoveredCableId = null;
+      });
+
+      function evaluateCableConnection(cable) {
+        if (cable.isCorrect) {
+          handleCorrectCable(cable);
+        } else {
+          cable.tipX = cable.baseTipX;
+          cable.tipY = cable.baseTipY;
+          handleWrongCable(cable);
+        }
+      }
+
+      // Botão "Dar um Tapinha no Roteador"
+      dom.btnTap.addEventListener("click", () => {
+        if (!state.running || state.tapsLeft <= 0) return;
+        sound.ensureContext();
+        state.tapsLeft -= 1;
+        state.routerPulseTimer = 0.55;
+        state.stress = Math.min(100, state.stress + 12);
+        state.shakeIntensity = Math.max(state.shakeIntensity, 8);
+
+        sound.playTap();
+        spawnSparks(state.router.portX, state.router.portY, 14, "#fbbf24");
+        showToast("👊 *TOC!* O roteador estremeceu e o cabo certo deu um sinal de vida! (+Estresse)", false);
+        updateHUD();
+
+        if (state.stress >= 100) {
+          finishGame(false, "ROTEADOR ESPANCADO!", "Você deu tapinhas fortes demais e o estresse explodiu a 100%.");
+        }
+      });
+
+      // Controles de HUD e Modais
+      dom.btnSound.addEventListener("click", () => {
+        sound.enabled = !sound.enabled;
+        if (sound.enabled) sound.ensureContext();
+        dom.btnSound.textContent = sound.enabled ? "🔊 Som" : "🔇 Mudo";
+      });
+
+      dom.btnRestart.addEventListener("click", () => {
+        sound.ensureContext();
+        sound.playClick(460);
+        initGame(state.modeKey);
+      });
+
+      dom.diffGrid.addEventListener("click", (e) => {
+        const btn = e.target.closest(".diff-btn");
+        if (!btn) return;
+        dom.diffGrid.querySelectorAll(".diff-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.modeKey = btn.dataset.mode;
+        sound.playClick(580);
+      });
+
+      dom.btnStart.addEventListener("click", () => {
+        sound.ensureContext();
+        sound.playClick(660);
+        dom.startModal.classList.add("hidden");
+        initGame(state.modeKey);
+      });
+
+      dom.btnPlayAgain.addEventListener("click", () => {
+        sound.ensureContext();
+        sound.playClick(660);
+        dom.endModal.classList.add("hidden");
+        initGame(state.modeKey);
+      });
+
+      window.addEventListener("resize", resizeCanvas);
+
+      // =========================================================================
+      // 7. ATUALIZAÇÃO DA HUD E LOOP PRINCIPAL
+      // =========================================================================
+      function formatSeconds(sec) {
+        const s = Math.max(0, Math.floor(sec));
+        const mins = Math.floor(s / 60);
+        const rem = s % 60;
+        return `${String(mins).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
+      }
+
+      function updateHUD() {
+        dom.time.textContent = formatSeconds(state.timeLeft);
+        dom.time.classList.toggle("danger", state.timeLeft <= 15);
+        dom.errors.textContent = String(state.errors);
+        dom.stressFill.style.width = `${Math.min(100, Math.max(0, state.stress))}%`;
+        dom.taps.textContent = String(state.tapsLeft);
+        dom.btnTap.disabled = !state.running || state.tapsLeft <= 0;
+      }
+
+      function update(dt, nowSec) {
+        if (state.running) {
+          state.elapsed += dt;
+          state.secondAccumulator += dt;
+          if (state.secondAccumulator >= 1) {
+            state.secondAccumulator -= 1;
+            state.timeLeft = Math.max(0, state.timeLeft - 1);
+            updateHUD();
+            if (state.timeLeft <= 0) {
+              finishGame(false, "TEMPO ESGOTADO!", "O servidor explodiu em câmera lenta enquanto você olhava para os cabos.");
+            }
+          }
+        }
+
+        if (state.routerPulseTimer > 0) {
+          state.routerPulseTimer = Math.max(0, state.routerPulseTimer - dt);
+        }
+
+        if (state.flashAlpha > 0) {
+          state.flashAlpha = Math.max(0, state.flashAlpha - dt * 0.9);
+        }
+
+        // Tremor base aumenta com o estresse + impacto de erro
+        const stressTremor = state.stress > 25 ? ((state.stress - 25) / 75) * 3.6 : 0;
+        state.shakeIntensity = Math.max(stressTremor, state.shakeIntensity - dt * 28);
+
+        // Animação sutil das pontas (incluindo vibração do cabo certo durante o "Tapinha")
+        state.cables.forEach((c) => {
+          if (c.coiledOffset > 0) {
+            c.coiledOffset = Math.max(0, c.coiledOffset - dt * 42);
+          }
+
+          if (c.connected) {
+            c.tipX = state.router.portX;
+            c.tipY = state.router.portY;
+            return;
+          }
+
+          if (state.draggingCable === c) return;
+
+          let vibX = 0;
+          let vibY = 0;
+          if (c.isCorrect && state.routerPulseTimer > 0) {
+            vibX = Math.sin(nowSec * 95) * 9;
+            vibY = Math.cos(nowSec * 110) * 9;
+          }
+
+          const coilX = c.coiledOffset > 0 ? Math.sin(nowSec * 65 + c.wobbleSeed) * c.coiledOffset : 0;
+          c.tipX = c.baseTipX + vibX + coilX;
+          c.tipY = c.baseTipY + vibY;
+        });
+
+        // Atualiza partículas de faísca
+        for (let i = state.sparks.length - 1; i >= 0; i--) {
+          const p = state.sparks[i];
+          p.life -= dt;
+          if (p.life <= 0) {
+            state.sparks.splice(i, 1);
+            continue;
+          }
+          p.vy += 520 * dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+        }
+      }
+
+      // =========================================================================
+      // 8. RENDERIZAÇÃO PROCEDURAL NO CANVAS 2D
+      // =========================================================================
+      function drawSingleCable(c, isHovered, nowSec) {
+        const highlight = isHovered || state.draggingCable === c;
+        const pulsingCorrect = c.isCorrect && state.routerPulseTimer > 0;
+
+        ctx.save();
+        ctx.lineCap = "round";
+
+        // Sombra para dar profundidade ao nó
+        ctx.beginPath();
+        ctx.moveTo(c.originX, c.originY + 5);
+        ctx.bezierCurveTo(c.cp1X, c.cp1Y + 6, c.cp2X, c.cp2Y + 6, c.tipX, c.tipY + 5);
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.58)";
+        ctx.lineWidth = c.thickness + 3;
+        ctx.stroke();
+
+        // Corpo principal do cabo
+        ctx.beginPath();
+        ctx.moveTo(c.originX, c.originY);
+        ctx.bezierCurveTo(c.cp1X, c.cp1Y, c.cp2X, c.cp2Y, c.tipX, c.tipY);
+
+        if (c.connected) {
+          ctx.strokeStyle = "#10b981";
+          ctx.lineWidth = c.thickness + 2;
+        } else if (pulsingCorrect) {
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = c.thickness + 2.5;
+        } else if (highlight) {
+          ctx.strokeStyle = "#64748b";
+          ctx.lineWidth = c.thickness + 2;
+        } else if (c.testedWrong) {
+          ctx.strokeStyle = "#2b191c";
+          ctx.lineWidth = c.thickness;
+        } else {
+          ctx.strokeStyle = c.color;
+          ctx.lineWidth = c.thickness;
+        }
+        ctx.stroke();
+
+        // Highlight sutil interno para ajudar o jogador a seguir o trajeto ao passar o mouse
+        if (highlight && !c.connected) {
+          ctx.beginPath();
+          ctx.moveTo(c.originX, c.originY);
+          ctx.bezierCurveTo(c.cp1X, c.cp1Y, c.cp2X, c.cp2Y, c.tipX, c.tipY);
+          ctx.strokeStyle = pulsingCorrect ? "rgba(254, 240, 138, 0.85)" : "rgba(186, 230, 253, 0.55)";
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+        }
+
+        // Poeira sutil em alguns cabos
+        if (c.hasDust) {
+          const mx = (c.originX + c.cp1X + c.cp2X + c.tipX) * 0.25;
+          const my = (c.originY + c.cp1Y + c.cp2Y + c.tipY) * 0.25;
+          ctx.fillStyle = "rgba(148, 163, 184, 0.16)";
+          ctx.beginPath();
+          ctx.arc(mx, my, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Etiqueta rasgada ou desbotada em alguns cabos
+        if (c.tagType !== "NONE") {
+          const tx = c.originX + (c.tipX - c.originX) * 0.35;
+          const ty = c.originY + (c.tipY - c.originY) * 0.35;
+          ctx.save();
+          ctx.translate(tx, ty);
+          ctx.rotate(Math.sin(c.wobbleSeed) * 0.25);
+          ctx.fillStyle = c.testedWrong ? "rgba(127, 29, 29, 0.65)" : "rgba(226, 232, 240, 0.22)";
+          ctx.fillRect(-7, -3, 14, 6);
+          ctx.restore();
+        }
+
+        // Conector de origem (painel esquerdo)
+        ctx.fillStyle = "#1e293b";
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(c.originX - 8, c.originY - 4, 10, 8);
+        ctx.strokeRect(c.originX - 8, c.originY - 4, 10, 8);
+
+        // Conector RJ45 / Plug na ponta solta
+        ctx.save();
+        ctx.translate(c.tipX, c.tipY);
+        ctx.fillStyle = c.connected
+          ? "#10b981"
+          : c.testedWrong
+          ? "#7f1d1d"
+          : highlight
+          ? "#38bdf8"
+          : "#334155";
+        ctx.strokeStyle = highlight ? "#e0f2fe" : "#94a3b8";
+        ctx.lineWidth = highlight ? 2 : 1.3;
+        ctx.beginPath();
+        ctx.roundRect(-8, -6, 16, 12, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pequenos contatos metálicos do plug RJ45
+        ctx.fillStyle = "#eab308";
+        ctx.fillRect(3, -3.5, 3, 2);
+        ctx.fillRect(3, 1.5, 3, 2);
+
+        // Marca visual de cabo já testado como errado
+        if (c.testedWrong && !c.connected) {
+          ctx.strokeStyle = "#f87171";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(-4, -4);
+          ctx.lineTo(4, 4);
+          ctx.moveTo(4, -4);
+          ctx.lineTo(-4, 4);
+          ctx.stroke();
+        }
+
+        // Indicador pulsante se o jogador estiver passando o mouse ou arrastando
+        if (highlight && !c.connected) {
+          const pulse = 10 + Math.sin(nowSec * 12) * 2.5;
+          ctx.strokeStyle = pulsingCorrect ? "rgba(250, 204, 21, 0.75)" : "rgba(56, 189, 248, 0.55)";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+        ctx.restore();
+      }
+
+      function drawRouter(nowSec) {
+        const r = state.router;
+        ctx.save();
+
+        // Sombra do roteador
+        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        ctx.beginPath();
+        ctx.roundRect(r.x + 6, r.y + 8, r.w, r.h, 14);
+        ctx.fill();
+
+        // Corpo metálico escuro do roteador / servidor
+        const grad = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+        grad.addColorStop(0, "#1e293b");
+        grad.addColorStop(1, "#0f172a");
+        ctx.fillStyle = grad;
+        ctx.strokeStyle = state.won ? "#10b981" : "#475569";
+        ctx.lineWidth = state.won ? 2.5 : 1.6;
+        ctx.beginPath();
+        ctx.roundRect(r.x, r.y, r.w, r.h, 14);
+        ctx.fill();
+        ctx.stroke();
+
+        // Antenas do roteador
+        ctx.strokeStyle = "#334155";
+        ctx.lineWidth = 5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(r.x + 36, r.y);
+        ctx.lineTo(r.x + 22, r.y - 34);
+        ctx.moveTo(r.x + r.w - 36, r.y);
+        ctx.lineTo(r.x + r.w - 22, r.y - 34);
+        ctx.stroke();
+
+        // Pontas das antenas
+        ctx.fillStyle = state.won ? "#10b981" : "#ef4444";
+        ctx.beginPath();
+        ctx.arc(r.x + 22, r.y - 35, 4, 0, Math.PI * 2);
+        ctx.arc(r.x + r.w - 22, r.y - 35, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Rótulo do roteador
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "700 11px 'Segoe UI', sans-serif";
+        ctx.fillText("CORE ROUTER X-9000", r.x + 16, r.y + 24);
+
+        // LEDs piscando freneticamente em vermelho (ou verdes na vitória!)
+        for (let i = 0; i < 6; i++) {
+          const lx = r.x + 18 + i * 24;
+          const ly = r.y + 44;
+          const blink = state.won
+            ? true
+            : Math.sin(nowSec * (14 + i * 3.5) + i) > -0.25;
+
+          ctx.fillStyle = state.won
+            ? "#10b981"
+            : blink
+            ? "#ef4444"
+            : "#450a0a";
+          ctx.beginPath();
+          ctx.arc(lx, ly, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          if ((state.won || blink) && !state.draggingCable) {
+            ctx.fillStyle = state.won ? "rgba(16, 185, 129, 0.28)" : "rgba(239, 68, 68, 0.25)";
+            ctx.beginPath();
+            ctx.arc(lx, ly, 9, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Porta de entrada principal do cabo certo
+        const isNearPort =
+          state.draggingCable &&
+          getDistanceToPoint(state.mouse.x, state.mouse.y, r.portX, r.portY) <= 54;
+
+        ctx.fillStyle = "#020617";
+        ctx.strokeStyle = state.won ? "#34d399" : isNearPort ? "#38bdf8" : "#f59e0b";
+        ctx.lineWidth = isNearPort || state.won ? 2.6 : 1.8;
+        ctx.beginPath();
+        ctx.roundRect(r.portX - 10, r.portY - 12, 22, 24, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = state.won ? "#6ee7b7" : "#fbbf24";
+        ctx.font = "700 10px 'Segoe UI', sans-serif";
+        ctx.fillText(state.won ? "ONLINE" : "WAN IN", r.x + 16, r.y + 82);
+
+        ctx.restore();
+      }
+
+      function drawSparks() {
+        for (const p of state.sparks) {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawFlashlightIfStressed(nowSec) {
+        // Quando o estresse passa de 65%, a luz da sala oscila como lanterna no mouse
+        if (!state.running || state.stress < 65 || !state.mouse.inside) return;
+
+        const intensity = Math.min(0.86, ((state.stress - 65) / 35) * 0.86);
+        const flicker = 0.88 + Math.sin(nowSec * 29) * 0.12;
+        const radius = 155 + Math.cos(nowSec * 17) * 18;
+
+        ctx.save();
+        const grad = ctx.createRadialGradient(
+          state.mouse.x,
+          state.mouse.y,
+          28,
+          state.mouse.x,
+          state.mouse.y,
+          radius
+        );
+        grad.addColorStop(0, "rgba(2, 6, 23, 0)");
+        grad.addColorStop(0.65, `rgba(2, 6, 23, ${0.45 * intensity * flicker})`);
+        grad.addColorStop(1, `rgba(2, 6, 23, ${intensity * flicker})`);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, state.width, state.height);
+        ctx.restore();
+      }
+
+      function render(nowSec) {
+        ctx.save();
+        ctx.clearRect(0, 0, state.width, state.height);
+
+        // Tremor de tela por estresse ou erro
+        if (state.shakeIntensity > 0.1) {
+          const sx = (Math.random() * 2 - 1) * state.shakeIntensity;
+          const sy = (Math.random() * 2 - 1) * state.shakeIntensity;
+          ctx.translate(sx, sy);
+        }
+
+        // Grade discreta de fundo de sala de servidores
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.04)";
+        ctx.lineWidth = 1;
+        const gridSize = 48;
+        for (let x = 0; x < state.width; x += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, state.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < state.height; y += gridSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(state.width, y);
+          ctx.stroke();
+        }
+
+        // Desenha cabos não destacados primeiro
+        for (const c of state.cables) {
+          if (c.id !== state.hoveredCableId && state.draggingCable !== c) {
+            drawSingleCable(c, false, nowSec);
+          }
+        }
+
+        // Desenha cabo em hover ou em arraste por cima para boa leitura
+        for (const c of state.cables) {
+          if (c.id === state.hoveredCableId || state.draggingCable === c) {
+            drawSingleCable(c, true, nowSec);
+          }
+        }
+
+        drawRouter(nowSec);
+        drawSparks();
+        drawFlashlightIfStressed(nowSec);
+
+        // Flash de impacto (choque vermelho ou glória verde)
+        if (state.flashAlpha > 0.005) {
+          ctx.fillStyle = state.won
+            ? `rgba(16, 185, 129, ${state.flashAlpha})`
+            : `rgba(239, 68, 68, ${state.flashAlpha})`;
+          ctx.fillRect(0, 0, state.width, state.height);
+        }
+
+        ctx.restore();
+      }
+
+      function loop(nowMs) {
+        const dt = Math.min(0.05, Math.max(0.001, (nowMs - state.lastFrameTime) / 1000));
+        state.lastFrameTime = nowMs;
+        const nowSec = nowMs / 1000;
+
+        update(dt, nowSec);
+        render(nowSec);
+
+        requestAnimationFrame(loop);
+      }
+
+      // Inicialização
+      resizeCanvas();
+      initGame("chaos");
+      state.running = false; // Aguarda o clique em "ENCARAR O EMARANHADO"
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

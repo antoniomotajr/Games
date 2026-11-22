@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Planta Dramática — Simulador de Novela Botânica</title>
+  <style>
+    :root {
+      --bg-top: #1d243b;
+      --bg-bottom: #392b4a;
+      --card-bg: rgba(25, 28, 44, 0.92);
+      --card-border: rgba(255, 255, 255, 0.14);
+      --text-main: #f8f7ff;
+      --text-muted: #b7b5d1;
+      --accent-green: #38d996;
+      --accent-amber: #ffbe3b;
+      --accent-red: #ff4d6d;
+      --accent-sun: #ffd43b;
+      --shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top, #4b3869 0%, var(--bg-top) 48%, #121524 100%);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      overflow-x: hidden;
+    }
+
+    .game-shell {
+      width: 100%;
+      max-width: 560px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-size: clamp(1.25rem, 4vw, 1.65rem);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-group p {
+      margin: 2px 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stats-badges {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 78px;
+    }
+
+    .badge span.label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .badge span.val {
+      font-size: 0.95rem;
+      color: #fff;
+    }
+
+    .hud-bars {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .meter-box {
+      background: rgba(12, 14, 24, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 14px;
+      padding: 9px 11px;
+    }
+
+    .meter-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .meter-track {
+      position: relative;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    /* Zona verde ideal na barra de hidratação (exibida via estilo dinâmico) */
+    .ideal-zone {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(56, 217, 150, 0.34);
+      border-left: 2px solid #38d996;
+      border-right: 2px solid #38d996;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 50%;
+      border-radius: 999px;
+      transition: width 0.08s linear, background-color 0.2s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #232942;
+    }
+
+    canvas#stage {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .speech-bubble {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(88%, 430px);
+      background: #fffdf7;
+      color: #1c192b;
+      border: 3px solid #1c192b;
+      border-radius: 18px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: clamp(0.84rem, 2.7vw, 1rem);
+      line-height: 1.3;
+      text-align: center;
+      box-shadow: 0 8px 0 #1c192b, 0 14px 24px rgba(0, 0, 0, 0.35);
+      z-index: 5;
+      transition: transform 0.14s ease, background-color 0.2s ease;
+    }
+
+    .speech-bubble::after {
+      content: "";
+      position: absolute;
+      bottom: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 13px 11px 0;
+      border-style: solid;
+      border-color: #1c192b transparent transparent;
+    }
+
+    .speech-bubble::before {
+      content: "";
+      position: absolute;
+      bottom: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 10px 8px 0;
+      border-style: solid;
+      border-color: #fffdf7 transparent transparent;
+      z-index: 1;
+    }
+
+    .speech-bubble.mad {
+      background: #ffe3e8;
+      border-color: #9e112c;
+      color: #6b0619;
+      box-shadow: 0 7px 0 #9e112c, 0 14px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .speech-bubble.mad::after {
+      border-top-color: #9e112c;
+    }
+
+    .speech-bubble.mad::before {
+      border-top-color: #ffe3e8;
+    }
+
+    .cloud-alert-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 6;
+      background: linear-gradient(135deg, #ffe066, #ff922b);
+      color: #1d1608;
+      border: 2px solid #1d1608;
+      border-radius: 999px;
+      padding: 8px 13px;
+      font-weight: 800;
+      font-size: 0.82rem;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #1d1608, 0 10px 18px rgba(0, 0, 0, 0.35);
+      display: none;
+      align-items: center;
+      gap: 6px;
+      animation: bounceCloud 0.8s infinite alternate ease-in-out;
+    }
+
+    .cloud-alert-btn.active {
+      display: inline-flex;
+    }
+
+    @keyframes bounceCloud {
+      from { transform: translateY(0) scale(1); }
+      to { transform: translateY(-5px) scale(1.04); }
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    button.action-btn {
+      border: none;
+      border-radius: 16px;
+      padding: 13px 10px;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: clamp(0.84rem, 2.7vw, 0.98rem);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: transform 0.08s ease, filter 0.15s ease;
+      touch-action: manipulation;
+    }
+
+    button.action-btn:active {
+      transform: translateY(3px) scale(0.98);
+    }
+
+    button.action-btn span.sub {
+      font-size: 0.68rem;
+      font-weight: 600;
+      opacity: 0.88;
+    }
+
+    .btn-water {
+      background: linear-gradient(180deg, #3bc9db 0%, #1971c2 100%);
+      color: #fff;
+      box-shadow: 0 5px 0 #0f4478;
+    }
+
+    .btn-praise {
+      background: linear-gradient(180deg, #ff758f 0%, #c9184a 100%);
+      color: #fff;
+      box-shadow: 0 5px 0 #7a092a;
+    }
+
+    .btn-sun {
+      background: linear-gradient(180deg, #ffd43b 0%, #f08c00 100%);
+      color: #1f1606;
+      box-shadow: 0 5px 0 #965600;
+    }
+
+    .footer-tip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .sound-toggle {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 10px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Overlay de Game Over */
+    .gameover-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 13, 24, 0.9);
+      backdrop-filter: blur(6px);
+      z-index: 20;
+      border-radius: 24px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .gameover-overlay.show {
+      display: flex;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .gameover-tag {
+      background: #ff4d6d;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+
+    .gameover-overlay h2 {
+      margin: 0;
+      font-size: clamp(1.4rem, 4.5vw, 1.9rem);
+    }
+
+    .gameover-quote {
+      background: rgba(255, 255, 255, 0.07);
+      border-left: 4px solid #ffbe3b;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-style: italic;
+      color: #fff3bf;
+      max-width: 430px;
+      font-size: 0.95rem;
+    }
+
+    .gameover-summary {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .btn-adopt {
+      margin-top: 6px;
+      background: linear-gradient(180deg, #51cf66 0%, #2b8a3e 100%);
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      padding: 15px 26px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #195726;
+      transition: transform 0.08s ease;
+    }
+
+    .btn-adopt:active {
+      transform: translateY(3px);
+    }
+
+    @media (max-width: 440px) {
+      .hud-bars {
+        grid-template-columns: 1fr;
+      }
+      .controls {
+        gap: 8px;
+      }
+      button.action-btn {
+        padding: 11px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-shell" id="gameShell">
+    <header class="header-top">
+      <div class="title-group">
+        <h1>🌿 Planta Dramática</h1>
+        <p>Uma folha, mil novelas mexicanas na janela do apê</p>
+      </div>
+      <div class="stats-badges">
+        <div class="badge">
+          <span class="label">Dias Vivos</span>
+          <span class="val" id="daysCounter">Dia 1</span>
+        </div>
+        <div class="badge">
+          <span class="label">Recorde</span>
+          <span class="val" id="recordCounter">1d</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="hud-bars" aria-label="Indicadores da planta">
+      <div class="meter-box">
+        <div class="meter-header">
+          <span>💧 Hidratação</span>
+          <span id="hydrationText">65%</span>
+        </div>
+        <div class="meter-track">
+          <div class="ideal-zone" id="idealZone" title="Zona ideal para regar"></div>
+          <div class="meter-fill" id="hydrationFill"></div>
+        </div>
+      </div>
+
+      <div class="meter-box">
+        <div class="meter-header">
+          <span>🎭 Drama / Surto</span>
+          <span id="dramaText">10%</span>
+        </div>
+        <div class="meter-track">
+          <div class="meter-fill" id="dramaFill"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="canvas-wrapper">
+      <div class="speech-bubble" id="speechBubble">
+        Cheguei agora e já estou julgando a decoração da sala.
+      </div>
+
+      <button class="cloud-alert-btn" id="cloudAlertBtn" type="button" title="Nuvem bloqueando o sol!">
+        ☁️ Nuvem! Abrir Cortina
+      </button>
+
+      <canvas id="stage" width="800" height="600"></canvas>
+    </section>
+
+    <section class="controls" aria-label="Ações de cuidado">
+      <button class="action-btn btn-water" id="btnWater" type="button">
+        <span>🚿 Regar</span>
+        <span class="sub">Na faixa verde!</span>
+      </button>
+
+      <button class="action-btn btn-praise" id="btnPraise" type="button">
+        <span>💖 Elogiar</span>
+        <span class="sub">Clique / segure</span>
+      </button>
+
+      <button class="action-btn btn-sun" id="btnSun" type="button">
+        <span>☀️ Abrir Cortina</span>
+        <span class="sub">Banho de sol</span>
+      </button>
+    </section>
+
+    <footer class="footer-tip">
+      <span id="difficultyLabel">Humores da diva: Nível 1 (Calma por 5 segundos)</span>
+      <button class="sound-toggle" id="btnSound" type="button">🔊 Som: Ligado</button>
+    </footer>
+
+    <div class="gameover-overlay" id="gameoverOverlay" role="dialog" aria-modal="true">
+      <div class="gameover-tag">Fim de Temporada</div>
+      <h2 id="gameoverTitle">A Planta Fez as Malas!</h2>
+      <div class="gameover-quote" id="gameoverQuote">
+        "Fui morar com o vizinho que pelo menos conversa comigo em tom de voz suave."
+      </div>
+      <div class="gameover-summary" id="gameoverSummary">
+        Você sobreviveu por 1 dia • Recorde: 1 dia
+      </div>
+      <button class="btn-adopt" id="btnAdopt" type="button">🌱 Adotar Outra Planta</button>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      // =========================================================
+      // 1. SINTETIZADOR DE ÁUDIO (WEB AUDIO API - SEM ARQUIVOS)
+      // =========================================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.enabled = true;
+        }
+
+        ensureContext() {
+          if (!this.enabled) return null;
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume().catch(() => {});
+          }
+          return this.ctx;
+        }
+
+        // Som de água caindo ("shhh" filtrado com ruído branco)
+        playWater() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+
+          const duration = 0.36;
+          const bufferSize = Math.floor(ctx.sampleRate * duration);
+          const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.65));
+          }
+
+          const noise = ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(1400, ctx.currentTime);
+          filter.frequency.exponentialRampToValueAtTime(2600, ctx.currentTime + duration);
+          filter.Q.value = 1.6;
+
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.01, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          noise.start();
+        }
+
+        // Resmungo / reclamação aguda quando a planta fala
+        playGrumble(isAngry = false) {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = isAngry ? "sawtooth" : "triangle";
+          const baseFreq = isAngry ? 290 + Math.random() * 90 : 380 + Math.random() * 140;
+          osc.frequency.setValueAtTime(baseFreq, now);
+          osc.frequency.linearRampToValueAtTime(baseFreq * (isAngry ? 0.72 : 1.18), now + 0.09);
+          osc.frequency.linearRampToValueAtTime(baseFreq * 0.85, now + 0.19);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(isAngry ? 0.11 : 0.08, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.21);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.22);
+        }
+
+        // Brilho / aplausos sintetizados ao acertar o timing perfeito
+        playSuccessChime() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+
+          const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+          notes.forEach((freq, idx) => {
+            const start = ctx.currentTime + idx * 0.065;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, start);
+
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.11, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.24);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.25);
+          });
+
+          // Mini rajada de "palmas" via pulsos curtos filtrados
+          for (let p = 0; p < 5; p++) {
+            const t = ctx.currentTime + 0.05 + p * 0.055;
+            const bufLen = Math.floor(ctx.sampleRate * 0.025);
+            const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+            const ch = buf.getChannelData(0);
+            for (let i = 0; i < bufLen; i++) ch[i] = Math.random() * 2 - 1;
+
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+
+            const hp = ctx.createBiquadFilter();
+            hp.type = "highpass";
+            hp.frequency.value = 1800;
+
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.07, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
+
+            src.connect(hp);
+            hp.connect(g);
+            g.connect(ctx.destination);
+            src.start(t);
+          }
+        }
+
+        // Acorde dramático de órgão / novela mexicana no Game Over
+        playDramaticChord() {
+          const ctx = this.ensureContext();
+          if (!ctx) return;
+
+          // Dó menor com sétima e nona bemol (clima novelesco)
+          const freqs = [130.81, 155.56, 196.0, 233.08, 277.18];
+          const now = ctx.currentTime;
+          const dur = 1.65;
+
+          freqs.forEach((f) => {
+            const osc1 = ctx.createOscillator();
+            const osc2 = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            const gain = ctx.createGain();
+
+            osc1.type = "sawtooth";
+            osc2.type = "triangle";
+            osc1.frequency.setValueAtTime(f, now);
+            osc2.frequency.setValueAtTime(f * 1.004, now); // leve desafinação de órgão
+
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(950, now);
+            filter.frequency.linearRampToValueAtTime(420, now + dur);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.075, now + 0.12);
+            gain.gain.setValueAtTime(0.07, now + dur * 0.65);
+            gain.gain.exponentialRampToValueAtTime(0.0008, now + dur);
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + dur + 0.05);
+            osc2.stop(now + dur + 0.05);
+          });
+        }
+      }
+
+      // =========================================================
+      // 2. FRASES E COMÉDIA DA PLANTA
+      // =========================================================
+      const LINES = {
+        thirsty: [
+          "Você me abandonou! Eu vi tudo!",
+          "É assim que você trata quem faz fotossíntese por você?!",
+          "Estou vendo uma luz no fim do túnel... ah, é só a lâmpada da sala.",
+          "Minha garganta de clorofila está pedindo arredo!",
+          "Se eu desmaiar, a culpa cai no seu CPF."
+        ],
+        overwatered: [
+          "Socorro! Não sou vitória-régia, estou me afogando!",
+          "Quer me transformar em sopa de mato?!",
+          "Tô sentindo brânquias crescendo aqui embaixo!",
+          "Atenção: o vaso virou piscina olímpica sem aviso!"
+        ],
+        praised: [
+          "Hmpf... tá bom, mas só dessa vez.",
+          "Não pense que três gotas d'água compram o meu perdão.",
+          "Você é a folha mais linda da sala! — Repita mais alto, não ouvi.",
+          "Até que você tem bom gosto... às vezes."
+        ],
+        perfectWater: [
+          "Até que enfim fez o mínimo, humano.",
+          "Nossa, que milagre! Anotei na agenda.",
+          "Hum... aceitável. Continue bajulando."
+        ],
+        cloud: [
+          "Cadê o sol?! Você me colocou de castigo numa caverna?!",
+          "Uma nuvem apareceu e você fingiu demência! Abra essa cortina!",
+          "Sem vitamina D eu viro planta de escritório deprê!"
+        ],
+        sunOpened: [
+          "Ah, o astro-rei voltou a me venerar como merece.",
+          "A cortina abriu! Agora sim o elenco principal entrou em cena."
+        ],
+        gameOverQuotes: [
+          "Fui morar com o vizinho que pelo menos rega com carinho e toca música clássica.",
+          "Desliguei a fotossíntese por tempo indeterminado. Procure um cacto.",
+          "Meu advogado vai falar com o seu jardineiro. Passar bem!",
+          "Fui tentar carreira de suculenta em outro apartamento. Adeus, ingrato!",
+          "Morri de drama, mas fui velada com muito glamour na janela da frente."
+        ]
+      };
+
+      const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+      // =========================================================
+      // 3. ESTADO DO JOGO E REFERÊNCIAS DO DOM
+      // =========================================================
+      const STORAGE_KEY = "planta_dramatica_record_dias_v1";
+      const sound = new SoundEngine();
+
+      const dom = {
+        daysCounter: document.getElementById("daysCounter"),
+        recordCounter: document.getElementById("recordCounter"),
+        hydrationText: document.getElementById("hydrationText"),
+        hydrationFill: document.getElementById("hydrationFill"),
+        idealZone: document.getElementById("idealZone"),
+        dramaText: document.getElementById("dramaText"),
+        dramaFill: document.getElementById("dramaFill"),
+        speechBubble: document.getElementById("speechBubble"),
+        cloudAlertBtn: document.getElementById("cloudAlertBtn"),
+        difficultyLabel: document.getElementById("difficultyLabel"),
+        btnWater: document.getElementById("btnWater"),
+        btnPraise: document.getElementById("btnPraise"),
+        btnSun: document.getElementById("btnSun"),
+        btnSound: document.getElementById("btnSound"),
+        gameoverOverlay: document.getElementById("gameoverOverlay"),
+        gameoverTitle: document.getElementById("gameoverTitle"),
+        gameoverQuote: document.getElementById("gameoverQuote"),
+        gameoverSummary: document.getElementById("gameoverSummary"),
+        btnAdopt: document.getElementById("btnAdopt"),
+        canvas: document.getElementById("stage")
+      };
+
+      const ctx = dom.canvas.getContext("2d");
+
+      // Faixa ideal de hidratação (de 35% a 65%)
+      const IDEAL_MIN = 35;
+      const IDEAL_MAX = 65;
+
+      function posicionarZonaIdeal() {
+        dom.idealZone.style.left = `${IDEAL_MIN}%`;
+        dom.idealZone.style.width = `${IDEAL_MAX - IDEAL_MIN}%`;
+      }
+      posicionarZonaIdeal();
+
+      let state = createInitialState();
+
+      function loadRecord() {
+        try {
+          const saved = parseInt(localStorage.getItem(STORAGE_KEY) || "1", 10);
+          return Number.isFinite(saved) && saved > 0 ? saved : 1;
+        } catch {
+          return 1;
+        }
+      }
+
+      function saveRecord(days) {
+        try {
+          localStorage.setItem(STORAGE_KEY, String(days));
+        } catch {
+          // Ignora bloqueio de storage em modo privado restrito
+        }
+      }
+
+      function createInitialState() {
+        return {
+          running: true,
+          hydration: 55,         // 0 a 100
+          drama: 12,             // 0 a 100
+          day: 1,
+          record: loadRecord(),
+          dayTimer: 0,           // cada 7.5s = 1 dia passa
+          time: 0,
+          cloudActive: false,
+          cloudTimer: 0,
+          nextCloudIn: 7.5,
+          curtainOpen: 1,        // 0 = fechada/sombra, 1 = aberta/sol
+          praiseHolding: false,
+          praiseTickTimer: 0,
+          speechTimer: 4.0,
+          lastThirstyAlert: 0,
+          waterDrops: [],
+          sparkles: [],
+          puffs: [],
+          screenShake: 0,
+          mood: "happy"          // "happy" | "thirsty" | "tantrum"
+        };
+      }
+
+      function setSpeech(text, isMad = false, duration = 3.2, silent = false) {
+        dom.speechBubble.textContent = text;
+        dom.speechBubble.classList.toggle("mad", isMad);
+        dom.speechBubble.style.transform = "translateX(-50%) scale(1.04)";
+        setTimeout(() => {
+          dom.speechBubble.style.transform = "translateX(-50%) scale(1)";
+        }, 120);
+        state.speechTimer = duration;
+
+        if (!silent && state.running) {
+          sound.playGrumble(isMad);
+        }
+      }
+
+      function spawnWaterDrops() {
+        for (let i = 0; i < 22; i++) {
+          state.waterDrops.push({
+            x: 340 + Math.random() * 120,
+            y: 120 + Math.random() * 70,
+            vx: (Math.random() - 0.5) * 90,
+            vy: 140 + Math.random() * 180,
+            r: 3 + Math.random() * 3.5,
+            alpha: 1
+          });
+        }
+      }
+
+      function spawnSparkles(x = 400, y = 260, count = 16) {
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+          const speed = 60 + Math.random() * 130;
+          state.sparkles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 40,
+            life: 0.7 + Math.random() * 0.4,
+            maxLife: 1.0,
+            color: i % 2 === 0 ? "#ffd43b" : "#38d996"
+          });
+        }
+      }
+
+      function spawnSmokePuff() {
+        state.puffs.push({
+          x: 400 + (Math.random() - 0.5) * 70,
+          y: 230 + (Math.random() - 0.5) * 30,
+          vx: (Math.random() - 0.5) * 35,
+          vy: -45 - Math.random() * 35,
+          r: 8 + Math.random() * 8,
+          life: 0.9,
+          maxLife: 0.9
+        });
+      }
+
+      // =========================================================
+      // 4. AÇÕES DO JOGADOR
+      // =========================================================
+      function handleWater() {
+        if (!state.running) return;
+        sound.playWater();
+        spawnWaterDrops();
+
+        // Dificuldade sobe com os dias
+        const level = state.day;
+
+        if (state.hydration >= IDEAL_MIN && state.hydration <= IDEAL_MAX) {
+          // Acertou na faixa verde!
+          state.hydration = Math.min(100, state.hydration + 22);
+          state.drama = Math.max(0, state.drama - 14);
+          sound.playSuccessChime();
+          spawnSparkles(400, 250, 18);
+          setSpeech(pickRandom(LINES.perfectWater), false, 3.0, true);
+        } else if (state.hydration > IDEAL_MAX) {
+          // Regou cedo demais (já estava com água suficiente/alta)
+          state.hydration = Math.min(100, state.hydration + 16);
+          const dramaGain = Math.min(28, 13 + level * 2);
+          state.drama = Math.min(100, state.drama + dramaGain);
+          state.screenShake = 8;
+          spawnSmokePuff();
+          setSpeech(pickRandom(LINES.overwatered), true, 3.2);
+        } else {
+          // Regou atrasado (abaixo da zona verde, mas ainda não morreu de sede)
+          state.hydration = Math.min(100, state.hydration + 26);
+          state.drama = Math.min(100, state.drama + 6);
+          setSpeech("Quase que eu viro passatempo de arqueólogo! Mas ok, desceu bem.", false, 2.8);
+        }
+      }
+
+      function applyPraiseStep(isInitialClick = false) {
+        if (!state.running) return;
+        const relief = isInitialClick ? 7.5 : 3.4;
+        state.drama = Math.max(0, state.drama - relief);
+        spawnSparkles(400 + (Math.random() - 0.5) * 90, 240, isInitialClick ? 8 : 3);
+
+        if (isInitialClick) {
+          setSpeech(pickRandom(LINES.praised), state.drama > 65, 2.5);
+        }
+      }
+
+      function handleOpenCurtain() {
+        if (!state.running) return;
+        state.curtainOpen = 1;
+        if (state.cloudActive) {
+          state.cloudActive = false;
+          state.nextCloudIn = Math.max(5.5, 11 - state.day * 0.6);
+          dom.cloudAlertBtn.classList.remove("active");
+          state.drama = Math.max(0, state.drama - 10);
+          sound.playSuccessChime();
+          spawnSparkles(640, 130, 14);
+          setSpeech(pickRandom(LINES.sunOpened), false, 2.8, true);
+        } else {
+          setSpeech("A cortina já tá aberta, diretor! Quer que eu faça pose?", false, 2.2);
+        }
+      }
+
+      function triggerGameOver(reason) {
+        if (!state.running) return;
+        state.running = false;
+        dom.cloudAlertBtn.classList.remove("active");
+        sound.playDramaticChord();
+
+        if (reason === "drama") {
+          dom.gameoverTitle.textContent = "Surto Nível Novela Mexicana!";
+          setSpeech("CHEGOU AO LIMITE! Tchau, drama queen saiu de cena!", true, 99, true);
+        } else {
+          dom.gameoverTitle.textContent = "Secou de Pura Carência!";
+          setSpeech("Desidratei de tanta mágoa... *suspiro teatral*", true, 99, true);
+        }
+
+        dom.gameoverQuote.textContent = `"${pickRandom(LINES.gameOverQuotes)}"`;
+        dom.gameoverSummary.textContent = `Você sobreviveu por ${state.day} ${state.day === 1 ? "dia" : "dias"} • Recorde: ${state.record} ${state.record === 1 ? "dia" : "dias"}`;
+        dom.gameoverOverlay.classList.add("show");
+      }
+
+      function restartGame() {
+        state = createInitialState();
+        dom.gameoverOverlay.classList.remove("show");
+        dom.cloudAlertBtn.classList.remove("active");
+        setSpeech("Nova adoção! Vamos ver se você dura mais que a anterior.", false, 3.5);
+        updateHud();
+      }
+
+      // =========================================================
+      // 5. LOOP DE ATUALIZAÇÃO (DT) E HUD
+      // =========================================================
+      function update(dt) {
+        state.time += dt;
+
+        if (state.screenShake > 0) {
+          state.screenShake = Math.max(0, state.screenShake - dt * 28);
+        }
+
+        // Atualiza partículas mesmo após game over para suavidade
+        for (let i = state.waterDrops.length - 1; i >= 0; i--) {
+          const d = state.waterDrops[i];
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          d.vy += 320 * dt;
+          d.alpha -= dt * 1.4;
+          if (d.alpha <= 0 || d.y > 520) state.waterDrops.splice(i, 1);
+        }
+
+        for (let i = state.sparkles.length - 1; i >= 0; i--) {
+          const s = state.sparkles[i];
+          s.x += s.vx * dt;
+          s.y += s.vy * dt;
+          s.life -= dt;
+          if (s.life <= 0) state.sparkles.splice(i, 1);
+        }
+
+        for (let i = state.puffs.length - 1; i >= 0; i--) {
+          const p = state.puffs[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.r += 16 * dt;
+          p.life -= dt;
+          if (p.life <= 0) state.puffs.splice(i, 1);
+        }
+
+        if (!state.running) return;
+
+        // Progressão dos dias (a cada 7.5s avança 1 dia)
+        state.dayTimer += dt;
+        if (state.dayTimer >= 7.5) {
+          state.dayTimer -= 7.5;
+          state.day += 1;
+          if (state.day > state.record) {
+            state.record = state.day;
+            saveRecord(state.record);
+          }
+          spawnSparkles(400, 180, 12);
+          setSpeech(`Dia ${state.day}! Estou ainda mais exigente que ontem.`, state.drama > 50, 3.0);
+        }
+
+        // Dificuldade escala suavemente com os dias
+        const diffFactor = 1 + (state.day - 1) * 0.16;
+
+        // Evaporação da água (desce continuamente)
+        const drainRate = 5.4 * diffFactor;
+        state.hydration = Math.max(0, state.hydration - drainRate * dt);
+
+        // Elogiar segurando o botão
+        if (state.praiseHolding) {
+          state.praiseTickTimer += dt;
+          if (state.praiseTickTimer >= 0.16) {
+            state.praiseTickTimer = 0;
+            applyPraiseStep(false);
+          }
+        }
+
+        // Evento de nuvem bloqueando o sol
+        if (!state.cloudActive) {
+          state.nextCloudIn -= dt;
+          if (state.nextCloudIn <= 0) {
+            state.cloudActive = true;
+            state.cloudTimer = 0;
+            state.curtainOpen = 0.25;
+            dom.cloudAlertBtn.classList.add("active");
+            setSpeech(pickRandom(LINES.cloud), true, 3.4);
+          }
+        } else {
+          state.cloudTimer += dt;
+          // Nuvem não atendida aumenta o drama
+          state.drama = Math.min(100, state.drama + 4.5 * diffFactor * dt);
+        }
+
+        // Subida do drama quando água está baixa ou muito encharcada
+        if (state.hydration < 25) {
+          state.drama = Math.min(100, state.drama + 5.8 * diffFactor * dt);
+          state.lastThirstyAlert -= dt;
+          if (state.lastThirstyAlert <= 0) {
+            state.lastThirstyAlert = 4.6;
+            setSpeech(pickRandom(LINES.thirsty), true, 3.2);
+          }
+        } else if (state.hydration > 82) {
+          state.drama = Math.min(100, state.drama + 3.2 * diffFactor * dt);
+        } else {
+          // Pequeno respiro natural quando tudo está razoável e sem nuvem
+          if (!state.cloudActive && state.drama > 5) {
+            state.drama = Math.max(0, state.drama - 1.1 * dt);
+          }
+        }
+
+        // Fumacinha quando está surtando
+        if (state.drama >= 65 && Math.random() < dt * 4.5) {
+          spawnSmokePuff();
+        }
+
+        // Define humor visual
+        if (state.drama >= 65) {
+          state.mood = "tantrum";
+        } else if (state.hydration < 30 || state.cloudActive) {
+          state.mood = "thirsty";
+        } else {
+          state.mood = "happy";
+        }
+
+        // Retorno de fala padrão quando o balão expira
+        state.speechTimer -= dt;
+        if (state.speechTimer <= 0) {
+          if (state.mood === "tantrum") {
+            setSpeech("EU TÔ FERVIDO DE DRAMA! Cadê meus elogios?!", true, 2.8);
+          } else if (state.mood === "thirsty") {
+            setSpeech(pickRandom(LINES.thirsty), true, 3.0);
+          } else {
+            const idlePhrases = [
+              "Observando você de cima da minha elegância botânica.",
+              "A água tá descendo... não pisque.",
+              "Que dia lindo para eu exigir atenção."
+            ];
+            setSpeech(pickRandom(idlePhrases), false, 3.4, true);
+          }
+        }
+
+        // Condições de Game Over
+        if (state.drama >= 100) {
+          triggerGameOver("drama");
+          return;
+        }
+        if (state.hydration <= 0) {
+          triggerGameOver("dehydrated");
+          return;
+        }
+
+        updateHud();
+      }
+
+      function updateHud() {
+        const hyd = Math.round(state.hydration);
+        const drm = Math.round(state.drama);
+
+        dom.daysCounter.textContent = `Dia ${state.day}`;
+        dom.recordCounter.textContent = `${state.record}d`;
+
+        dom.hydrationText.textContent = `${hyd}%`;
+        dom.hydrationFill.style.width = `${hyd}%`;
+
+        if (hyd >= IDEAL_MIN && hyd <= IDEAL_MAX) {
+          dom.hydrationFill.style.background = "linear-gradient(90deg, #20c997, #51cf66)";
+        } else if (hyd > IDEAL_MAX) {
+          dom.hydrationFill.style.background = "linear-gradient(90deg, #339af0, #1c7ed6)";
+        } else {
+          dom.hydrationFill.style.background = "linear-gradient(90deg, #ff6b6b, #fcc419)";
+        }
+
+        dom.dramaText.textContent = `${drm}%`;
+        dom.dramaFill.style.width = `${drm}%`;
+        if (drm < 40) {
+          dom.dramaFill.style.background = "linear-gradient(90deg, #ffd43b, #ffa94d)";
+        } else if (drm < 70) {
+          dom.dramaFill.style.background = "linear-gradient(90deg, #ff922b, #f03e3e)";
+        } else {
+          dom.dramaFill.style.background = "linear-gradient(90deg, #f03e3e, #c92a2a)";
+        }
+
+        const safeSecs = Math.max(2.2, (5.5 / (1 + (state.day - 1) * 0.14))).toFixed(1);
+        dom.difficultyLabel.textContent = `Nível ${state.day} • Evaporação & surtos ativos (fôlego ~${safeSecs}s)`;
+      }
+
+      // =========================================================
+      // 6. RENDERIZAÇÃO NO CANVAS (APARTAMENTO, JANELA, VASO E PLANTA)
+      // =========================================================
+      function drawScene() {
+        const w = dom.canvas.width;
+        const h = dom.canvas.height;
+
+        ctx.save();
+        if (state.screenShake > 0) {
+          const sx = (Math.random() - 0.5) * state.screenShake;
+          const sy = (Math.random() - 0.5) * state.screenShake;
+          ctx.translate(sx, sy);
+        }
+
+        // Parede do apartamento
+        const wallGrad = ctx.createLinearGradient(0, 0, 0, h);
+        wallGrad.addColorStop(0, "#3d355c");
+        wallGrad.addColorStop(0.75, "#2b2542");
+        wallGrad.addColorStop(0.75, "#221d36");
+        wallGrad.addColorStop(1, "#181426");
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Janela ao fundo
+        const winX = 475;
+        const winY = 95;
+        const winW = 245;
+        const winH = 265;
+
+        // Céu através da janela
+        const skyGrad = ctx.createLinearGradient(winX, winY, winX, winY + winH);
+        if (state.cloudActive) {
+          skyGrad.addColorStop(0, "#5c677d");
+          skyGrad.addColorStop(1, "#979dac");
+        } else {
+          skyGrad.addColorStop(0, "#4dabf7");
+          skyGrad.addColorStop(1, "#d0ebff");
+        }
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(winX, winY, winW, winH);
+
+        // Sol ou nuvem dramática na janela
+        if (!state.cloudActive) {
+          ctx.save();
+          ctx.fillStyle = "#ffd43b";
+          ctx.beginPath();
+          ctx.arc(winX + 185, winY + 65, 34, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          drawCloud(winX + 135, winY + 85, 1.05);
+        }
+
+        // Raio de luz suave quando a cortina está aberta e sem nuvem
+        if (!state.cloudActive && state.curtainOpen > 0.5) {
+          ctx.save();
+          const sunBeam = ctx.createLinearGradient(winX, winY, 360, 500);
+          sunBeam.addColorStop(0, "rgba(255, 236, 153, 0.24)");
+          sunBeam.addColorStop(1, "rgba(255, 236, 153, 0.0)");
+          ctx.fillStyle = sunBeam;
+          ctx.beginPath();
+          ctx.moveTo(winX + 40, winY + 20);
+          ctx.lineTo(winX + winW - 20, winY + 20);
+          ctx.lineTo(520, 500);
+          ctx.lineTo(250, 500);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Moldura e caixilhos da janela
+        ctx.strokeStyle = "#f1f3f5";
+        ctx.lineWidth = 10;
+        ctx.strokeRect(winX, winY, winW, winH);
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(winX + winW / 2, winY);
+        ctx.lineTo(winX + winW / 2, winY + winH);
+        ctx.moveTo(winX, winY + winH / 2);
+        ctx.lineTo(winX + winW, winY + winH / 2);
+        ctx.stroke();
+
+        // Cortinas laterais (abrem ou fecham conforme state.curtainOpen)
+        const closedWidth = 88;
+        const openWidth = 34;
+        const curWidth = openWidth + (closedWidth - openWidth) * (1 - state.curtainOpen);
+
+        ctx.fillStyle = "#e03131";
+        ctx.fillRect(winX - 10, winY - 12, curWidth, winH + 22);
+        ctx.fillRect(winX + winW + 10 - curWidth, winY - 12, curWidth, winH + 22);
+
+        // Varão da cortina
+        ctx.fillStyle = "#fcc419";
+        ctx.fillRect(winX - 24, winY - 18, winW + 48, 8);
+
+        // Parapeito / bancada onde o vaso fica
+        ctx.fillStyle = "#5c3c24";
+        ctx.fillRect(190, 445, 420, 22);
+        ctx.fillStyle = "#3b2516";
+        ctx.fillRect(205, 467, 390, 10);
+
+        // Desenha a planta expressiva
+        drawPlant(400, 445);
+
+        // Partículas de água, brilhos e fumaça
+        for (const d of state.waterDrops) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, d.alpha);
+          ctx.fillStyle = "#66d9e8";
+          ctx.beginPath();
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        for (const s of state.sparkles) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, s.life / s.maxLife);
+          ctx.fillStyle = s.color;
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y - 7);
+          ctx.lineTo(s.x + 3, s.y - 2);
+          ctx.lineTo(s.x + 8, s.y);
+          ctx.lineTo(s.x + 3, s.y + 2);
+          ctx.lineTo(s.x, s.y + 7);
+          ctx.lineTo(s.x - 3, s.y + 2);
+          ctx.lineTo(s.x - 8, s.y);
+          ctx.lineTo(s.x - 3, s.y - 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        for (const p of state.puffs) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, (p.life / p.maxLife) * 0.55);
+          ctx.fillStyle = "#dee2e6";
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawCloud(cx, cy, scale = 1) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#f1f3f5";
+        ctx.beginPath();
+        ctx.arc(-22, 4, 18, 0, Math.PI * 2);
+        ctx.arc(0, -6, 24, 0, Math.PI * 2);
+        ctx.arc(24, 2, 19, 0, Math.PI * 2);
+        ctx.arc(4, 10, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawPlant(baseX, baseY) {
+        ctx.save();
+
+        // Tremor quando surtando
+        let shakeX = 0;
+        if (state.mood === "tantrum" && state.running) {
+          shakeX = Math.sin(state.time * 48) * (4 + state.drama * 0.05);
+        }
+
+        // Inclinação de murcha quando com sede ou game over
+        let droopAngle = 0;
+        if (!state.running) {
+          droopAngle = 0.45;
+        } else if (state.mood === "thirsty") {
+          droopAngle = 0.24 + Math.sin(state.time * 2) * 0.03;
+        } else if (state.mood === "happy") {
+          droopAngle = -0.03 + Math.sin(state.time * 3) * 0.025;
+        }
+
+        ctx.translate(baseX + shakeX, baseY);
+
+        // Cor da folhagem conforme o humor
+        let leafMain = "#37b24d";
+        let leafDark = "#2b8a3e";
+        if (state.mood === "tantrum") {
+          leafMain = "#e03131"; // rosto/folhagem avermelhada de raiva!
+          leafDark = "#a61e1e";
+        } else if (state.mood === "thirsty") {
+          leafMain = "#82c91e";
+          leafDark = "#5c940d";
+        } else if (!state.running) {
+          leafMain = "#868e96";
+          leafDark = "#495057";
+        }
+
+        // Folhas-braços (esquerda e direita)
+        const armWave = state.mood === "happy"
+          ? Math.sin(state.time * 5.2) * 0.18
+          : state.mood === "tantrum"
+          ? Math.sin(state.time * 24) * 0.22
+          : droopAngle;
+
+        // Braço esquerdo
+        ctx.save();
+        ctx.translate(-26, -135);
+        ctx.rotate(-0.55 + armWave + droopAngle * 0.6);
+        drawLeafShape(0, 0, 78, 28, leafMain, leafDark);
+        ctx.restore();
+
+        // Braço direito
+        ctx.save();
+        ctx.translate(26, -135);
+        ctx.rotate(0.55 - armWave - droopAngle * 0.6);
+        ctx.scale(-1, 1);
+        drawLeafShape(0, 0, 78, 28, leafMain, leafDark);
+        ctx.restore();
+
+        // Folhas superiores (coroa teatral)
+        ctx.save();
+        ctx.translate(0, -165);
+        ctx.rotate(droopAngle * 0.75);
+
+        // Folha central alta
+        ctx.save();
+        ctx.rotate(Math.sin(state.time * 2.5) * 0.05);
+        drawLeafShape(-14, -52, 66, 26, leafMain, leafDark);
+        ctx.restore();
+
+        // Folha diagonal esquerda
+        ctx.save();
+        ctx.translate(-12, -10);
+        ctx.rotate(-0.85 + droopAngle * 0.5);
+        drawLeafShape(0, 0, 70, 24, leafDark, leafMain);
+        ctx.restore();
+
+        // Folha diagonal direita
+        ctx.save();
+        ctx.translate(12, -10);
+        ctx.rotate(0.85 - droopAngle * 0.5);
+        ctx.scale(-1, 1);
+        drawLeafShape(0, 0, 70, 24, leafDark, leafMain);
+        ctx.restore();
+
+        // Corpo/cabeça expressiva da planta
+        ctx.fillStyle = leafMain;
+        ctx.strokeStyle = "#141726";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 56, 48, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Olhos grandes e sobrancelhas dramáticas
+        const eyeY = -12;
+        const leftEyeX = -20;
+        const rightEyeX = 20;
+
+        if (!state.running) {
+          // Olhos em "X" dramáticos de novela
+          drawDeadEye(leftEyeX, eyeY);
+          drawDeadEye(rightEyeX, eyeY);
+        } else {
+          // Olhos brancos grandes
+          const eyeScaleY = state.mood === "thirsty" ? 0.52 : 1.0; // semicerrados de julgamento
+
+          [-20, 20].forEach((ex) => {
+            ctx.save();
+            ctx.translate(ex, eyeY);
+            ctx.scale(1, eyeScaleY);
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(0, 0, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#141726";
+            ctx.stroke();
+
+            // Pupila olhando na direção do drama/julgamento
+            const px = state.mood === "thirsty" ? 4 : Math.sin(state.time * 2) * 2.5;
+            const py = state.mood === "tantrum" ? 1 : 0;
+            ctx.fillStyle = "#141726";
+            ctx.beginPath();
+            ctx.arc(px, py, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Brilho do olho
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(px - 2, py - 2, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          });
+
+          // Sobrancelhas expressivas
+          ctx.strokeStyle = "#141726";
+          ctx.lineWidth = 4.5;
+          ctx.lineCap = "round";
+
+          if (state.mood === "tantrum") {
+            // Sobrancelhas em "V" de raiva absoluta
+            ctx.beginPath();
+            ctx.moveTo(-34, eyeY - 22);
+            ctx.lineTo(-9, eyeY - 12);
+            ctx.moveTo(34, eyeY - 22);
+            ctx.lineTo(9, eyeY - 12);
+            ctx.stroke();
+          } else if (state.mood === "thirsty") {
+            // Sobrancelhas julgadoras / tristes inclinadas
+            ctx.beginPath();
+            ctx.moveTo(-33, eyeY - 11);
+            ctx.lineTo(-8, eyeY - 17);
+            ctx.moveTo(33, eyeY - 11);
+            ctx.lineTo(8, eyeY - 17);
+            ctx.stroke();
+          } else {
+            // Sobrancelhas arqueadas charmosas
+            ctx.beginPath();
+            ctx.arc(-20, eyeY - 14, 12, Math.PI * 1.15, Math.PI * 1.85);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(20, eyeY - 14, 12, Math.PI * 1.15, Math.PI * 1.85);
+            ctx.stroke();
+          }
+        }
+
+        // Boca dramática
+        ctx.strokeStyle = "#141726";
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = "round";
+        if (!state.running) {
+          // Boca trêmula de derrota
+          ctx.beginPath();
+          ctx.arc(0, 22, 11, Math.PI * 1.1, Math.PI * 1.9);
+          ctx.stroke();
+        } else if (state.mood === "tantrum") {
+          // Boca gritando
+          ctx.fillStyle = "#5c0918";
+          ctx.beginPath();
+          ctx.ellipse(0, 18, 15, 11, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        } else if (state.mood === "thirsty") {
+          // Bico emburrado
+          ctx.beginPath();
+          ctx.moveTo(-11, 17);
+          ctx.quadraticCurveTo(0, 11, 11, 17);
+          ctx.stroke();
+        } else {
+          // Sorrisinho convencido
+          ctx.beginPath();
+          ctx.arc(0, 12, 13, 0.15 * Math.PI, 0.85 * Math.PI);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+
+        // Caule
+        ctx.strokeStyle = leafDark;
+        ctx.lineWidth = 14;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(0, -76);
+        ctx.quadraticCurveTo(droopAngle * 45, -120, droopAngle * 25, -162);
+        ctx.stroke();
+
+        // Vaso colorido com faixas decorativas
+        const potGrad = ctx.createLinearGradient(-65, -80, 65, 0);
+        potGrad.addColorStop(0, "#ff758f");
+        potGrad.addColorStop(1, "#c9184a");
+
+        ctx.fillStyle = potGrad;
+        ctx.strokeStyle = "#141726";
+        ctx.lineWidth = 4;
+
+        ctx.beginPath();
+        ctx.moveTo(-54, -72);
+        ctx.lineTo(54, -72);
+        ctx.lineTo(40, 0);
+        ctx.lineTo(-40, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Borda superior do vaso
+        ctx.fillStyle = "#ffd43b";
+        ctx.beginPath();
+        ctx.roundRect(-62, -84, 124, 16, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Coraçãozinho / detalhe no vaso
+        ctx.fillStyle = "#fff3bf";
+        ctx.beginPath();
+        ctx.arc(0, -36, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Plaquinha teatral se perdeu o jogo
+        if (!state.running) {
+          ctx.save();
+          ctx.translate(0, -28);
+          ctx.rotate(-0.06);
+          ctx.fillStyle = "#fffdf7";
+          ctx.strokeStyle = "#141726";
+          ctx.lineWidth = 3;
+          ctx.fillRect(-95, -16, 190, 32);
+          ctx.strokeRect(-95, -16, 190, 32);
+          ctx.fillStyle = "#141726";
+          ctx.font = "bold 13px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("Fui morar com o vizinho", 0, 0);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawLeafShape(x, y, length, width, fillColor, veinColor) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = fillColor;
+        ctx.strokeStyle = "#141726";
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(length * 0.45, -width, length, 0);
+        ctx.quadraticCurveTo(length * 0.45, width, 0, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Nervura central da folha
+        ctx.strokeStyle = veinColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(4, 0);
+        ctx.lineTo(length * 0.82, 0);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function drawDeadEye(x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-8, -8);
+        ctx.lineTo(8, 8);
+        ctx.moveTo(8, -8);
+        ctx.lineTo(-8, 8);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // =========================================================
+      // 7. EVENTOS DE CONTROLE E LOOP PRINCIPAL
+      // =========================================================
+      dom.btnWater.addEventListener("click", handleWater);
+
+      dom.btnPraise.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        state.praiseHolding = true;
+        state.praiseTickTimer = 0;
+        applyPraiseStep(true);
+      });
+
+      const stopPraise = () => {
+        state.praiseHolding = false;
+      };
+      window.addEventListener("pointerup", stopPraise);
+      window.addEventListener("pointercancel", stopPraise);
+
+      dom.btnSun.addEventListener("click", handleOpenCurtain);
+      dom.cloudAlertBtn.addEventListener("click", handleOpenCurtain);
+
+      dom.btnSound.addEventListener("click", () => {
+        sound.enabled = !sound.enabled;
+        dom.btnSound.textContent = sound.enabled ? "🔊 Som: Ligado" : "🔇 Som: Mudo";
+        if (sound.enabled) sound.ensureContext();
+      });
+
+      dom.btnAdopt.addEventListener("click", restartGame);
+
+      // Atalhos de teclado opcionais para desktop (1, 2, 3 ou Espaço)
+      window.addEventListener("keydown", (e) => {
+        if (e.repeat) return;
+        if (e.key === "1" || e.code === "Space") {
+          if (state.running) {
+            e.preventDefault();
+            handleWater();
+          }
+        } else if (e.key === "2") {
+          state.praiseHolding = true;
+          applyPraiseStep(true);
+        } else if (e.key === "3") {
+          handleOpenCurtain();
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        if (e.key === "2") {
+          state.praiseHolding = false;
+        }
+      });
+
+      let lastTimestamp = performance.now();
+      function loop(now) {
+        const dt = Math.min(0.05, (now - lastTimestamp) / 1000);
+        lastTimestamp = now;
+
+        update(dt);
+        drawScene();
+
+        requestAnimationFrame(loop);
+      }
+
+      updateHud();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

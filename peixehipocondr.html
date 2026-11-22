@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aquário Hipocondríaco - Simulador de Peixe Dramático</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&display=swap');
+
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        h1, h2, h3, .font-heading {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Aquatic background gradient */
+        .bg-aquatic {
+            background: linear-gradient(135deg, #09203f 0%, #537895 100%);
+        }
+
+        /* Glassmorphism containers */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Comic speech bubble styling */
+        .speech-bubble {
+            position: relative;
+            background: #ffffff;
+            border-radius: 1rem;
+            color: #1e293b;
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease-in-out;
+        }
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: #ffffff transparent;
+            display: block;
+            width: 0;
+        }
+
+        /* Pulsing drama animation */
+        @keyframes panicPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.01); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        }
+        .panic-border {
+            animation: panicPulse 1.2s infinite;
+        }
+
+        /* Dynamic flexible canvas wrapper */
+        #canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.25rem;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.2);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            background: #0284c7;
+        }
+
+        #aquariumCanvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Death Certificate Stamp */
+        .stamp-dramatic {
+            transform: rotate(-12deg);
+            border: 3px double #dc2626;
+            color: #dc2626;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.4rem;
+            animation: stampIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes stampIn {
+            0% { transform: scale(3) rotate(-30deg); opacity: 0; }
+            100% { transform: scale(1) rotate(-12deg); opacity: 1; }
+        }
+
+        .bar-fill {
+            transition: width 0.3s ease-out, background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-aquatic text-slate-100 flex flex-col justify-between items-center p-2 sm:p-3 h-screen h-[100dvh] box-border">
+
+    <!-- Top Header (Compact) -->
+    <header class="w-full max-w-3xl flex justify-between items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl sm:text-3xl">🐠</span>
+            <div>
+                <h1 class="text-lg sm:text-2xl font-bold tracking-wide text-amber-300 leading-none">Aquário Hipocondríaco</h1>
+                <p class="text-[10px] sm:text-xs text-slate-300">Mantenha seu peixe dramático vivo!</p>
+            </div>
+        </div>
+
+        <!-- Days & High Score Badges -->
+        <div class="flex items-center gap-2 glass-panel px-3 py-1 rounded-xl">
+            <div class="text-center border-r border-white/20 pr-2.5">
+                <span class="block text-[9px] uppercase font-bold text-slate-300 leading-none">Sobreviveu</span>
+                <span id="days-counter" class="text-sm sm:text-base font-black text-emerald-400 leading-tight">Dia 1</span>
+            </div>
+            <div class="text-center pr-1.5">
+                <span class="block text-[9px] uppercase font-bold text-slate-300 leading-none">Recorde</span>
+                <span id="record-counter" class="text-sm sm:text-base font-black text-amber-400 leading-tight">0 Dias</span>
+            </div>
+            <button id="btn-sound" class="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition text-sm" title="Alternar Som">
+                🔊
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container (Fills Available Screen Space) -->
+    <main class="w-full max-w-3xl flex-1 flex flex-col justify-between items-center gap-1.5 sm:gap-2 my-1 min-h-0">
+        
+        <!-- Status Bars (Compact Grid) -->
+        <div class="w-full glass-card p-2 rounded-xl shadow-lg border border-white/10 shrink-0">
+            <!-- Drama Bar -->
+            <div class="mb-1.5">
+                <div class="flex justify-between text-xs font-bold mb-0.5">
+                    <span class="flex items-center gap-1 text-red-400">
+                        <span class="animate-bounce">⚡</span> Drama & Hipocondria
+                    </span>
+                    <span id="drama-val" class="text-red-300">20%</span>
+                </div>
+                <div class="w-full bg-slate-950/60 rounded-full h-2.5 p-0.5 border border-red-900/40">
+                    <div id="drama-bar" class="bar-fill bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 h-full rounded-full" style="width: 20%;"></div>
+                </div>
+            </div>
+
+            <!-- Fome & Carência Side-by-Side -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-bold">
+                <div>
+                    <div class="flex justify-between mb-0.5">
+                        <span class="text-amber-400">🍞 Fome</span>
+                        <span id="fome-val" class="text-amber-300">80%</span>
+                    </div>
+                    <div class="w-full bg-slate-950/60 rounded-full h-2 p-0.5 border border-amber-900/40">
+                        <div id="fome-bar" class="bar-fill bg-amber-500 h-full rounded-full" style="width: 80%;"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between mb-0.5">
+                        <span class="text-pink-400">❤️ Carência</span>
+                        <span id="carencia-val" class="text-pink-300">70%</span>
+                    </div>
+                    <div class="w-full bg-slate-950/60 rounded-full h-2 p-0.5 border border-pink-900/40">
+                        <div id="carencia-bar" class="bar-fill bg-pink-500 h-full rounded-full" style="width: 70%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Surto Alert Banner (Compact) -->
+        <div id="surto-banner" class="hidden w-full bg-red-600/95 border border-red-400 text-white py-1 px-3 rounded-xl shadow-md flex items-center justify-between panic-border shrink-0">
+            <div class="flex items-center gap-1.5">
+                <span class="text-sm animate-spin">🚨</span>
+                <span class="text-[10px] uppercase font-black text-red-200 tracking-wider">Surto:</span>
+                <span id="surto-title" class="font-bold text-xs sm:text-sm truncate">"Alergia à Água H2O"</span>
+            </div>
+            <span class="text-[10px] bg-black/40 px-2 py-0.5 rounded text-red-200 font-bold shrink-0">DRAMA ALTO!</span>
+        </div>
+
+        <!-- Flexible Aquarium Canvas Stage -->
+        <div id="canvas-wrapper" class="flex-1 min-h-0">
+            <canvas id="aquariumCanvas" width="800" height="420" class="cursor-pointer" title="Clique no vidro para fazer carinho!"></canvas>
+
+            <!-- Floating Speech Bubble Overlay -->
+            <div id="speech-container" class="absolute top-2 left-1/2 -translate-x-1/2 w-[92%] max-w-sm pointer-events-none transition-all duration-300">
+                <div class="speech-bubble p-2 sm:p-2.5 text-center">
+                    <p id="speech-text" class="text-xs font-bold leading-tight text-slate-800">
+                        "Estou sentindo uma trepidação estranha na barbatana... Acho que é o fim!"
+                    </p>
+                </div>
+            </div>
+
+            <!-- Toast Floating Message -->
+            <div id="toast-msg" class="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none transition-all duration-300 bg-slate-900/90 text-amber-300 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-400/40 shadow-lg">
+                -25% Drama!
+            </div>
+        </div>
+
+        <!-- Interactive Action Buttons (Compact Bottom Bar) -->
+        <div class="w-full grid grid-cols-4 gap-1.5 sm:gap-2 shrink-0">
+            <button id="btn-placebo" class="group bg-gradient-to-b from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 active:scale-95 text-white py-2 px-1 rounded-xl shadow-md border border-blue-300/40 flex flex-col items-center justify-center transition">
+                <span class="text-lg sm:text-xl group-hover:scale-110 transition-transform">💊</span>
+                <span class="font-bold text-[11px] sm:text-xs leading-none mt-0.5">Placebo</span>
+                <span class="text-[9px] text-blue-200 font-medium hidden sm:block">Açúcar</span>
+            </button>
+
+            <button id="btn-food" class="group bg-gradient-to-b from-amber-500 to-amber-700 hover:from-amber-400 hover:to-amber-600 active:scale-95 text-white py-2 px-1 rounded-xl shadow-md border border-amber-300/40 flex flex-col items-center justify-center transition">
+                <span class="text-lg sm:text-xl group-hover:scale-110 transition-transform">🍤</span>
+                <span class="font-bold text-[11px] sm:text-xs leading-none mt-0.5">Ração</span>
+                <span class="text-[9px] text-amber-200 font-medium hidden sm:block">Gourmet</span>
+            </button>
+
+            <button id="btn-pet" class="group bg-gradient-to-b from-pink-500 to-pink-700 hover:from-pink-400 hover:to-pink-600 active:scale-95 text-white py-2 px-1 rounded-xl shadow-md border border-pink-300/40 flex flex-col items-center justify-center transition">
+                <span class="text-lg sm:text-xl group-hover:scale-110 transition-transform">👋</span>
+                <span class="font-bold text-[11px] sm:text-xs leading-none mt-0.5">Carinho</span>
+                <span class="text-[9px] text-pink-200 font-medium hidden sm:block">Vidro</span>
+            </button>
+
+            <button id="btn-google" class="group bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 active:scale-95 text-white py-2 px-1 rounded-xl shadow-md border border-purple-300/40 flex flex-col items-center justify-center transition">
+                <span class="text-lg sm:text-xl group-hover:scale-110 transition-transform">🔍</span>
+                <span class="font-bold text-[11px] sm:text-xs leading-none mt-0.5">Google</span>
+                <span class="text-[9px] text-purple-200 font-medium hidden sm:block">Risco (50%)</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Game Over Modal -->
+    <div id="gameover-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 z-50 opacity-0 pointer-events-none transition-opacity duration-500">
+        <div class="glass-card max-w-sm w-full p-4 rounded-2xl border-2 border-red-500/40 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -right-8 -bottom-8 text-8xl opacity-10 pointer-events-none">☠️</div>
+
+            <div class="mb-2">
+                <span class="stamp-dramatic text-xs sm:text-sm">FALECIMENTO DRAMÁTICO</span>
+            </div>
+
+            <h2 class="text-xl sm:text-2xl font-black text-red-400 mb-0.5 font-heading">SEU PEIXE "DESMAIOU"!</h2>
+            <p class="text-[11px] text-slate-300 mb-3">Ele sucumbiu ao próprio pânico e drama existencial.</p>
+
+            <div class="bg-slate-900/90 border border-slate-700 p-3 rounded-xl text-left space-y-2 mb-4 shadow-inner">
+                <div class="border-b border-slate-800 pb-1.5">
+                    <span class="text-[9px] uppercase text-slate-400 font-bold block">Nome do Paciente</span>
+                    <span class="font-bold text-amber-300 text-xs">Gubgub, o Peixe Hipocondríaco</span>
+                </div>
+                <div class="border-b border-slate-800 pb-1.5">
+                    <span class="text-[9px] uppercase text-slate-400 font-bold block">Causa do Falecimento</span>
+                    <span id="death-cause" class="font-bold text-red-300 text-xs sm:text-sm">"Leu uma bula de remédio e entrou em parada cardíaca imaginária."</span>
+                </div>
+                <div class="flex justify-between items-center pt-0.5 text-[11px]">
+                    <div>
+                        <span class="text-slate-400">Resistiu:</span>
+                        <span id="final-days" class="font-bold text-emerald-400 ml-1">3 Dias</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Recorde:</span>
+                        <span id="final-record" class="font-bold text-amber-400 ml-1">5 Dias</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-restart" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-extrabold py-2.5 px-4 rounded-xl shadow-lg border border-emerald-300/40 transition text-sm">
+                🔄 Tentar Acalmar Outro Peixe
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Game Code -->
+    <script>
+        /* ===================================================================
+           AQUÁRIO HIPOCONDRÍACO - GAME LOGIC & RENDERING
+           =================================================================== */
+
+        // --- Sound Engine (Web Audio API) ---
+        class AudioController {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playBubbleSound() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(550, now + 0.12);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            }
+
+            playMedicineSound() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            playAlarmSound() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                [0, 0.15, 0.3].forEach((delay) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(delay % 0.3 === 0 ? 880 : 660, now + delay);
+
+                    gain.gain.setValueAtTime(0.15, now + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.1);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now + delay);
+                    osc.stop(now + delay + 0.1);
+                });
+            }
+
+            playTapSound() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            playGameOverMusic() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                const notes = [293.66, 349.23, 440.00, 587.33, 554.37];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + (idx * 0.18));
+
+                    gain.gain.setValueAtTime(0.25, now + (idx * 0.18));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (idx * 0.18) + 0.6);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now + (idx * 0.18));
+                    osc.stop(now + (idx * 0.18) + 0.6);
+                });
+            }
+        }
+
+        const audio = new AudioController();
+
+        // --- Dialogues & Text Collections ---
+        const DIALOGUES = {
+            surtos: [
+                "Acho que peguei gripe... peixe pega gripe?!",
+                "Socorro! Estou sentindo minha pele molhada!",
+                "Nadei para a esquerda e deu uma pontada na brânquia!",
+                "Acho que sou gravemente alérgico a oxigênio...",
+                "Minha nadadeira direita tá 0.5 milímetros menor!",
+                "Estou sentindo uma tontura hidrodinâmica assustadora!",
+                "A água tá muito líquida hoje! Não consigo respirar!",
+                "Sinto uma dor aguda no meu orgulho aquático..."
+            ],
+            placebo: [
+                "Esse comprimido tem gosto de açúcar... Acha que sou palhaço?!",
+                "Tenho certeza que esse remédio é Placebo de Marte!",
+                "Senti um efeito colateral imediato! Minha visão ficou azul!",
+                "Hmph... tomara que essa pílula não dê pedra nos rins.",
+                "Engoli a pílula, mas ela entalou no meu estômago emocional!"
+            ],
+            food: [
+                "Essa ração tem glúten? Sinto minha barriga inchar!",
+                "Você quer me envenenar com ração vencida, né?",
+                "Ração de novo?! Cadê o caviar orgânico certificado?",
+                "Mastiguei um grão torto e quase quebrei o dente!",
+                "Essa comida tá com gosto de plástico subaquático..."
+            ],
+            petting: [
+                "Ah, carinho... pera, VOCÊ VAI QUEBRAR O VIDRO! SOCORRO!",
+                "Cuidado com o vidro! Quer me dar um ataque cardíaco?!",
+                "Você tá batendo no vidro ou tentando invadir meu espaço?!",
+                "Ai! A vibração do toque desregulou minha bexiga natatória!",
+                "Se você quebrar esse aquário, eu morro em 3 segundos!"
+            ],
+            spamPetting: [
+                "PARE DE BATER NO VIDRO! O AQUÁRIO VAI EXPLODIR!",
+                "SOCORRO! UM TSUNAMI DE TOQUES! MINHAS ESCAMAS!",
+                "CHEGA! Meu coração de peixe não aguenta esse ritmo!"
+            ],
+            googleWin: [
+                "Ufa! O PeixeGoogle disse que isso é só excesso de gostosura.",
+                "Ah, lendo aqui... era só refluxo de bolhas. Ufa!",
+                "O PeixeGoogle confirmou: sou apenas lindo e incompreendido."
+            ],
+            googleLoss: [
+                "SOCORRO! O PeixeGoogle disse que nadar torto é FIM DOS TEMPOS!",
+                "ACABEI DE LER QUE MINHA ESCAMA FOSCA É CÂNCER DE CORAL GRAVE!",
+                "O PeixeGoogle disse que me restam apenas 3 minutos de vida!"
+            ],
+            idle: [
+                "Estou me sentindo 1% mais fraco a cada segundo...",
+                "Será que a temperatura da água subiu 0.1 graus?",
+                "Sinto que uma bolha vai estourar perto de mim...",
+                "Acho que estou com amnésia... quem é você mesmo?",
+                "Glub... glub... isso foi um espirro ou uma bolha?"
+            ]
+        };
+
+        const SURTO_EVENTS = [
+            { title: "Calafrio Aquático Severo", rate: 1.5 },
+            { title: "Alergia Gravíssima à Água H2O", rate: 2.0 },
+            { title: "Escama Encravada Mortal", rate: 1.6 },
+            { title: "Torcicolo na Nadadeira Dorsal", rate: 1.4 },
+            { title: "Síndrome do Peixe Ansioso", rate: 1.8 },
+            { title: "Enxaqueca de Bolha Aguda", rate: 1.5 },
+            { title: "Arritmia no Rabo Dourado", rate: 1.7 }
+        ];
+
+        const DEATH_CAUSES = [
+            "Leu uma bula de remédio no PeixeGoogle e entrou em pânico cardíaco.",
+            "Achou que a água do aquário estava 'molhada demais' e desmaiou.",
+            "Nadei de ré, sentiu uma fisgada na brânquia e entregou os pontos.",
+            "Confundiu uma bolha de sabão com um asteroide subaquático.",
+            "Faleceu de desgosto após descobrir que a ração não era orgânica.",
+            "Teve um surto dramático e esqueceu como se usa a bexiga natatória."
+        ];
+
+        // --- Game State ---
+        const state = {
+            drama: 20,       // 0 to 100
+            fome: 80,        // 100 to 0
+            carencia: 70,    // 100 to 0
+            days: 1,
+            ticks: 0,
+            highScore: parseInt(localStorage.getItem('aquario_recorde')) || 1,
+            activeSurto: null,
+            isGameOver: false,
+            lastPetTime: 0,
+            petSpamCount: 0
+        };
+
+        // --- DOM Elements ---
+        const dramaBar = document.getElementById('drama-bar');
+        const dramaVal = document.getElementById('drama-val');
+        const fomeBar = document.getElementById('fome-bar');
+        const fomeVal = document.getElementById('fome-val');
+        const carenciaBar = document.getElementById('carencia-bar');
+        const carenciaVal = document.getElementById('carencia-val');
+
+        const daysCounter = document.getElementById('days-counter');
+        const recordCounter = document.getElementById('record-counter');
+
+        const speechContainer = document.getElementById('speech-container');
+        const speechText = document.getElementById('speech-text');
+        const toastMsg = document.getElementById('toast-msg');
+
+        const surtoBanner = document.getElementById('surto-banner');
+        const surtoTitle = document.getElementById('surto-title');
+
+        const gameoverModal = document.getElementById('gameover-modal');
+        const deathCause = document.getElementById('death-cause');
+        const finalDays = document.getElementById('final-days');
+        const finalRecord = document.getElementById('final-record');
+
+        const canvas = document.getElementById('aquariumCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Speech Helper ---
+        function setSpeech(text) {
+            speechText.innerText = `"${text}"`;
+            speechContainer.style.transform = 'translate(-50%, -4px) scale(1.03)';
+            setTimeout(() => {
+                speechContainer.style.transform = 'translate(-50%, 0) scale(1)';
+            }, 200);
+        }
+
+        function showToast(text, colorClass = 'text-amber-300') {
+            toastMsg.innerText = text;
+            toastMsg.className = `absolute bottom-3 left-1/2 -translate-x-1/2 opacity-100 pointer-events-none transition-all duration-300 bg-slate-900/90 ${colorClass} font-extrabold px-3 py-1 rounded-full text-xs border border-white/20 shadow-lg -translate-y-2`;
+            setTimeout(() => {
+                toastMsg.classList.add('opacity-0', 'translate-y-0');
+                toastMsg.classList.remove('opacity-100', '-translate-y-2');
+            }, 1400);
+        }
+
+        // --- Canvas Graphics Engine ---
+        class AquariumRenderer {
+            constructor(canvas, ctx) {
+                this.canvas = canvas;
+                this.ctx = ctx;
+
+                this.fishX = 400;
+                this.fishY = 210;
+                this.targetX = 400;
+                this.targetY = 210;
+                this.swimCycle = 0;
+
+                this.bubbles = [];
+                for(let i = 0; i < 22; i++) {
+                    this.bubbles.push({
+                        x: Math.random() * 800,
+                        y: Math.random() * 420,
+                        r: Math.random() * 4 + 2,
+                        speed: Math.random() * 1.2 + 0.5,
+                        wobble: Math.random() * Math.PI * 2
+                    });
+                }
+
+                this.seaweeds = [
+                    { x: 90, height: 150, baseAngle: 0 },
+                    { x: 130, height: 190, baseAngle: 1 },
+                    { x: 670, height: 170, baseAngle: 2 },
+                    { x: 720, height: 210, baseAngle: 3 }
+                ];
+            }
+
+            update() {
+                this.swimCycle += 0.08;
+
+                if (!state.isGameOver) {
+                    if (Math.random() < 0.02) {
+                        this.targetX = 250 + Math.random() * 300;
+                        this.targetY = 140 + Math.random() * 150;
+                    }
+
+                    let shiverX = 0;
+                    let shiverY = 0;
+                    if (state.drama > 60 || state.activeSurto) {
+                        shiverX = (Math.random() - 0.5) * 4;
+                        shiverY = (Math.random() - 0.5) * 4;
+                    }
+
+                    this.fishX += (this.targetX - this.fishX) * 0.03 + shiverX;
+                    this.fishY += (this.targetY - this.fishY) * 0.03 + shiverY;
+                } else {
+                    this.targetY = 80;
+                    this.fishY += (this.targetY - this.fishY) * 0.04;
+                }
+
+                this.bubbles.forEach(b => {
+                    b.y -= b.speed;
+                    b.wobble += 0.05;
+                    b.x += Math.sin(b.wobble) * 0.4;
+                    if (b.y < -10) {
+                        b.y = 430;
+                        b.x = Math.random() * 800;
+                    }
+                });
+            }
+
+            draw() {
+                const w = this.canvas.width;
+                const h = this.canvas.height;
+
+                // 1. Water Gradient
+                const waterGrad = this.ctx.createLinearGradient(0, 0, 0, h);
+                waterGrad.addColorStop(0, '#0284c7');
+                waterGrad.addColorStop(0.5, '#0369a1');
+                waterGrad.addColorStop(1, '#0c4a6e');
+                this.ctx.fillStyle = waterGrad;
+                this.ctx.fillRect(0, 0, w, h);
+
+                // 2. Sun Rays
+                this.ctx.save();
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.beginPath();
+                this.ctx.moveTo(150, 0);
+                this.ctx.lineTo(280, 0);
+                this.ctx.lineTo(450, h);
+                this.ctx.lineTo(250, h);
+                this.ctx.fill();
+                this.ctx.restore();
+
+                // 3. Sand Bottom
+                const sandGrad = this.ctx.createLinearGradient(0, h - 45, 0, h);
+                sandGrad.addColorStop(0, '#d97706');
+                sandGrad.addColorStop(1, '#78350f');
+                this.ctx.fillStyle = sandGrad;
+                this.ctx.beginPath();
+                this.ctx.ellipse(w / 2, h - 10, w / 2 + 20, 45, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 4. Seaweed
+                this.seaweeds.forEach(s => {
+                    this.ctx.save();
+                    this.ctx.strokeStyle = '#15803d';
+                    this.ctx.lineWidth = 12;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(s.x, h - 20);
+                    const sway = Math.sin(this.swimCycle + s.baseAngle) * 20;
+                    this.ctx.quadraticCurveTo(s.x + sway, h - (s.height / 2), s.x + (sway * 1.2), h - s.height);
+                    this.ctx.stroke();
+                    this.ctx.restore();
+                });
+
+                // 5. Decorative Castle
+                this.drawCastle(690, 340);
+
+                // 6. Bubbles
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                this.ctx.lineWidth = 1.2;
+                this.bubbles.forEach(b => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.stroke();
+                });
+
+                // 7. Goldfish
+                this.drawFish();
+            }
+
+            drawCastle(x, y) {
+                this.ctx.save();
+                this.ctx.fillStyle = '#475569';
+                this.ctx.fillRect(x - 35, y - 45, 70, 55);
+                this.ctx.fillRect(x - 40, y - 80, 22, 35);
+                this.ctx.fillRect(x + 18, y - 80, 22, 35);
+
+                this.ctx.fillStyle = '#dc2626';
+                this.ctx.beginPath();
+                this.ctx.moveTo(x - 40, y - 80);
+                this.ctx.lineTo(x - 29, y - 102);
+                this.ctx.lineTo(x - 18, y - 80);
+                this.ctx.fill();
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(x + 18, y - 80);
+                this.ctx.lineTo(x + 29, y - 102);
+                this.ctx.lineTo(x + 40, y - 80);
+                this.ctx.fill();
+
+                this.ctx.fillStyle = '#0f172a';
+                this.ctx.beginPath();
+                this.ctx.arc(x, y + 10, 13, Math.PI, 0);
+                this.ctx.fill();
+                this.ctx.restore();
+            }
+
+            drawFish() {
+                const fx = this.fishX;
+                const fy = this.fishY;
+                const isDead = state.isGameOver;
+
+                this.ctx.save();
+                this.ctx.translate(fx, fy);
+
+                if (isDead) {
+                    this.ctx.rotate(Math.PI);
+                }
+
+                const tailWag = Math.sin(this.swimCycle * 2) * 10;
+
+                // Tail Fin
+                this.ctx.fillStyle = '#f97316';
+                this.ctx.beginPath();
+                this.ctx.moveTo(-40, 0);
+                this.ctx.quadraticCurveTo(-68, -25 + tailWag, -72, -35 + tailWag);
+                this.ctx.quadraticCurveTo(-58, 0, -72, 35 + tailWag);
+                this.ctx.quadraticCurveTo(-68, 25 + tailWag, -40, 0);
+                this.ctx.fill();
+
+                // Pectoral Fin
+                this.ctx.fillStyle = '#ea580c';
+                this.ctx.beginPath();
+                this.ctx.ellipse(-4, 16, 14, 7, Math.PI / 4 + Math.sin(this.swimCycle) * 0.2, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Body
+                const bodyGrad = this.ctx.createRadialGradient(-8, -8, 4, 0, 0, 45);
+                bodyGrad.addColorStop(0, '#fbbf24');
+                bodyGrad.addColorStop(0.7, '#f97316');
+                bodyGrad.addColorStop(1, '#ea580c');
+                this.ctx.fillStyle = bodyGrad;
+                this.ctx.beginPath();
+                this.ctx.ellipse(0, 0, 50, 38, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Belly highlight
+                this.ctx.fillStyle = 'rgba(254, 240, 138, 0.4)';
+                this.ctx.beginPath();
+                this.ctx.ellipse(4, 10, 30, 18, 0, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // Eye Expression
+                if (!isDead) {
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(20, -8, 13, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#0f172a';
+                    this.ctx.beginPath();
+                    if (state.drama > 60 || state.activeSurto) {
+                        this.ctx.arc(22, -8, 4, 0, Math.PI * 2);
+                    } else {
+                        this.ctx.arc(22, -8, 7.5, 0, Math.PI * 2);
+                    }
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(24, -11, 2.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Eyebrow
+                    this.ctx.strokeStyle = '#7c2d12';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.lineCap = 'round';
+                    this.ctx.beginPath();
+                    if (state.drama > 50 || state.activeSurto) {
+                        this.ctx.moveTo(9, -23);
+                        this.ctx.lineTo(29, -17);
+                    } else {
+                        this.ctx.moveTo(10, -21);
+                        this.ctx.quadraticCurveTo(19, -25, 29, -19);
+                    }
+                    this.ctx.stroke();
+
+                    // Mouth
+                    this.ctx.strokeStyle = '#9a3412';
+                    this.ctx.lineWidth = 2.5;
+                    this.ctx.beginPath();
+                    if (state.drama > 70) {
+                        this.ctx.arc(40, 4, 5.5, 0, Math.PI * 2);
+                    } else {
+                        this.ctx.arc(40, 7, 6, Math.PI * 1.2, Math.PI * 1.8);
+                    }
+                    this.ctx.stroke();
+
+                    if (state.drama > 60) {
+                        this.ctx.fillStyle = '#38bdf8';
+                        this.ctx.beginPath();
+                        this.ctx.arc(0, -30, 3.5, 0, Math.PI * 2);
+                        this.ctx.arc(-12, -26, 2.5, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                } else {
+                    // Peeking eye on game over
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.beginPath();
+                    this.ctx.arc(20, -8, 13, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#ea580c';
+                    this.ctx.beginPath();
+                    this.ctx.arc(20, -8, 14, Math.PI * 1.1, Math.PI * 1.9);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#0f172a';
+                    this.ctx.beginPath();
+                    this.ctx.arc(22, -4, 4.5, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = '#f43f5e';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(40, 6, 6, 3.5, 0.4, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+
+                // Accessories
+                if (state.activeSurto && !isDead) {
+                    this.ctx.fillStyle = '#38bdf8';
+                    this.ctx.beginPath();
+                    this.ctx.ellipse(4, -32, 12, 9, 0, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#0284c7';
+                    this.ctx.stroke();
+
+                    this.ctx.fillStyle = '#fef08a';
+                    this.ctx.fillRect(-2, -27, 12, 5);
+                } else if (state.drama > 40 && !isDead) {
+                    this.ctx.save();
+                    this.ctx.translate(38, 5);
+                    this.ctx.rotate(-0.3);
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.fillRect(0, -2.5, 22, 5);
+                    this.ctx.fillStyle = '#ef4444';
+                    this.ctx.fillRect(0, -1.5, 7, 3);
+                    this.ctx.restore();
+                }
+
+                this.ctx.restore();
+            }
+        }
+
+        const renderer = new AquariumRenderer(canvas, ctx);
+
+        // --- Game Logic Engine ---
+        function updateUI() {
+            dramaBar.style.width = `${state.drama}%`;
+            dramaVal.innerText = `${Math.round(state.drama)}%`;
+
+            fomeBar.style.width = `${state.fome}%`;
+            fomeVal.innerText = `${Math.round(state.fome)}%`;
+
+            carenciaBar.style.width = `${state.carencia}%`;
+            carenciaVal.innerText = `${Math.round(state.carencia)}%`;
+
+            daysCounter.innerText = `Dia ${state.days}`;
+            recordCounter.innerText = `${state.highScore} Dias`;
+
+            if (state.activeSurto) {
+                surtoBanner.classList.remove('hidden');
+                surtoTitle.innerText = `"${state.activeSurto.title}"`;
+            } else {
+                surtoBanner.classList.add('hidden');
+            }
+        }
+
+        function triggerSurto() {
+            if (state.isGameOver || state.activeSurto) return;
+
+            const randomSurto = SURTO_EVENTS[Math.floor(Math.random() * SURTO_EVENTS.length)];
+            state.activeSurto = randomSurto;
+
+            audio.playAlarmSound();
+            const dialogue = DIALOGUES.surtos[Math.floor(Math.random() * DIALOGUES.surtos.length)];
+            setSpeech(dialogue);
+            updateUI();
+        }
+
+        function checkGameOver() {
+            if (state.isGameOver) return;
+
+            let cause = null;
+            if (state.drama >= 100) {
+                cause = DEATH_CAUSES[Math.floor(Math.random() * DEATH_CAUSES.length)];
+            } else if (state.fome <= 0) {
+                cause = "Faleceu de fome imaginária enquanto reclamava que a ração não era gourmet.";
+            }
+
+            if (cause) {
+                state.isGameOver = true;
+                if (state.days > state.highScore) {
+                    state.highScore = state.days;
+                    localStorage.setItem('aquario_recorde', state.highScore);
+                }
+
+                audio.playGameOverMusic();
+                deathCause.innerText = `"${cause}"`;
+                finalDays.innerText = `${state.days} Dias`;
+                finalRecord.innerText = `${state.highScore} Dias`;
+
+                gameoverModal.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        }
+
+        function gameTick() {
+            if (state.isGameOver) return;
+
+            state.ticks++;
+
+            if (state.ticks % 12 === 0) {
+                state.days++;
+                showToast(`🎉 Sobreviveu ao Dia ${state.days}!`, 'text-emerald-300');
+            }
+
+            let dramaIncrease = 1.2;
+            if (state.activeSurto) dramaIncrease += state.activeSurto.rate;
+            if (state.carencia < 30) dramaIncrease += 1.0;
+
+            state.drama = Math.min(100, state.drama + dramaIncrease);
+            state.fome = Math.max(0, state.fome - 1.5);
+            state.carencia = Math.max(0, state.carencia - 1.8);
+
+            if (!state.activeSurto && Math.random() < 0.15) {
+                triggerSurto();
+            }
+
+            if (Math.random() < 0.2 && !state.activeSurto) {
+                const text = DIALOGUES.idle[Math.floor(Math.random() * DIALOGUES.idle.length)];
+                setSpeech(text);
+            }
+
+            updateUI();
+            checkGameOver();
+        }
+
+        // --- Action Handlers ---
+        document.getElementById('btn-placebo').addEventListener('click', () => {
+            if (state.isGameOver) return;
+            audio.playMedicineSound();
+
+            state.drama = Math.max(0, state.drama - 25);
+            if (state.activeSurto) {
+                state.activeSurto = null;
+                showToast('💊 Surto Acalmado com Placebo!', 'text-blue-300');
+            } else {
+                showToast('-25% Drama (Pílula de Açúcar)', 'text-blue-300');
+            }
+
+            const dialogue = DIALOGUES.placebo[Math.floor(Math.random() * DIALOGUES.placebo.length)];
+            setSpeech(dialogue);
+            updateUI();
+        });
+
+        document.getElementById('btn-food').addEventListener('click', () => {
+            if (state.isGameOver) return;
+            audio.playBubbleSound();
+
+            state.fome = Math.min(100, state.fome + 35);
+            showToast('+35% Fome (Ração Gourmet)', 'text-amber-300');
+
+            const dialogue = DIALOGUES.food[Math.floor(Math.random() * DIALOGUES.food.length)];
+            setSpeech(dialogue);
+            updateUI();
+        });
+
+        function handlePetting() {
+            if (state.isGameOver) return;
+            audio.playTapSound();
+
+            const now = Date.now();
+            if (now - state.lastPetTime < 350) {
+                state.petSpamCount++;
+            } else {
+                state.petSpamCount = 0;
+            }
+            state.lastPetTime = now;
+
+            if (state.petSpamCount > 3) {
+                state.drama = Math.min(100, state.drama + 15);
+                showToast('⚠️ Cuidado! Drama +15% (Toques Rápidos)', 'text-red-300');
+                const dialogue = DIALOGUES.spamPetting[Math.floor(Math.random() * DIALOGUES.spamPetting.length)];
+                setSpeech(dialogue);
+            } else {
+                state.carencia = Math.min(100, state.carencia + 25);
+                state.drama = Math.max(0, state.drama - 5);
+                showToast('+25% Carência (Carinho no Vidro)', 'text-pink-300');
+                const dialogue = DIALOGUES.petting[Math.floor(Math.random() * DIALOGUES.petting.length)];
+                setSpeech(dialogue);
+            }
+
+            updateUI();
+            checkGameOver();
+        }
+
+        document.getElementById('btn-pet').addEventListener('click', handlePetting);
+        canvas.addEventListener('click', handlePetting);
+
+        document.getElementById('btn-google').addEventListener('click', () => {
+            if (state.isGameOver) return;
+            audio.playBubbleSound();
+
+            const isSuccess = Math.random() < 0.5;
+            if (isSuccess) {
+                state.drama = Math.max(0, state.drama - 35);
+                if (state.activeSurto) state.activeSurto = null;
+                showToast('🔍 PeixeGoogle: Diagnóstico Tranquilizante!', 'text-emerald-300');
+                const dialogue = DIALOGUES.googleWin[Math.floor(Math.random() * DIALOGUES.googleWin.length)];
+                setSpeech(dialogue);
+            } else {
+                state.drama = Math.min(100, state.drama + 35);
+                showToast('🚨 PeixeGoogle: DIAGNÓSTICO APOCALÍPTICO!', 'text-red-400');
+                const dialogue = DIALOGUES.googleLoss[Math.floor(Math.random() * DIALOGUES.googleLoss.length)];
+                setSpeech(dialogue);
+            }
+
+            updateUI();
+            checkGameOver();
+        });
+
+        document.getElementById('btn-sound').addEventListener('click', (e) => {
+            audio.muted = !audio.muted;
+            e.currentTarget.innerText = audio.muted ? '🔇' : '🔊';
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            state.drama = 20;
+            state.fome = 80;
+            state.carencia = 70;
+            state.days = 1;
+            state.ticks = 0;
+            state.activeSurto = null;
+            state.isGameOver = false;
+
+            renderer.fishX = 400;
+            renderer.fishY = 210;
+
+            gameoverModal.classList.add('opacity-0', 'pointer-events-none');
+            setSpeech("Estou vivo de novo... Mas sinto um aperto no peito!");
+            updateUI();
+        });
+
+        function mainLoop() {
+            renderer.update();
+            renderer.draw();
+            requestAnimationFrame(mainLoop);
+        }
+
+        window.addEventListener('load', () => {
+            updateUI();
+            mainLoop();
+            setInterval(gameTick, 1000);
+        });
+    </script>
+</body>
+</html>

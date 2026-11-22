@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sapo Engolidor - Jogo Casual</title>
+    <!-- Tailwind CSS para UI elegante e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fonte Google Inter & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            background: #0f172a;
+            overflow: hidden;
+        }
+
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+
+        /* Animações e efeitos visuais */
+        @keyframes pulse-glow {
+            0%, 100% { filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.8)); transform: scale(1); }
+            50% { filter: drop-shadow(0 0 22px rgba(250, 204, 21, 1)); transform: scale(1.05); }
+        }
+
+        .animate-glow {
+            animation: pulse-glow 1.5s infinite ease-in-out;
+        }
+
+        @keyframes float-gentle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .animate-float {
+            animation: float-gentle 3s ease-in-out infinite;
+        }
+
+        /* Canvas com borda e sombra cartoon */
+        #gameCanvas {
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.1);
+            background: #1a0b2e;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-center p-2 sm:p-4 text-white relative">
+
+    <!-- Container Principal do Jogo -->
+    <div class="relative w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- BARRA SUPERIOR DE HUD / STATUS -->
+        <div class="w-full bg-slate-900/90 backdrop-blur-md rounded-2xl p-3 sm:p-4 mb-3 flex items-center justify-between border border-slate-700/60 shadow-xl z-10">
+            <!-- Título & Ícone -->
+            <div class="flex items-center gap-2">
+                <div class="text-3xl sm:text-4xl leading-none animate-bounce">🐸</div>
+                <div>
+                    <h1 class="font-game text-xl sm:text-2xl text-amber-400 tracking-wide leading-tight">SAPO ENGOLIDOR</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Engula moscas, evite a indigestão!</p>
+                </div>
+            </div>
+
+            <!-- Vidas (Estômagos/Corações) -->
+            <div class="flex items-center gap-1 sm:gap-2 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                <span class="text-xs text-slate-400 font-bold mr-1 hidden xs:inline">ESTÔMAGO:</span>
+                <div id="livesContainer" class="flex gap-1 text-xl sm:text-2xl">
+                    <span class="life-icon transition-all duration-300">💚</span>
+                    <span class="life-icon transition-all duration-300">💚</span>
+                    <span class="life-icon transition-all duration-300">💚</span>
+                </div>
+            </div>
+
+            <!-- Pontuação & Recorde -->
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <div class="text-xs text-slate-400 font-bold">PONTOS</div>
+                    <div id="scoreText" class="font-game text-2xl sm:text-3xl text-green-400 leading-none">0</div>
+                </div>
+                <div class="text-right border-l border-slate-700 pl-4">
+                    <div class="text-xs text-slate-400 font-bold">RECORDE</div>
+                    <div id="highScoreText" class="font-game text-xl sm:text-2xl text-amber-300 leading-none">0</div>
+                </div>
+            </div>
+
+            <!-- Botão de Som Mute/Unmute -->
+            <button id="soundBtn" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 flex items-center justify-center text-slate-200 transition">
+                <i id="soundIcon" class="fas fa-volume-up text-lg"></i>
+            </button>
+        </div>
+
+        <!-- CANVAS DE JOGO -->
+        <div class="relative w-full aspect-[4/3] max-h-[70vh] rounded-2xl overflow-hidden shadow-2xl">
+            <canvas id="gameCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+            <!-- Overlay de Instruções (Antes de Iniciar) -->
+            <div id="startOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center z-20 transition-opacity duration-300">
+                <div class="text-6xl sm:text-7xl mb-3 animate-float">🐸</div>
+                <h2 class="font-game text-3xl sm:text-5xl text-amber-400 mb-2 drop-shadow-lg">SAPO ENGOLIDOR</h2>
+                <p class="text-slate-300 text-sm sm:text-base max-w-md mb-6 leading-relaxed">
+                    Ajude o sapo esfomeado a comer <span class="text-green-400 font-bold">moscas</span> e <span class="text-yellow-300 font-bold">besouros</span>! 
+                    Mas <span class="text-red-400 font-bold">CUIDADO</span>: feche a boca para celulares, sapatos, tijolos e meias chulé!
+                </p>
+                
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 text-xs sm:text-sm text-slate-300 mb-6 flex items-center gap-4">
+                    <span class="flex items-center gap-1"><i class="fas fa-mouse text-amber-400"></i> Clique</span>
+                    <span class="flex items-center gap-1"><i class="fas fa-hand-pointer text-amber-400"></i> Toque</span>
+                    <span class="flex items-center gap-1"><i class="fas fa-keyboard text-amber-400"></i> Espaço</span>
+                    <span>= Lançar Língua</span>
+                </div>
+
+                <button id="startBtn" class="font-game text-xl sm:text-2xl px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white rounded-2xl shadow-lg hover:shadow-green-500/40 active:scale-95 transition-all transform flex items-center gap-3">
+                    <i class="fas fa-play"></i> JOGAR AGORA
+                </button>
+            </div>
+
+            <!-- Overlay de Game Over -->
+            <div id="gameOverOverlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 hidden">
+                <div class="text-6xl sm:text-7xl mb-2">😵‍💫🤢</div>
+                <h2 class="font-game text-4xl sm:text-5xl text-red-500 mb-1 drop-shadow-md">INDIGESTÃO TOTAL!</h2>
+                <p id="diagnosisText" class="text-amber-200 text-sm sm:text-base italic max-w-md mb-4 bg-red-950/50 p-3 rounded-xl border border-red-800/60">
+                    "Diagnóstico: obstrução intestinal por excesso de burrice."
+                </p>
+
+                <div class="flex gap-6 mb-6">
+                    <div class="bg-slate-900/90 px-5 py-3 rounded-xl border border-slate-700">
+                        <div class="text-xs text-slate-400">PONTUAÇÃO FINAL</div>
+                        <div id="finalScore" class="font-game text-3xl text-green-400">0</div>
+                    </div>
+                    <div class="bg-slate-900/90 px-5 py-3 rounded-xl border border-slate-700">
+                        <div class="text-xs text-slate-400">MELHOR RECORDE</div>
+                        <div id="finalHighScore" class="font-game text-3xl text-amber-300">0</div>
+                    </div>
+                </div>
+
+                <button id="restartBtn" class="font-game text-xl sm:text-2xl px-8 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl shadow-lg hover:shadow-orange-500/40 active:scale-95 transition-all transform flex items-center gap-3">
+                    <i class="fas fa-redo"></i> JOGAR NOVAMENTE
+                </button>
+            </div>
+        </div>
+
+        <!-- Rodapé com dica -->
+        <div class="mt-3 text-slate-400 text-xs flex justify-between w-full px-2">
+            <span>Dica: Mantenha combos engolindo insetos seguidos!</span>
+            <span>Sapo Engolidor v1.0</span>
+        </div>
+    </div>
+
+    <!-- CÓDIGO DO JOGO (VANILLA JS) -->
+    <script>
+        // ============================================================================
+        // 1. CONFIGURAÇÕES INICIAIS E SINTETIZADOR DE ÁUDIO (WEB AUDIO API)
+        // ============================================================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Resolução Interna Fixa do Canvas (900x600) para Física Consistente
+        const CANVAS_WIDTH = 900;
+        const CANVAS_HEIGHT = 600;
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+
+        // Estado do Áudio
+        let audioCtx = null;
+        let isMuted = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Som de Estalo da Língua (Slurp!)
+        function playSlurpSound() {
+            if (isMuted || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.16);
+            } catch (e) {}
+        }
+
+        // Som ao Pegar Inseto Bom (Chirp / Pop)
+        function playGoodEatSound() {
+            if (isMuted || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(1400, now + 0.1);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } catch (e) {}
+        }
+
+        // Som Metálico / Engasgo ao Comer Objeto Errado
+        function playBadEatSound() {
+            if (isMuted || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(70, now + 0.35);
+
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.36);
+            } catch (e) {}
+        }
+
+        // Som de Arroto Cômico no Game Over
+        function playBurpSound() {
+            if (isMuted || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+
+                // Efeito vibrato na garganta
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                lfo.frequency.value = 25;
+                lfoGain.gain.value = 30;
+                lfo.connect(osc.frequency);
+                lfo.start(now);
+                lfo.stop(now + 0.5);
+
+                gain.gain.setValueAtTime(0.6, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.51);
+            } catch (e) {}
+        }
+
+        // ============================================================================
+        // 2. DEFINIÇÕES DE ITENS E FRASES CÔMICAS
+        // ============================================================================
+        const ITEM_TYPES = {
+            FLY: { id: 'FLY', type: 'good', points: 10, speed: 3.5, name: 'Mosca', color: '#1e293b' },
+            GOLDEN_MOSQUITO: { id: 'GOLDEN_MOSQUITO', type: 'good', points: 30, speed: 5.0, name: 'Mosquito Dourado', color: '#f59e0b' },
+            BEETLE: { id: 'BEETLE', type: 'good', points: 20, speed: 4.0, name: 'Besouro', color: '#0284c7' },
+            
+            PHONE: { 
+                id: 'PHONE', type: 'bad', name: 'Celular', 
+                quotes: ["Alô? Tem alguém no meu estômago?", "Pelo menos o 5G pegou aqui dentro."] 
+            },
+            SHOE: { 
+                id: 'SHOE', type: 'bad', name: 'Sapato', 
+                quotes: ["Tem gosto de chulé com arrependimento.", "Quem usa 42 no lago?!"] 
+            },
+            FROG_FRIEND: { 
+                id: 'FROG_FRIEND', type: 'bad', name: 'Outra Rã', 
+                quotes: ["Por que eu fiz isso?! Somos primos!", "Desculpa, Cleiton!"] 
+            },
+            BRICK: { 
+                id: 'BRICK', type: 'bad', name: 'Tijolo', 
+                quotes: ["Acho que vou afundar na lagoa...", "Meu estômago virou concreto!"] 
+            },
+            CLOCK: { 
+                id: 'CLOCK', type: 'bad', name: 'Despertador', 
+                quotes: ["Por que minha barriga está fazendo TRIMMM?!", "Hora de passar mal!"] 
+            },
+            SOCK: { 
+                id: 'SOCK', type: 'bad', name: 'Meia Chulé', 
+                quotes: ["Acho que meu estômago pediu demissão!", "Socorro! Que cheiro tóxico!"] 
+            }
+        };
+
+        const DIAGNOSIS_QUOTES = [
+            "Diagnóstico: obstrução intestinal por excesso de burrice.",
+            "Diagnóstico: sapo guloso que não sabe diferenciar mosca de tijolo.",
+            "Diagnóstico: overdose de chulé e tecnologia na barriga.",
+            "Diagnóstico: o primo Cleiton mandou lembranças lá do estômago.",
+            "Diagnóstico: indigestão aguda por falta de bom senso."
+        ];
+
+        // ============================================================================
+        // 3. ESTADO DO JOGO E VARIÁVEIS GLOBAIS
+        // ============================================================================
+        let gameState = 'START'; // START, PLAYING, DRAMATIC_PAUSE, GAMEOVER
+        let score = 0;
+        let combo = 0;
+        let lives = 3;
+        let highScore = parseInt(localStorage.getItem('sapo_highscore') || '0');
+        let gameTime = 0;
+        let lastSpawnTime = 0;
+        let spawnInterval = 1200; // ms entre cada item
+        let activeItems = [];
+        let particles = [];
+        let floatingTexts = [];
+
+        // Estado da Pausa Dramática Cômica
+        let dramaticPauseTimer = 0;
+        let dramaticQuote = "";
+        let dramaticFaceType = "purple"; // purple, bloated, spiral
+
+        // Zona de Captura (Alvo Central)
+        const CAPTURE_ZONE = {
+            x: CANVAS_WIDTH / 2,
+            y: 180,
+            radius: 45
+        };
+
+        // Estado do Sapo
+        const frog = {
+            x: CANVAS_WIDTH / 2,
+            y: CANVAS_HEIGHT - 70,
+            width: 140,
+            height: 100,
+            eyeLeft: { x: CANVAS_WIDTH / 2 - 35, y: CANVAS_HEIGHT - 130 },
+            eyeRight: { x: CANVAS_WIDTH / 2 + 35, y: CANVAS_HEIGHT - 130 },
+            pupilOffsetLeft: { x: 0, y: 0 },
+            pupilOffsetRight: { x: 0, y: 0 },
+            tongueState: 'IDLE', // IDLE, EXTENDING, RETRACTING
+            tongueTarget: { x: 0, y: 0 },
+            tongueLength: 0,
+            maxTongueLength: 0,
+            tongueProgress: 0,
+            caughtItem: null,
+            throatSwell: 0
+        };
+
+        // ============================================================================
+        // 4. CLASSE E SPAWN DE ITENS VOADORES
+        // ============================================================================
+        class FlyingItem {
+            constructor(typeInfo) {
+                this.info = typeInfo;
+                this.id = Math.random();
+                this.radius = 24;
+                
+                // Direção inicial: Da esquerda para a direita ou vice-versa
+                this.direction = Math.random() < 0.5 ? 1 : -1;
+                this.x = this.direction === 1 ? -40 : CANVAS_WIDTH + 40;
+                
+                // Passa próximo da zona de captura Y (130 - 230)
+                this.baseY = 140 + Math.random() * 80;
+                this.y = this.baseY;
+
+                // Velocidade influenciada pela pontuação atual
+                const speedBoost = Math.min(score / 200, 3.5);
+                this.speed = (typeInfo.speed || 3.5) + speedBoost + (Math.random() * 0.8);
+                
+                // Padrão de movimento: Reto, Senoidal (Zigue-Zague) ou Acelerado
+                this.movementPattern = Math.random() < 0.4 ? 'SINE' : 'STRAIGHT';
+                this.sineFrequency = 0.03 + Math.random() * 0.03;
+                this.sineAmplitude = 25 + Math.random() * 25;
+                this.angle = 0;
+
+                // Rotação visual do item
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+            }
+
+            update() {
+                this.x += this.speed * this.direction;
+                this.angle += this.sineFrequency;
+                this.rotation += this.rotationSpeed;
+
+                if (this.movementPattern === 'SINE') {
+                    this.y = this.baseY + Math.sin(this.angle * 5) * this.sineAmplitude;
+                }
+
+                // Efeito de fumaça verde contínua na meia chulé
+                if (this.info.id === 'SOCK' && Math.random() < 0.4) {
+                    createStinkParticle(this.x, this.y);
+                }
+
+                // Brilho no mosquito dourado
+                if (this.info.id === 'GOLDEN_MOSQUITO' && Math.random() < 0.3) {
+                    createSparkleParticle(this.x, this.y);
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                switch (this.info.id) {
+                    case 'FLY':
+                        this.drawFly();
+                        break;
+                    case 'GOLDEN_MOSQUITO':
+                        this.drawGoldenMosquito();
+                        break;
+                    case 'BEETLE':
+                        this.drawBeetle();
+                        break;
+                    case 'PHONE':
+                        this.drawPhone();
+                        break;
+                    case 'SHOE':
+                        this.drawShoe();
+                        break;
+                    case 'FROG_FRIEND':
+                        this.drawFrogFriend();
+                        break;
+                    case 'BRICK':
+                        this.drawBrick();
+                        break;
+                    case 'CLOCK':
+                        this.drawClock();
+                        break;
+                    case 'SOCK':
+                        this.drawSock();
+                        break;
+                }
+
+                ctx.restore();
+            }
+
+            // Desenhos Cartunescos em Canvas API
+            drawFly() {
+                // Asas batendo
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                const wingWing = Math.sin(Date.now() * 0.05) * 12;
+                ctx.beginPath();
+                ctx.ellipse(-6, -10 + wingWing*0.2, 8, 14, -0.4, 0, Math.PI * 2);
+                ctx.ellipse(6, -10 + wingWing*0.2, 8, 14, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Corpo
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Olhos vermelhos
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(-5, -4, 4, 0, Math.PI * 2);
+                ctx.arc(5, -4, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawGoldenMosquito() {
+                // Brilho aura
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
+                ctx.beginPath();
+                ctx.arc(0, 0, 22, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Asas douradas
+                ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
+                const wingWing = Math.sin(Date.now() * 0.08) * 14;
+                ctx.beginPath();
+                ctx.ellipse(-8, -12 + wingWing*0.2, 10, 16, -0.4, 0, Math.PI * 2);
+                ctx.ellipse(8, -12 + wingWing*0.2, 10, 16, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Corpo brilhante
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 10, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(0, -4, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawBeetle() {
+                // Casco Azul/Verde brilhante
+                ctx.fillStyle = '#0284c7';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 15, 18, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Linha central do casco
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -16);
+                ctx.lineTo(0, 16);
+                ctx.stroke();
+
+                // Cabeça
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.arc(0, -14, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawPhone() {
+                // Vibração visual do celular
+                const vibX = (Math.random() - 0.5) * 4;
+                const vibY = (Math.random() - 0.5) * 4;
+                ctx.translate(vibX, vibY);
+
+                // Corpo do Smartphone
+                ctx.fillStyle = '#334155';
+                ctx.beginPath();
+                ctx.roundRect(-14, -22, 28, 44, 6);
+                ctx.fill();
+
+                // Tela acesa vibrando
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(-11, -17, 22, 34);
+
+                // Ícone de Chamada
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px sans-serif';
+                ctx.fillText('📞', -6, 4);
+            }
+
+            drawShoe() {
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.moveTo(-18, 10);
+                ctx.lineTo(20, 10);
+                ctx.quadraticCurveTo(24, 0, 14, -4);
+                ctx.lineTo(4, -4);
+                ctx.lineTo(-4, -14);
+                ctx.lineTo(-18, -14);
+                ctx.closePath();
+                ctx.fill();
+
+                // Sola amarelada gasta
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(-20, 8, 42, 5);
+            }
+
+            drawFrogFriend() {
+                // Rãzinha assustada verde clara
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.arc(0, 0, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Olhos gigantes arregalados (medo)
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-7, -10, 6, 0, Math.PI * 2);
+                ctx.arc(7, -10, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(-7, -10, 2, 0, Math.PI * 2);
+                ctx.arc(7, -10, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Boca aberta de pavor "O"
+                ctx.fillStyle = '#991b1b';
+                ctx.beginPath();
+                ctx.arc(0, 4, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            drawBrick() {
+                // Tijolo Vermelho/Laranja
+                ctx.fillStyle = '#b91c1c';
+                ctx.fillRect(-20, -12, 40, 24);
+                ctx.strokeStyle = '#7f1d1d';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-20, -12, 40, 24);
+
+                // Furos do tijolo
+                ctx.fillStyle = '#450a0a';
+                ctx.fillRect(-12, -5, 6, 10);
+                ctx.fillRect(-3, -5, 6, 10);
+                ctx.fillRect(6, -5, 6, 10);
+            }
+
+            drawClock() {
+                // Despertador Vermelho
+                ctx.fillStyle = '#dc2626';
+                ctx.beginPath();
+                ctx.arc(0, 2, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Orelhas/Sinos
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(-12, -14, 6, 0, Math.PI * 2);
+                ctx.arc(12, -14, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mostrador Branco
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 2, 12, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ponteiros
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 2);
+                ctx.lineTo(0, -6);
+                ctx.moveTo(0, 2);
+                ctx.lineTo(5, 2);
+                ctx.stroke();
+            }
+
+            drawSock() {
+                // Meia Verde/Marrom fedida
+                ctx.fillStyle = '#65a30d';
+                ctx.beginPath();
+                ctx.moveTo(-10, -16);
+                ctx.lineTo(4, -16);
+                ctx.lineTo(4, 4);
+                ctx.lineTo(18, 12);
+                ctx.lineTo(10, 18);
+                ctx.lineTo(-10, 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Remendo
+                ctx.fillStyle = '#a16207';
+                ctx.fillRect(6, 6, 7, 7);
+            }
+        }
+
+        // ============================================================================
+        // 5. SISTEMA DE PARTÍCULAS E TEXTOS FLUTUANTES
+        // ============================================================================
+        function createStinkParticle(x, y) {
+            particles.push({
+                x: x + (Math.random() - 0.5) * 20,
+                y: y + (Math.random() - 0.5) * 10,
+                vx: (Math.random() - 0.5) * 1,
+                vy: -Math.random() * 1.5 - 0.5,
+                radius: Math.random() * 5 + 3,
+                color: 'rgba(132, 204, 22, 0.5)',
+                life: 1.0,
+                decay: 0.025
+            });
+        }
+
+        function createSparkleParticle(x, y) {
+            particles.push({
+                x: x + (Math.random() - 0.5) * 20,
+                y: y + (Math.random() - 0.5) * 20,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                radius: Math.random() * 3 + 2,
+                color: '#fef08a',
+                life: 1.0,
+                decay: 0.04
+            });
+        }
+
+        function createSplashParticles(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: Math.random() * 4 + 2,
+                    color: '#ec4899',
+                    life: 1.0,
+                    decay: 0.05
+                });
+            }
+        }
+
+        function addFloatingText(text, x, y, color = '#4ade80') {
+            floatingTexts.push({
+                text: text,
+                x: x,
+                y: y,
+                vy: -2,
+                alpha: 1.0,
+                color: color
+            });
+        }
+
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= p.decay;
+
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Atualizar e Desenhar Textos Flutuantes
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.02;
+
+                if (ft.alpha <= 0) {
+                    floatingTexts.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = ft.alpha;
+                ctx.font = '900 22px "Fredoka One", cursive';
+                ctx.fillStyle = ft.color;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 4;
+                ctx.strokeText(ft.text, ft.x - 20, ft.y);
+                ctx.fillText(ft.text, ft.x - 20, ft.y);
+                ctx.restore();
+            }
+        }
+
+        // ============================================================================
+        // 6. RENDERIZAÇÃO DO CENÁRIO (PÂNTANO AO PÔR DO SOL)
+        // ============================================================================
+        function drawBackground() {
+            // 1. Céu em Degradê ao Pôr do Sol (Laranja, Rosa, Roxo)
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT * 0.65);
+            skyGradient.addColorStop(0, '#2e1065');   // Roxo profundo
+            skyGradient.addColorStop(0.4, '#7c2d12'); // Laranja queimado
+            skyGradient.addColorStop(0.8, '#ea580c'); // Laranja vibrante
+            skyGradient.addColorStop(1, '#facc15');   // Dourado do sol no horizonte
+
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // Sol Poente no Horizonte
+            ctx.fillStyle = 'rgba(254, 240, 138, 0.6)';
+            ctx.beginPath();
+            ctx.arc(CANVAS_WIDTH / 2, CANVAS_HEIGHT * 0.55, 90, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Silhueta das Montanhas / Árvores ao Fundo
+            ctx.fillStyle = '#1e1b4b';
+            ctx.beginPath();
+            ctx.moveTo(0, CANVAS_HEIGHT * 0.55);
+            ctx.quadraticCurveTo(150, CANVAS_HEIGHT * 0.48, 300, CANVAS_HEIGHT * 0.55);
+            ctx.quadraticCurveTo(450, CANVAS_HEIGHT * 0.42, 650, CANVAS_HEIGHT * 0.55);
+            ctx.quadraticCurveTo(800, CANVAS_HEIGHT * 0.50, CANVAS_WIDTH, CANVAS_HEIGHT * 0.55);
+            ctx.lineTo(CANVAS_WIDTH, CANVAS_HEIGHT);
+            ctx.lineTo(0, CANVAS_HEIGHT);
+            ctx.fill();
+
+            // 3. Água do Pântano com Reflexo
+            const waterGradient = ctx.createLinearGradient(0, CANVAS_HEIGHT * 0.55, 0, CANVAS_HEIGHT);
+            waterGradient.addColorStop(0, '#065f46');
+            waterGradient.addColorStop(0.5, '#047857');
+            waterGradient.addColorStop(1, '#064e3b');
+
+            ctx.fillStyle = waterGradient;
+            ctx.fillRect(0, CANVAS_HEIGHT * 0.55, CANVAS_WIDTH, CANVAS_HEIGHT * 0.45);
+
+            // Marolas / Reflexos na água (Animados com Math.sin)
+            ctx.strokeStyle = 'rgba(253, 224, 71, 0.25)';
+            ctx.lineWidth = 2;
+            const time = Date.now() * 0.002;
+            for (let i = 0; i < 6; i++) {
+                const y = CANVAS_HEIGHT * 0.6 + i * 30;
+                const waveOffset = Math.sin(time + i) * 15;
+                ctx.beginPath();
+                ctx.moveTo(100 + waveOffset, y);
+                ctx.lineTo(CANVAS_WIDTH - 100 + waveOffset, y);
+                ctx.stroke();
+            }
+
+            // 4. Juncos Balançando nas Laterais
+            drawReeds(40, CANVAS_HEIGHT * 0.6, time);
+            drawReeds(80, CANVAS_HEIGHT * 0.62, time + 1);
+            drawReeds(CANVAS_WIDTH - 50, CANVAS_HEIGHT * 0.6, time + 2);
+            drawReeds(CANVAS_WIDTH - 90, CANVAS_HEIGHT * 0.63, time + 0.5);
+
+            // 5. Vitórias-Régias na Água
+            drawLilyPad(160, CANVAS_HEIGHT - 90, 60);
+            drawLilyPad(CANVAS_WIDTH - 180, CANVAS_HEIGHT - 100, 70);
+
+            // Vitória-Régia Central onde o Sapo Fica Sentado
+            drawLilyPad(CANVAS_WIDTH / 2, CANVAS_HEIGHT - 40, 130);
+        }
+
+        function drawReeds(x, baseY, time) {
+            ctx.strokeStyle = '#14532d';
+            ctx.lineWidth = 4;
+            const wind = Math.sin(time) * 12;
+
+            ctx.beginPath();
+            ctx.moveTo(x, baseY);
+            ctx.quadraticCurveTo(x + wind * 0.5, baseY - 60, x + wind, baseY - 120);
+            ctx.stroke();
+
+            // Espiga do Junco
+            ctx.fillStyle = '#3f6212';
+            ctx.beginPath();
+            ctx.ellipse(x + wind, baseY - 120, 5, 14, 0.1, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawLilyPad(x, y, radius) {
+            ctx.fillStyle = '#15803d';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0.2, Math.PI * 1.85);
+            ctx.lineTo(x, y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Nervuras da Vitória-Régia
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + radius * 0.7, y - radius * 0.4);
+            ctx.moveTo(x, y);
+            ctx.lineTo(x - radius * 0.7, y - radius * 0.4);
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + radius * 0.8);
+            ctx.stroke();
+        }
+
+        // Desenhar Indicador da Zona de Captura (Alvo de Mira Luminous)
+        function drawCaptureZone() {
+            ctx.save();
+            const pulse = Math.sin(Date.now() * 0.006) * 4;
+            
+            ctx.strokeStyle = 'rgba(250, 204, 21, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.arc(CAPTURE_ZONE.x, CAPTURE_ZONE.y, CAPTURE_ZONE.radius + pulse, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Mira central sutil
+            ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+            ctx.beginPath();
+            ctx.arc(CAPTURE_ZONE.x, CAPTURE_ZONE.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 7. RENDERIZAÇÃO DO SAPO E LÍNGUA ELÁSTICA
+        // ============================================================================
+        function updateFrogEyeTracking() {
+            // Encontra o objeto voador mais próximo para os olhos seguirem
+            let closestItem = null;
+            let minDist = Infinity;
+
+            for (const item of activeItems) {
+                const dist = Math.hypot(item.x - frog.x, item.y - (frog.y - 80));
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestItem = item;
+                }
+            }
+
+            const targetX = closestItem ? closestItem.x : CAPTURE_ZONE.x;
+            const targetY = closestItem ? closestItem.y : CAPTURE_ZONE.y;
+
+            // Ângulo para olhar
+            const angleLeft = Math.atan2(targetY - frog.eyeLeft.y, targetX - frog.eyeLeft.x);
+            const angleRight = Math.atan2(targetY - frog.eyeRight.y, targetX - frog.eyeRight.x);
+
+            const maxPupilOffset = 7;
+            frog.pupilOffsetLeft = {
+                x: Math.cos(angleLeft) * maxPupilOffset,
+                y: Math.sin(angleLeft) * maxPupilOffset
+            };
+            frog.pupilOffsetRight = {
+                x: Math.cos(angleRight) * maxPupilOffset,
+                y: Math.sin(angleRight) * maxPupilOffset
+            };
+        }
+
+        function drawFrog() {
+            ctx.save();
+
+            // Se estiver em Pausa Dramática de Indigestão, muda a cor do corpo
+            let bodyColor = '#22c55e'; // Verde vibrante padrão
+            let bellyColor = '#fef08a'; // Creme amarelado
+
+            if (gameState === 'DRAMATIC_PAUSE') {
+                if (dramaticFaceType === 'purple') bodyColor = '#a855f7'; // Roxo indigestão
+                if (dramaticFaceType === 'bloated') bodyColor = '#16a34a'; 
+            } else if (gameState === 'GAMEOVER') {
+                bodyColor = '#854d0e'; // Marrom/Verde pálido derrotado
+            }
+
+            // Se a barriga/papo estiver estufado após engolir
+            const swellBonus = frog.throatSwell * 15;
+
+            // 1. Corpo Principal do Sapo
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.ellipse(frog.x, frog.y + 10, 75 + swellBonus * 0.5, 55 + swellBonus, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Barriga Creme
+            ctx.fillStyle = bellyColor;
+            ctx.beginPath();
+            ctx.ellipse(frog.x, frog.y + 20, 50 + swellBonus * 0.4, 38 + swellBonus * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Patas Dianteiras
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.arc(frog.x - 65, frog.y + 35, 16, 0, Math.PI * 2);
+            ctx.arc(frog.x + 65, frog.y + 35, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Olhos Esbugalhados
+            drawEye(frog.eyeLeft.x, frog.eyeLeft.y, frog.pupilOffsetLeft, bodyColor);
+            drawEye(frog.eyeRight.x, frog.eyeRight.y, frog.pupilOffsetRight, bodyColor);
+
+            // 3. Boca (Aberta ao disparar a língua ou normal)
+            const mouthY = frog.y - 20;
+            if (frog.tongueState !== 'IDLE') {
+                // Boca escancarada
+                ctx.fillStyle = '#991b1b';
+                ctx.beginPath();
+                ctx.ellipse(frog.x, mouthY + 5, 30, 20, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (gameState === 'DRAMATIC_PAUSE') {
+                // Careta cômica na indigestão
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                // Boca em zigue-zague ou torta
+                ctx.moveTo(frog.x - 25, mouthY);
+                ctx.lineTo(frog.x - 10, mouthY + 8);
+                ctx.lineTo(frog.x, mouthY - 4);
+                ctx.lineTo(frog.x + 10, mouthY + 8);
+                ctx.lineTo(frog.x + 25, mouthY);
+                ctx.stroke();
+            } else if (gameState === 'GAMEOVER') {
+                // Língua caida de fora morta
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.ellipse(frog.x + 10, mouthY + 15, 14, 25, 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Sorriso satisfeito normal
+                ctx.strokeStyle = '#14532d';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(frog.x, mouthY - 10, 25, 0.2, Math.PI - 0.2);
+                ctx.stroke();
+            }
+
+            // Bochechas rosadas
+            ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+            ctx.beginPath();
+            ctx.arc(frog.x - 45, mouthY, 10, 0, Math.PI * 2);
+            ctx.arc(frog.x + 45, mouthY, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. Desenho da Língua Elástica Rosa
+            if (frog.tongueState !== 'IDLE') {
+                drawTongue();
+            }
+
+            ctx.restore();
+        }
+
+        function drawEye(x, y, pupilOffset, bodyColor) {
+            // Globo ocular externo (Verde)
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.arc(x, y, 22, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Parte Branca do Olho
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x, y, 17, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pupila (Normais ou em Espiral na Pausa Dramática)
+            if (gameState === 'DRAMATIC_PAUSE' || gameState === 'GAMEOVER') {
+                // Espiral de tontura X X ou caracol
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x - 6, y - 6);
+                ctx.lineTo(x + 6, y + 6);
+                ctx.moveTo(x + 6, y - 6);
+                ctx.lineTo(x - 6, y + 6);
+                ctx.stroke();
+            } else {
+                // Pupila viva que segue alvos
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(x + pupilOffset.x, y + pupilOffset.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Brilho do olho
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(x + pupilOffset.x - 3, y + pupilOffset.y - 3, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawTongue() {
+            const startX = frog.x;
+            const startY = frog.y - 20;
+            const currentX = startX + (frog.tongueTarget.x - startX) * frog.tongueProgress;
+            const currentY = startY + (frog.tongueTarget.y - startY) * frog.tongueProgress;
+
+            // Curva da Língua
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 14;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+
+            // Ponta Pegajosa da Língua
+            ctx.fillStyle = '#e11d48';
+            ctx.beginPath();
+            ctx.arc(currentX, currentY, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Se o item capturado estiver grudado na ponta da língua voltando
+            if (frog.caughtItem) {
+                ctx.save();
+                ctx.translate(currentX, currentY);
+                frog.caughtItem.drawFly ? frog.caughtItem.drawFly() : null; // Se for genérico
+                ctx.restore();
+            }
+        }
+
+        // ============================================================================
+        // 8. BALÃO DE PENSAMENTO CÔMICO (COMÉDIA OBRIGATÓRIA)
+        // ============================================================================
+        function drawThoughtBubble() {
+            if (gameState !== 'DRAMATIC_PAUSE' || !dramaticQuote) return;
+
+            const bubbleX = frog.x;
+            const bubbleY = frog.y - 170;
+            const bubbleWidth = 260;
+            const bubbleHeight = 70;
+
+            ctx.save();
+
+            // Bolinhas do pensamento subindo do sapo
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(frog.x + 20, frog.y - 75, 6, 0, Math.PI * 2);
+            ctx.arc(frog.x + 35, frog.y - 95, 10, 0, Math.PI * 2);
+            ctx.arc(frog.x + 45, frog.y - 120, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Balão principal
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.roundRect(bubbleX - bubbleWidth / 2, bubbleY - bubbleHeight / 2, bubbleWidth, bubbleHeight, 18);
+            ctx.fill();
+            ctx.stroke();
+
+            // Texto do Pensamento
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '800 13px "Nunito", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Quebra de linha simples se a frase for longa
+            const words = dramaticQuote.split(' ');
+            let line1 = "";
+            let line2 = "";
+
+            for (let i = 0; i < words.length; i++) {
+                if (i < words.length / 2) line1 += words[i] + " ";
+                else line2 += words[i] + " ";
+            }
+
+            if (line2.trim() === "") {
+                ctx.fillText(dramaticQuote, bubbleX, bubbleY);
+            } else {
+                ctx.fillText(line1.trim(), bubbleX, bubbleY - 10);
+                ctx.fillText(line2.trim(), bubbleX, bubbleY + 10);
+            }
+
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 9. LÓGICA DE JOGO, SPAWN E COLISÕES
+        // ============================================================================
+        function triggerTongueLaunch() {
+            if (gameState !== 'PLAYING' || frog.tongueState !== 'IDLE') return;
+
+            initAudio();
+
+            // Lança a língua em direção à Zona de Captura (ou item que estiver nela)
+            frog.tongueState = 'EXTENDING';
+            frog.tongueProgress = 0;
+            frog.tongueTarget = { x: CAPTURE_ZONE.x, y: CAPTURE_ZONE.y };
+            frog.caughtItem = null;
+
+            playSlurpSound();
+        }
+
+        function spawnItem() {
+            // Seleção ponderada de tipos de itens
+            const rand = Math.random();
+            let type;
+
+            if (rand < 0.40) {
+                type = ITEM_TYPES.FLY;
+            } else if (rand < 0.55) {
+                type = ITEM_TYPES.BEETLE;
+            } else if (rand < 0.68) {
+                type = ITEM_TYPES.GOLDEN_MOSQUITO;
+            } else {
+                // Itens Errados (Evitar)
+                const badItems = [
+                    ITEM_TYPES.PHONE, ITEM_TYPES.SHOE, ITEM_TYPES.FROG_FRIEND,
+                    ITEM_TYPES.BRICK, ITEM_TYPES.CLOCK, ITEM_TYPES.SOCK
+                ];
+                type = badItems[Math.floor(Math.random() * badItems.length)];
+            }
+
+            activeItems.push(new FlyingItem(type));
+        }
+
+        function updateTongueLogic(deltaTime) {
+            if (frog.tongueState === 'IDLE') return;
+
+            const tongueSpeed = 0.09; // Velocidade de extensão/retração
+
+            if (frog.tongueState === 'EXTENDING') {
+                frog.tongueProgress += tongueSpeed;
+
+                // Verificar colisão com itens voadores durante a extensão
+                const tipX = frog.x + (frog.tongueTarget.x - frog.x) * frog.tongueProgress;
+                const tipY = (frog.y - 20) + (frog.tongueTarget.y - (frog.y - 20)) * frog.tongueProgress;
+
+                for (let i = activeItems.length - 1; i >= 0; i--) {
+                    const item = activeItems[i];
+                    const dist = Math.hypot(item.x - tipX, item.y - tipY);
+
+                    if (dist < item.radius + 15) {
+                        // Item Capturado!
+                        frog.caughtItem = item;
+                        activeItems.splice(i, 1);
+                        frog.tongueState = 'RETRACTING';
+                        createSplashParticles(tipX, tipY);
+                        break;
+                    }
+                }
+
+                if (frog.tongueProgress >= 1.0) {
+                    frog.tongueProgress = 1.0;
+                    frog.tongueState = 'RETRACTING';
+                }
+            } else if (frog.tongueState === 'RETRACTING') {
+                frog.tongueProgress -= tongueSpeed;
+
+                if (frog.tongueProgress <= 0) {
+                    frog.tongueProgress = 0;
+                    frog.tongueState = 'IDLE';
+
+                    // Processar o item que foi engolido ao chegar à boca
+                    if (frog.caughtItem) {
+                        processSwallowedItem(frog.caughtItem);
+                        frog.caughtItem = null;
+                    }
+                }
+            }
+        }
+
+        function processSwallowedItem(item) {
+            if (item.info.type === 'good') {
+                // --- INSETO BOM ---
+                combo++;
+                const multiplier = Math.min(Math.floor(combo / 3) + 1, 4);
+                const earnedPoints = item.info.points * multiplier;
+                score += earnedPoints;
+
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('sapo_highscore', highScore);
+                    document.getElementById('highScoreText').innerText = highScore;
+                }
+
+                document.getElementById('scoreText').innerText = score;
+                addFloatingText(`+${earnedPoints}!`, frog.x, frog.y - 60, item.info.id === 'GOLDEN_MOSQUITO' ? '#facc15' : '#4ade80');
+                
+                // Infla papo brevemente
+                frog.throatSwell = 1.0;
+
+                playGoodEatSound();
+            } else {
+                // --- OBJETO ERRADO (COMÉDIA & PERDA DE VIDA) ---
+                combo = 0;
+                lives--;
+                updateLivesUI();
+
+                playBadEatSound();
+
+                // Escolhe frase cômica aleatória do item
+                const quotes = item.info.quotes;
+                dramaticQuote = quotes[Math.floor(Math.random() * quotes.length)];
+                
+                // Escolhe tipo de careta
+                dramaticFaceType = Math.random() < 0.5 ? 'purple' : 'bloated';
+
+                // Inicia Micro-Pausa Dramática de 500ms / 0.8s
+                gameState = 'DRAMATIC_PAUSE';
+                dramaticPauseTimer = 900; // ms de congelamento para ler a piada
+            }
+        }
+
+        function updateLivesUI() {
+            const container = document.getElementById('livesContainer');
+            const icons = container.querySelectorAll('.life-icon');
+            
+            for (let i = 0; i < 3; i++) {
+                if (i < lives) {
+                    icons[i].innerText = '💚';
+                    icons[i].style.opacity = '1';
+                    icons[i].style.transform = 'scale(1)';
+                } else {
+                    icons[i].innerText = '💀';
+                    icons[i].style.opacity = '0.4';
+                    icons[i].style.transform = 'scale(0.8)';
+                }
+            }
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER';
+            playBurpSound();
+
+            const randomDiag = DIAGNOSIS_QUOTES[Math.floor(Math.random() * DIAGNOSIS_QUOTES.length)];
+            document.getElementById('diagnosisText').innerText = `"${randomDiag}"`;
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalHighScore').innerText = highScore;
+
+            document.getElementById('gameOverOverlay').classList.remove('hidden');
+        }
+
+        // ============================================================================
+        // 10. LOOP PRINCIPAL DO JOGO (GAME LOOP)
+        // ============================================================================
+        let lastFrameTime = performance.now();
+
+        function gameLoop(now) {
+            const deltaTime = now - lastFrameTime;
+            lastFrameTime = now;
+
+            // Limpa o canvas
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            // 1. Desenhar Fundo e Cenário
+            drawBackground();
+            drawCaptureZone();
+
+            // 2. Lógica de Pausa Dramática Cômica
+            if (gameState === 'DRAMATIC_PAUSE') {
+                dramaticPauseTimer -= deltaTime;
+                if (dramaticPauseTimer <= 0) {
+                    if (lives <= 0) {
+                        triggerGameOver();
+                    } else {
+                        gameState = 'PLAYING';
+                    }
+                }
+            }
+
+            // 3. Atualizar e Desenhar Itens Voadores (Se não estiver em pausa dramática)
+            if (gameState === 'PLAYING') {
+                // Controle de Spawn
+                if (now - lastSpawnTime > spawnInterval) {
+                    spawnItem();
+                    lastSpawnTime = now;
+                    // Acelera levemente o tempo de spawn conforme o jogo avança
+                    spawnInterval = Math.max(500, 1200 - (score * 1.5));
+                }
+
+                // Atualizar posição dos itens
+                for (let i = activeItems.length - 1; i >= 0; i--) {
+                    const item = activeItems[i];
+                    item.update();
+
+                    // Remove itens que saírem totalmente da tela
+                    if ((item.direction === 1 && item.x > CANVAS_WIDTH + 60) ||
+                        (item.direction === -1 && item.x < -60)) {
+                        activeItems.splice(i, 1);
+                    }
+                }
+
+                // Atualizar Língua e Papo do Sapo
+                updateTongueLogic(deltaTime);
+
+                if (frog.throatSwell > 0) {
+                    frog.throatSwell -= 0.03;
+                }
+            }
+
+            // Desenhar todos os itens voadores
+            activeItems.forEach(item => item.draw());
+
+            // 4. Atualizar Olhos e Desenhar Sapo
+            updateFrogEyeTracking();
+            drawFrog();
+
+            // 5. Desenhar Partículas e Balão de Pensamento Cômico
+            updateAndDrawParticles();
+            drawThoughtBubble();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============================================================================
+        // 11. CONTROLES E EVENTOS DE INTERFACE
+        // ============================================================================
+        function resetGame() {
+            score = 0;
+            combo = 0;
+            lives = 3;
+            activeItems = [];
+            particles = [];
+            floatingTexts = [];
+            frog.tongueState = 'IDLE';
+            frog.throatSwell = 0;
+            gameState = 'PLAYING';
+
+            document.getElementById('scoreText').innerText = '0';
+            document.getElementById('highScoreText').innerText = highScore;
+            updateLivesUI();
+
+            document.getElementById('startOverlay').classList.add('hidden');
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+        }
+
+        // Eventos de Clique / Toque / Teclado
+        canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            triggerTongueLaunch();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerTongueLaunch();
+            }
+        });
+
+        // Botão Iniciar
+        document.getElementById('startBtn').addEventListener('click', () => {
+            initAudio();
+            resetGame();
+        });
+
+        // Botão Reiniciar
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            initAudio();
+            resetGame();
+        });
+
+        // Botão Mute / Unmute
+        const soundBtn = document.getElementById('soundBtn');
+        const soundIcon = document.getElementById('soundIcon');
+
+        soundBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                soundIcon.className = 'fas fa-volume-mute text-red-400';
+            } else {
+                soundIcon.className = 'fas fa-volume-up text-slate-200';
+                initAudio();
+            }
+        });
+
+        // Inicializar High Score na Tela
+        document.getElementById('highScoreText').innerText = highScore;
+
+        // Iniciar Game Loop no Carregamento da Janela
+        window.onload = () => {
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
