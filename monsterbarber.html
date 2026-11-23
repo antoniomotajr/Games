@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monster Barber Simulator v3 — Ferramentas Absurdas</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #1a1625;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: none;
+    }
+
+    /* HUD compactado e posicionado nas bordas sem bloquear o topo da cabeça */
+    #hud {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      gap: 10px;
+    }
+
+    .hud-panel {
+      background: rgba(20, 18, 30, 0.72);
+      border: 1px solid rgba(110, 95, 160, 0.55);
+      border-radius: 8px;
+      padding: 7px 12px;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      backdrop-filter: blur(2px);
+    }
+
+    .hud-label {
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      color: #b8a9e6;
+      margin-bottom: 6px;
+    }
+
+    .bar-container {
+      width: 150px;
+      height: 12px;
+      background: #2b243d;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #5e5087;
+    }
+
+    #patience-bar {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #ff4757, #ffa502, #2ed573);
+      transition: width 0.15s ease-out;
+    }
+
+    .center-panel {
+      text-align: center;
+    }
+
+    #client-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      background: #3d315b;
+      color: #7bed9f;
+      margin-bottom: 4px;
+    }
+
+    #order-title {
+      font-size: 14px;
+      font-weight: 900;
+      color: #ffdd59;
+      letter-spacing: 0.4px;
+    }
+
+    .sub-info {
+      font-size: 11px;
+      color: #d2dae2;
+      margin-top: 2px;
+    }
+
+    .right-panel {
+      pointer-events: auto;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .action-btn {
+      background: #2ed573;
+      color: #1e272e;
+      border: none;
+      padding: 9px 15px;
+      font-size: 12px;
+      font-weight: 900;
+      border-radius: 7px;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #218c74;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    .action-btn:hover {
+      background: #7bed9f;
+    }
+
+    .action-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #218c74;
+    }
+
+    /* Barra de Ferramentas vertical na lateral esquerda */
+    #toolbar {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+      max-height: 75vh;
+    }
+
+    .tool-slot {
+      background: rgba(20, 18, 30, 0.74);
+      border: 1px solid rgba(110, 95, 160, 0.55);
+      border-radius: 7px;
+      padding: 6px 10px;
+      color: #a4b0be;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .tool-slot.active {
+      border-color: #ffdd59;
+      color: #ffffff;
+      background: rgba(35, 30, 52, 0.92);
+      transform: translateX(4px) scale(1.03);
+      box-shadow: 0 4px 12px rgba(255, 221, 89, 0.25);
+    }
+
+    .key-badge {
+      background: #4a3f6b;
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .tool-slot.active .key-badge {
+      background: #ffdd59;
+      color: #1e272e;
+    }
+
+    #controls-hint {
+      position: absolute;
+      bottom: 4px;
+      width: 100%;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 10px;
+      pointer-events: none;
+    }
+
+    /* Modal de Resultado */
+    #result-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 8, 18, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      cursor: default;
+    }
+
+    #result-modal.hidden {
+      display: none;
+    }
+
+    .modal-content {
+      background: #221d33;
+      border: 3px solid #ffdd59;
+      border-radius: 16px;
+      padding: 35px 45px;
+      text-align: center;
+      color: #fff;
+      max-width: 460px;
+      width: 90%;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+    }
+
+    #result-grade {
+      font-size: 48px;
+      color: #ffdd59;
+      margin-bottom: 10px;
+    }
+
+    #result-comment {
+      font-size: 18px;
+      font-style: italic;
+      color: #d2dae2;
+      margin-bottom: 25px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 18px;
+      border-radius: 10px;
+      margin-bottom: 25px;
+      font-size: 15px;
+    }
+
+    .stats-grid div:nth-child(even) {
+      font-weight: bold;
+      color: #7bed9f;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="hud">
+      <div class="hud-panel">
+        <div class="hud-label">PACIÊNCIA DO CLIENTE</div>
+        <div class="bar-container">
+          <div id="patience-bar"></div>
+        </div>
+      </div>
+
+      <div class="hud-panel center-panel">
+        <div id="client-badge">CLIENTE: GOBLIN DO PÂNTANO</div>
+        <div id="order-title">PEDIDO: MOICANO RADICAL</div>
+        <div class="sub-info">Corte os pelos FORA da linha tracejada!</div>
+      </div>
+
+      <div class="hud-panel right-panel">
+        <button id="btn-finish" class="action-btn">FINALIZAR CORTE</button>
+      </div>
+    </div>
+
+    <div id="toolbar">
+      <div class="tool-slot active" data-tool="0">
+        <span class="key-badge">1</span>
+        <span class="tool-name">Motosserra</span>
+      </div>
+      <div class="tool-slot" data-tool="1">
+        <span class="key-badge">2</span>
+        <span class="tool-name">Maçarico</span>
+      </div>
+      <div class="tool-slot" data-tool="2">
+        <span class="key-badge">3</span>
+        <span class="tool-name">Pinça Gigante</span>
+      </div>
+      <div class="tool-slot" data-tool="3">
+        <span class="key-badge">4</span>
+        <span class="tool-name">Serrote</span>
+      </div>
+      <div class="tool-slot" data-tool="4">
+        <span class="key-badge">5</span>
+        <span class="tool-name">Cortador de Grama</span>
+      </div>
+      <div class="tool-slot" data-tool="5">
+        <span class="key-badge">6</span>
+        <span class="tool-name">Canhão de Folhas</span>
+      </div>
+      <div class="tool-slot" data-tool="6">
+        <span class="key-badge">7</span>
+        <span class="tool-name">Peixe-Espada</span>
+      </div>
+    </div>
+
+    <div id="controls-hint">
+      <b>Mouse:</b> Mover (com inércia) | <b>Q / E ou Scroll:</b> Rotacionar | <b>Clique Esq:</b> Usar | <b>1-7:</b> Trocar Ferramenta
+    </div>
+
+    <div id="result-modal" class="hidden">
+      <div class="modal-content">
+        <h1 id="result-grade">NOTA: A</h1>
+        <p id="result-comment">"Ficou monstro demais!"</p>
+        <div class="stats-grid">
+          <div>Pelos certos cortados:</div><div id="stat-good">0%</div>
+          <div>Pelos errados cortados:</div><div id="stat-bad">0%</div>
+          <div>Ferimentos causados:</div><div id="stat-pain">0</div>
+        </div>
+        <button id="btn-restart" class="action-btn">PRÓXIMO CLIENTE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // =========================================================================
+    // 1. CONFIGURAÇÕES DE FÍSICA E FERRAMENTAS (0..6)
+    // 0: Motosserra | 1: Maçarico | 2: Pinça Gigante
+    // 3: Serrote | 4: Cortador de Grama | 5: Canhão de Folhas | 6: Peixe-Espada
+    // =========================================================================
+    const PHYSICS_CONFIG = {
+      tools: [
+        {
+          name: 'Motosserra',
+          mass: 0.065,
+          drag: 0.88,
+          angularMass: 0.08,
+          angularDrag: 0.85,
+          gravityTorque: 0.004,
+          shakeForce: 14,
+          bladeLength: 130,
+          bladeOffset: 45
+        },
+        {
+          name: 'Maçarico',
+          mass: 0.12,
+          drag: 0.84,
+          angularMass: 0.14,
+          angularDrag: 0.82,
+          gravityTorque: 0.002,
+          shakeForce: 2,
+          bladeLength: 110,
+          bladeOffset: 40
+        },
+        {
+          name: 'Pinça Gigante',
+          mass: 0.18,
+          drag: 0.80,
+          angularMass: 0.20,
+          angularDrag: 0.78,
+          gravityTorque: 0.001,
+          shakeForce: 0,
+          bladeLength: 95,
+          bladeOffset: 35,
+          pullThreshold: 65
+        },
+        {
+          name: 'Serrote',
+          // Exige movimento de vaivém (velocidade relativa): serra mais ao mover rápido!
+          mass: 0.11,
+          drag: 0.85,
+          angularMass: 0.12,
+          angularDrag: 0.83,
+          gravityTorque: 0.003,
+          shakeForce: 5,
+          bladeLength: 140,
+          bladeOffset: 35,
+          minSawSpeed: 3.2
+        },
+        {
+          name: 'Cortador de Grama',
+          // Pesadão, escorregadio e pende bastante para baixo como um tratorzinho voador
+          mass: 0.042,
+          drag: 0.91,
+          angularMass: 0.055,
+          angularDrag: 0.87,
+          gravityTorque: 0.0065,
+          shakeForce: 11,
+          bladeLength: 90,
+          bladeOffset: 30
+        },
+        {
+          name: 'Canhão de Folhas',
+          // Recuo (kickback) empurra a ferramenta para trás ao disparar rajadas!
+          mass: 0.09,
+          drag: 0.87,
+          angularMass: 0.10,
+          angularDrag: 0.84,
+          gravityTorque: 0.0035,
+          shakeForce: 7,
+          bladeLength: 105,
+          bladeOffset: 38,
+          recoilForce: 2.6
+        },
+        {
+          name: 'Peixe-Espada',
+          // Escorregadio e com balanço elástico divertido (peixe fresco!)
+          mass: 0.14,
+          drag: 0.89,
+          angularMass: 0.15,
+          angularDrag: 0.86,
+          gravityTorque: 0.003,
+          shakeForce: 4,
+          bladeLength: 145,
+          bladeOffset: 25
+        }
+      ]
+    };
+
+    // =========================================================================
+    // 2. CATÁLOGO DE CLIENTES / PERSONAGENS
+    // =========================================================================
+    const MONSTER_CHARACTERS = [
+      {
+        id: 'goblin',
+        name: 'GOBLIN DO PÂNTANO',
+        skinColor: '#6ab04c',
+        outlineColor: '#487eb0',
+        capeColor: '#eb4d4b',
+        hornColor: '#f6e58d',
+        headRadius: 145,
+        maxPatience: 100,
+        headShape: 'round',
+        earStyle: 'pointed',
+        hornStyle: 'curved',
+        hairStyle: 'straight',
+        hairColor: '#574b90',
+        beardColor: '#2f3542',
+        eyeCount: 2,
+        quotes: [
+          'AI! MEU OLHO!', 'VOCÊ TEM DIPLOMA?!', 'ISSO É UMA MOTOSSERRA?!',
+          'MINHA ORELHA!', 'SOCORRO!', 'CUIDADO COM O CHIFRE!'
+        ]
+      },
+      {
+        id: 'yeti',
+        name: 'YETI DE NEON',
+        skinColor: '#74b9ff',
+        outlineColor: '#0984e3',
+        capeColor: '#6c5ce7',
+        hornColor: '#fd79a8',
+        headRadius: 155,
+        maxPatience: 120,
+        headShape: 'wide',
+        earStyle: 'fluffy',
+        hornStyle: 'antlers',
+        hairStyle: 'curly',
+        hairColor: '#ffeaa7',
+        beardColor: '#dfe6e9',
+        eyeCount: 3,
+        quotes: [
+          'BRRR! ISSO DÓI NO FRIO!', 'MEUS CACHINHOS SAGRADOS!',
+          'VOCÊ É UM BARBEIRO OU UM URSO?', 'MEU TERCEIRO OLHO!'
+        ]
+      },
+      {
+        id: 'demon_lord',
+        name: 'LORDE DEMÔNIO ESTAGIÁRIO',
+        skinColor: '#ff6b6b',
+        outlineColor: '#c0392b',
+        capeColor: '#2d3436',
+        hornColor: '#feca57',
+        headRadius: 142,
+        maxPatience: 90,
+        headShape: 'tall',
+        earStyle: 'bat',
+        hornStyle: 'crown',
+        hairStyle: 'spiky',
+        hairColor: '#ff9f43',
+        beardColor: '#5f27cd',
+        eyeCount: 2,
+        quotes: [
+          'EU VOU TE CONDENAR A CORTAR GRAMA!', 'MEUS ESPINHOS ESTÃO ARREPIADOS!',
+          'QUEIMA NÃO, EU JÁ SOU DO FOGO!', 'MINHA COROA DE CHIFRES!'
+        ]
+      }
+    ];
+
+    // =========================================================================
+    // 3. CORTES DE CABELO / BARBA DISPONÍVEIS
+    // =========================================================================
+    const HAIR_ORDERS = [
+      {
+        name: 'TOSA COMPLETA (DEIXAR PELADO / NU)',
+        shouldKeep: () => false
+      },
+      {
+        name: 'MOICANO RADICAL NO CORPO',
+        shouldKeep: (angle, partType) => partType === 'head' && (angle > -Math.PI * 0.62 && angle < -Math.PI * 0.38)
+      },
+      {
+        name: 'SÓ AS PERNAS E BARBA PELUDAS',
+        shouldKeep: (angle, partType) => partType === 'leg' || partType === 'beard'
+      },
+      {
+        name: 'MARIA-CHIQUINHA MONSTRUOSA',
+        shouldKeep: (angle, partType) => partType === 'head' && (
+          (angle > -Math.PI * 0.85 && angle < -Math.PI * 0.68) ||
+          (angle > -Math.PI * 0.32 && angle < -Math.PI * 0.15)
+        )
+      }
+    ];
+
+    // =========================================================================
+    // 4. SINTETIZADOR DE ÁUDIO PROCEDURAL
+    // =========================================================================
+    const AudioFX = {
+      ctx: null,
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      },
+      playTone(freq, type, duration, vol = 0.1) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.4, this.ctx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+      },
+      playSnip() { this.playTone(600 + Math.random() * 200, 'triangle', 0.08, 0.08); },
+      playPluck() { this.playTone(300, 'sine', 0.15, 0.15); },
+      playPain() { this.playTone(140, 'sawtooth', 0.35, 0.2); },
+      playBurn() { this.playTone(90 + Math.random() * 40, 'sawtooth', 0.1, 0.05); },
+      playSaw() { this.playTone(260 + Math.random() * 90, 'square', 0.06, 0.05); },
+      playMower() { this.playTone(75 + Math.random() * 20, 'sawtooth', 0.12, 0.07); },
+      playLeafBlast() { this.playTone(180 + Math.random() * 80, 'triangle', 0.09, 0.07); },
+      playSlap() { this.playTone(210 + Math.random() * 60, 'sine', 0.12, 0.12); }
+    };
+
+    // =========================================================================
+    // 5. ESTADO GLOBAL DO JOGO E INPUTS
+    // =========================================================================
+    const state = {
+      mouse: { x: canvas.width / 2, y: canvas.height / 2, down: false },
+      keys: {},
+      screenShake: 0,
+      gameOver: false,
+      particles: [],
+      projectiles: [], // Projéteis de folhas do Canhão de Folhas
+      speechBubbles: [],
+      currentOrder: null,
+      currentCharacter: MONSTER_CHARACTERS[0],
+      lastCharIndex: -1,
+      leafCooldown: 0
+    };
+
+    const toolState = {
+      index: 0,
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      vx: 0,
+      vy: 0,
+      angle: -Math.PI / 4,
+      targetAngle: -Math.PI / 4,
+      vAngle: 0,
+      active: false,
+      grabbedHair: null,
+      grabStartX: 0,
+      grabStartY: 0
+    };
+
+    const monster = {
+      x: 0,
+      y: 0,
+      headRadius: 145,
+      rx: 145,
+      ry: 145,
+      patience: 100,
+      maxPatience: 100,
+      painCount: 0,
+      painCooldown: 0,
+      headHeat: 0,
+      onFireTimer: 0,
+      expression: 'neutral',
+      expressionTimer: 0,
+      hairs: [],
+      sensitiveParts: []
+    };
+
+    // =========================================================================
+    // 6. INICIALIZAÇÃO DO CLIENTE
+    // =========================================================================
+    function pickNextCharacter() {
+      let idx = Math.floor(Math.random() * MONSTER_CHARACTERS.length);
+      if (MONSTER_CHARACTERS.length > 1 && idx === state.lastCharIndex) {
+        idx = (idx + 1) % MONSTER_CHARACTERS.length;
+      }
+      state.lastCharIndex = idx;
+      return MONSTER_CHARACTERS[idx];
+    }
+
+    function getHeadRadii(char) {
+      const base = char.headRadius;
+      if (char.headShape === 'tall') return { rx: base * 0.90, ry: base * 1.12 };
+      if (char.headShape === 'wide') return { rx: base * 1.12, ry: base * 0.94 };
+      return { rx: base, ry: base };
+    }
+
+    function initCustomer() {
+      const char = pickNextCharacter();
+      state.currentCharacter = char;
+
+      const radii = getHeadRadii(char);
+      monster.x = canvas.width / 2;
+      monster.y = canvas.height / 2 - 45;
+      monster.headRadius = char.headRadius * 0.76;
+      monster.rx = radii.rx * 0.76;
+      monster.ry = radii.ry * 0.76;
+      monster.maxPatience = char.maxPatience;
+      monster.patience = char.maxPatience;
+      monster.painCount = 0;
+      monster.painCooldown = 0;
+      monster.headHeat = 0;
+      monster.onFireTimer = 0;
+      monster.expression = 'neutral';
+      monster.embarrassedRatio = 0;
+      monster.hairs = [];
+      state.particles = [];
+      state.projectiles = [];
+      state.speechBubbles = [];
+      state.gameOver = false;
+
+      state.currentOrder = HAIR_ORDERS[Math.floor(Math.random() * HAIR_ORDERS.length)];
+      document.getElementById('client-badge').innerText = `CLIENTE: ${char.name}`;
+      document.getElementById('order-title').innerText = `PEDIDO: ${state.currentOrder.name}`;
+      document.getElementById('result-modal').classList.add('hidden');
+
+      const hairCount = char.hairStyle === 'spiky' ? 42 : 52;
+      for (let i = 0; i < hairCount; i++) {
+        const t = i / (hairCount - 1);
+        const angle = -Math.PI * 0.92 + t * (Math.PI * 0.84);
+        const length = char.hairStyle === 'spiky'
+          ? (i % 2 === 0 ? 78 : 45) + Math.random() * 12
+          : 52 + Math.random() * 22;
+        const rxRoot = Math.cos(angle) * (monster.rx - 3);
+        const ryRoot = Math.sin(angle) * (monster.ry - 3);
+        monster.hairs.push(createHairStrand(angle, length, 'head', char.hairStyle, rxRoot, ryRoot));
+      }
+
+      const beardCount = 26;
+      for (let i = 0; i < beardCount; i++) {
+        const t = i / (beardCount - 1);
+        const angle = Math.PI * 0.20 + t * (Math.PI * 0.60);
+        const length = 42 + Math.random() * 18;
+        const rxRoot = Math.cos(angle) * (monster.rx - 3);
+        const ryRoot = Math.sin(angle) * (monster.ry - 3);
+        monster.hairs.push(createHairStrand(angle, length, 'beard', char.hairStyle, rxRoot, ryRoot));
+      }
+
+      // Pelos nos braços esquerdo e direito (corpo inteiro)
+      [-1, 1].forEach(dir => {
+        for (let i = 0; i < 14; i++) {
+          const frac = (i + 0.5) / 14;
+          const armX = dir * (monster.rx * 0.78 + frac * 42);
+          const armY = monster.ry * 0.35 + frac * 95;
+          const sideAngle = dir > 0 ? -0.3 + Math.random() * 0.9 : Math.PI - 0.6 + Math.random() * 0.9;
+          monster.hairs.push(createHairStrand(sideAngle, 26 + Math.random() * 14, 'arm', char.hairStyle, armX, armY));
+        }
+
+        // Pelos nas pernas esquerda e direita
+        for (let i = 0; i < 16; i++) {
+          const frac = (i + 0.5) / 16;
+          const legX = dir * (36 + frac * 10);
+          const legY = monster.ry * 0.85 + frac * 115;
+          const legAngle = dir > 0 ? 0.1 + Math.random() * 0.8 : Math.PI - 0.9 + Math.random() * 0.8;
+          monster.hairs.push(createHairStrand(legAngle, 28 + Math.random() * 14, 'leg', char.hairStyle, legX, legY));
+        }
+      });
+
+      monster.sensitiveParts = [
+        { type: 'eye', ox: -48, oy: -25, r: 24, name: 'Olho Esquerdo' },
+        { type: 'eye', ox: 48, oy: -25, r: 24, name: 'Olho Direito' },
+        { type: 'ear', ox: -(monster.rx + 8), oy: 0, r: 24, name: 'Orelha Esquerda' },
+        { type: 'ear', ox: monster.rx + 8, oy: 0, r: 24, name: 'Orelha Direita' },
+        { type: 'horn', ox: -95, oy: -(monster.ry - 25), r: 28, name: 'Chifre Esquerdo' },
+        { type: 'horn', ox: 95, oy: -(monster.ry - 25), r: 28, name: 'Chifre Direito' }
+      ];
+
+      if (char.eyeCount >= 3) {
+        monster.sensitiveParts.push({
+          type: 'eye', ox: 0, oy: -62, r: 20, name: 'Terceiro Olho'
+        });
+      }
+    }
+
+    function createHairStrand(angle, length, partType, hairStyle, rootX, rootY) {
+      return {
+        angle,
+        partType,
+        isBeard: partType === 'beard',
+        hairStyle,
+        shouldKeep: state.currentOrder.shouldKeep(angle, partType),
+        rootX,
+        rootY,
+        length,
+        cut: false,
+        burning: 0,
+        tipAngle: angle,
+        tipVel: 0,
+        stretch: 0,
+        curlPhase: Math.random() * Math.PI * 2
+      };
+    }
+
+    // =========================================================================
+    // 7. EVENTOS DE ENTRADA
+    // =========================================================================
+    window.addEventListener('mousemove', (e) => {
+      state.mouse.x = e.clientX;
+      state.mouse.y = e.clientY;
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && !state.gameOver) {
+        AudioFX.init();
+        state.mouse.down = true;
+        toolState.active = true;
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        state.mouse.down = false;
+        toolState.active = false;
+        if (toolState.grabbedHair) {
+          toolState.grabbedHair.stretch = 0;
+          toolState.grabbedHair = null;
+        }
+      }
+    });
+
+    window.addEventListener('wheel', (e) => {
+      toolState.targetAngle += Math.sign(e.deltaY) * 0.25;
+    });
+
+    window.addEventListener('keydown', (e) => {
+      state.keys[e.key.toLowerCase()] = true;
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= PHYSICS_CONFIG.tools.length) {
+        selectTool(num - 1);
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      state.keys[e.key.toLowerCase()] = false;
+    });
+
+    function selectTool(index) {
+      toolState.index = index;
+      toolState.grabbedHair = null;
+      document.querySelectorAll('.tool-slot').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
+      });
+    }
+
+    document.getElementById('btn-finish').addEventListener('click', () => endGame(false));
+    document.getElementById('btn-restart').addEventListener('click', initCustomer);
+
+    // =========================================================================
+    // 8. ATUALIZAÇÃO DE FÍSICA
+    // =========================================================================
+    function updatePhysics() {
+      if (state.gameOver) return;
+
+      monster.x = canvas.width / 2;
+      monster.y = canvas.height / 2 - 45;
+      const cutTotal = monster.hairs.filter(h => h.cut).length;
+      const nudityRatio = monster.hairs.length > 0 ? cutTotal / monster.hairs.length : 0;
+      monster.embarrassedRatio = Math.max(0, Math.min(1, (nudityRatio - 0.55) / 0.45));
+
+      const cfg = PHYSICS_CONFIG.tools[toolState.index];
+
+      const rotSpeed = 0.065;
+      if (state.keys['q']) toolState.targetAngle -= rotSpeed;
+      if (state.keys['e']) toolState.targetAngle += rotSpeed;
+
+      const dx = state.mouse.x - toolState.x;
+      const dy = state.mouse.y - toolState.y;
+
+      toolState.vx += dx * cfg.mass;
+      toolState.vy += dy * cfg.mass;
+      toolState.vx *= cfg.drag;
+      toolState.vy *= cfg.drag;
+      toolState.x += toolState.vx;
+      toolState.y += toolState.vy;
+
+      const velocityTorque = -toolState.vx * 0.0025;
+      const gravityPull = Math.cos(toolState.angle) * cfg.gravityTorque;
+
+      const angleDiff = toolState.targetAngle - toolState.angle;
+      toolState.vAngle += angleDiff * cfg.angularMass + velocityTorque + gravityPull;
+      toolState.vAngle *= cfg.angularDrag;
+      toolState.angle += toolState.vAngle;
+
+      if (toolState.active && cfg.shakeForce > 0) {
+        state.screenShake = Math.max(state.screenShake, cfg.shakeForce * 0.35);
+        toolState.x += (Math.random() - 0.5) * cfg.shakeForce;
+        toolState.y += (Math.random() - 0.5) * cfg.shakeForce;
+        toolState.angle += (Math.random() - 0.5) * (cfg.shakeForce * 0.01);
+      }
+
+      if (state.screenShake > 0) {
+        state.screenShake *= 0.85;
+        if (state.screenShake < 0.2) state.screenShake = 0;
+      }
+
+      if (monster.painCooldown > 0) monster.painCooldown--;
+      if (monster.expressionTimer > 0) {
+        monster.expressionTimer--;
+        if (monster.expressionTimer <= 0) monster.expression = 'neutral';
+      }
+
+      if (monster.onFireTimer > 0) {
+        monster.onFireTimer--;
+        spawnParticle(
+          monster.x + (Math.random() - 0.5) * 160,
+          monster.y - monster.ry + (Math.random() - 0.5) * 30,
+          'fire'
+        );
+        if (monster.onFireTimer % 20 === 0) {
+          damageMonster(4, 'MINHA CABEÇA TÁ PEGANDO FOGO!!');
+        }
+      } else {
+        monster.headHeat = Math.max(0, monster.headHeat - 0.5);
+      }
+
+      if (state.leafCooldown > 0) state.leafCooldown--;
+
+      updateHairsPhysics();
+      handleToolInteractions(cfg);
+      updateProjectiles();
+      updateParticles();
+      updateHUD();
+    }
+
+    function updateHairsPhysics() {
+      monster.hairs.forEach(h => {
+        if (h.cut) return;
+        const springForce = (h.angle - h.tipAngle) * 0.12;
+        const gravity = Math.cos(h.tipAngle) * 0.015;
+        h.tipVel = (h.tipVel + springForce + gravity) * 0.85;
+        h.tipAngle += h.tipVel;
+        if (h.hairStyle === 'curly') h.curlPhase += 0.08;
+      });
+    }
+
+    // =========================================================================
+    // 9. LÓGICA DAS 7 FERRAMENTAS
+    // =========================================================================
+    function getToolTipPosition(cfg) {
+      const cos = Math.cos(toolState.angle);
+      const sin = Math.sin(toolState.angle);
+      return {
+        baseX: toolState.x + cos * cfg.bladeOffset,
+        baseY: toolState.y + sin * cfg.bladeOffset,
+        tipX: toolState.x + cos * (cfg.bladeOffset + cfg.bladeLength),
+        tipY: toolState.y + sin * (cfg.bladeOffset + cfg.bladeLength)
+      };
+    }
+
+    function handleToolInteractions(cfg) {
+      const { baseX, baseY, tipX, tipY } = getToolTipPosition(cfg);
+      const toolSpeed = Math.hypot(toolState.vx, toolState.vy);
+
+      // 1 - Maçarico (chama contínua ao ativar)
+      if (toolState.index === 1 && toolState.active) {
+        if (Math.random() < 0.4) AudioFX.playBurn();
+        for (let i = 0; i < 3; i++) {
+          spawnParticle(
+            tipX + (Math.random() - 0.5) * 15,
+            tipY + (Math.random() - 0.5) * 15,
+            'fire',
+            Math.cos(toolState.angle) * 5,
+            Math.sin(toolState.angle) * 5
+          );
+        }
+      }
+
+      if (!toolState.active) return;
+
+      // 0 - Motosserra
+      if (toolState.index === 0) {
+        monster.hairs.forEach(h => {
+          if (h.cut) return;
+          const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.6);
+          const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.6);
+          if (distToSegment(hx, hy, baseX, baseY, tipX, tipY) < 22) {
+            cutHair(h, 'cut');
+          }
+        });
+        checkSkinAndSensitiveDamage(baseX, baseY, tipX, tipY, 12, 'A MOTOSSERRA CORTOU MINHA PELE!');
+      }
+
+      // 1 - Maçarico
+      if (toolState.index === 1) {
+        const flameX = tipX + Math.cos(toolState.angle) * 25;
+        const flameY = tipY + Math.sin(toolState.angle) * 25;
+
+        monster.hairs.forEach(h => {
+          if (h.cut) return;
+          const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.6);
+          const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.6);
+          if (Math.hypot(hx - flameX, hy - flameY) < 35) {
+            h.burning += 0.08;
+            if (Math.random() < 0.3) spawnParticle(hx, hy, 'smoke');
+            if (h.burning >= 1) cutHair(h, 'burn');
+          }
+        });
+
+        const distToHead = Math.hypot(flameX - monster.x, flameY - monster.y);
+        if (distToHead < monster.headRadius + 15) {
+          monster.headHeat += 1.6;
+          if (monster.headHeat > 75 && monster.onFireTimer <= 0) {
+            monster.onFireTimer = 140;
+            damageMonster(12, 'VOCÊ COLOCOU FOGO NA MINHA CABEÇA!');
+          }
+        }
+        checkSkinAndSensitiveDamage(flameX, flameY, flameX, flameY, 8, 'AI! ISSO QUEIMA!');
+      }
+
+      // 2 - Pinça Gigante
+      if (toolState.index === 2) {
+        if (!toolState.grabbedHair) {
+          let closest = null;
+          let minDist = 24;
+          monster.hairs.forEach(h => {
+            if (h.cut) return;
+            const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.7);
+            const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.7);
+            const d = Math.hypot(hx - tipX, hy - tipY);
+            if (d < minDist) {
+              minDist = d;
+              closest = h;
+            }
+          });
+          if (closest) {
+            toolState.grabbedHair = closest;
+            toolState.grabStartX = tipX;
+            toolState.grabStartY = tipY;
+          }
+        } else {
+          const h = toolState.grabbedHair;
+          const pullDist = Math.hypot(tipX - toolState.grabStartX, tipY - toolState.grabStartY);
+          h.stretch = Math.min(pullDist, cfg.pullThreshold);
+          h.tipAngle = Math.atan2(tipY - (monster.y + h.rootY), tipX - (monster.x + h.rootX));
+          if (pullDist >= cfg.pullThreshold) {
+            cutHair(h, 'pluck');
+            toolState.grabbedHair = null;
+          }
+        }
+      }
+
+      // 3 - Serrote: exige movimento rápido de vaivém para cortar!
+      if (toolState.index === 3) {
+        if (toolSpeed >= cfg.minSawSpeed) {
+          if (Math.random() < 0.35) AudioFX.playSaw();
+          monster.hairs.forEach(h => {
+            if (h.cut) return;
+            const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.6);
+            const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.6);
+            if (distToSegment(hx, hy, baseX, baseY, tipX, tipY) < 20) {
+              cutHair(h, 'saw');
+            }
+          });
+        }
+        checkSkinAndSensitiveDamage(baseX, baseY, tipX, tipY, 9, 'AI! ISSO É UM SERROTE DE CARPINTEIRO!');
+      }
+
+      // 4 - Cortador de Grama: faixa larga de corte na base da lâmina + som de motor
+      if (toolState.index === 4) {
+        if (Math.random() < 0.25) AudioFX.playMower();
+        const midX = (baseX + tipX) * 0.5;
+        const midY = (baseY + tipY) * 0.5;
+        monster.hairs.forEach(h => {
+          if (h.cut) return;
+          const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.55);
+          const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.55);
+          if (Math.hypot(hx - midX, hy - midY) < 48) {
+            cutHair(h, 'mower');
+          }
+        });
+        checkSkinAndSensitiveDamage(baseX, baseY, tipX, tipY, 14, 'UM CORTADOR DE GRAMA NA MINHA CABEÇA?!');
+      }
+
+      // 5 - Canhão de Folhas: dispara folhas cortantes com recuo!
+      if (toolState.index === 5) {
+        if (state.leafCooldown <= 0) {
+          state.leafCooldown = 7;
+          AudioFX.playLeafBlast();
+
+          // Recuo físico empurra a ferramenta para trás
+          toolState.vx -= Math.cos(toolState.angle) * cfg.recoilForce;
+          toolState.vy -= Math.sin(toolState.angle) * cfg.recoilForce;
+
+          const spread = (Math.random() - 0.5) * 0.28;
+          const fireAngle = toolState.angle + spread;
+          const speed = 11;
+          state.projectiles.push({
+            x: tipX,
+            y: tipY,
+            vx: Math.cos(fireAngle) * speed,
+            vy: Math.sin(fireAngle) * speed,
+            rot: fireAngle,
+            life: 55
+          });
+        }
+      }
+
+      // 6 - Peixe-Espada: estocada escorregadia e cômica com o focinho do peixe
+      if (toolState.index === 6) {
+        monster.hairs.forEach(h => {
+          if (h.cut) return;
+          const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.65);
+          const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.65);
+          if (distToSegment(hx, hy, baseX, baseY, tipX, tipY) < 18) {
+            cutHair(h, 'fish');
+          }
+        });
+        checkSkinAndSensitiveDamage(tipX, tipY, tipX, tipY, 10, 'FUI ESPETADO POR UM PEIXE-ESPADA!');
+      }
+    }
+
+    function updateProjectiles() {
+      for (let i = state.projectiles.length - 1; i >= 0; i--) {
+        const p = state.projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += 0.25;
+        p.life--;
+
+        let hit = false;
+        for (const h of monster.hairs) {
+          if (h.cut) continue;
+          const hx = monster.x + h.rootX + Math.cos(h.tipAngle) * (h.length * 0.6);
+          const hy = monster.y + h.rootY + Math.sin(h.tipAngle) * (h.length * 0.6);
+          if (Math.hypot(hx - p.x, hy - p.y) < 22) {
+            cutHair(h, 'leaf');
+            hit = true;
+            break;
+          }
+        }
+
+        if (!hit) {
+          checkSkinAndSensitiveDamage(p.x, p.y, p.x, p.y, 6, 'AI! FOLHAS AFIAADAS!');
+        }
+
+        if (hit || p.life <= 0) {
+          state.projectiles.splice(i, 1);
+        }
+      }
+    }
+
+    function cutHair(hair, method) {
+      hair.cut = true;
+      const hx = monster.x + hair.rootX + Math.cos(hair.tipAngle) * (hair.length * 0.5);
+      const hy = monster.y + hair.rootY + Math.sin(hair.tipAngle) * (hair.length * 0.5);
+
+      if (method === 'burn') {
+        AudioFX.playBurn();
+        for (let i = 0; i < 5; i++) spawnParticle(hx, hy, 'smoke');
+      } else if (method === 'pluck') {
+        AudioFX.playPluck();
+        for (let i = 0; i < 3; i++) spawnParticle(hx, hy, 'hair');
+      } else if (method === 'fish') {
+        AudioFX.playSlap();
+        for (let i = 0; i < 4; i++) spawnParticle(hx, hy, i % 2 === 0 ? 'hair' : 'slime');
+      } else {
+        AudioFX.playSnip();
+        for (let i = 0; i < 4; i++) spawnParticle(hx, hy, 'hair');
+      }
+
+      if (hair.shouldKeep && Math.random() < 0.25) {
+        addSpeechBubble('EI! ESSA PARTE NÃO!');
+      }
+    }
+
+    function checkSkinAndSensitiveDamage(x1, y1, x2, y2, damageAmount, defaultMsg) {
+      if (monster.painCooldown > 0) return;
+      for (const part of monster.sensitiveParts) {
+        const px = monster.x + part.ox;
+        const py = monster.y + part.oy;
+        if (distToSegment(px, py, x1, y1, x2, y2) < part.r) {
+          damageMonster(damageAmount * 1.5, `AI! MEU ${part.name.toUpperCase()}!`);
+          return;
+        }
+      }
+      if ([0, 3, 4].includes(toolState.index)) {
+        if (distToSegment(monster.x, monster.y, x1, y1, x2, y2) < monster.headRadius - 8) {
+          damageMonster(damageAmount, defaultMsg);
+        }
+      }
+    }
+
+    function damageMonster(amount, customQuote) {
+      monster.patience = Math.max(0, monster.patience - amount);
+      monster.painCount++;
+      monster.painCooldown = 35;
+      monster.expression = 'pain';
+      monster.expressionTimer = 45;
+      state.screenShake = 15;
+      AudioFX.playPain();
+
+      for (let i = 0; i < 8; i++) {
+        spawnParticle(
+          monster.x + (Math.random() - 0.5) * 180,
+          monster.y + (Math.random() - 0.5) * 180,
+          i % 2 === 0 ? 'star' : 'slime'
+        );
+      }
+      const pool = state.currentCharacter.quotes;
+      const quote = customQuote || pool[Math.floor(Math.random() * pool.length)];
+      addSpeechBubble(quote);
+      if (monster.patience <= 0) endGame(true);
+    }
+
+    // =========================================================================
+    // 10. PARTÍCULAS E BALÕES DE FALA
+    // =========================================================================
+    function spawnParticle(x, y, type, vx = 0, vy = 0) {
+      state.particles.push({
+        x, y,
+        vx: vx + (Math.random() - 0.5) * 6,
+        vy: vy + (Math.random() - 0.5) * 6 - (type === 'smoke' || type === 'fire' ? 2 : 0),
+        life: 1.0,
+        decay: 0.02 + Math.random() * 0.03,
+        size: 4 + Math.random() * 6,
+        type
+      });
+    }
+
+    function addSpeechBubble(text) {
+      if (state.speechBubbles.length > 2) state.speechBubbles.shift();
+      state.speechBubbles.push({
+        text,
+        x: monster.x + (Math.random() > 0.5 ? 185 : -185),
+        y: monster.y - 110 - Math.random() * 40,
+        life: 110
+      });
+    }
+
+    function updateParticles() {
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.type === 'hair' || p.type === 'slime') p.vy += 0.25;
+        p.life -= p.decay;
+        if (p.life <= 0) state.particles.splice(i, 1);
+      }
+      for (let i = state.speechBubbles.length - 1; i >= 0; i--) {
+        const b = state.speechBubbles[i];
+        b.y -= 0.3;
+        b.life--;
+        if (b.life <= 0) state.speechBubbles.splice(i, 1);
+      }
+    }
+
+    // =========================================================================
+    // 11. RENDERIZAÇÃO NO CANVAS
+    // =========================================================================
+    function draw() {
+      ctx.save();
+      if (state.screenShake > 0) {
+        ctx.translate((Math.random() - 0.5) * state.screenShake, (Math.random() - 0.5) * state.screenShake);
+      }
+      drawBackground();
+      drawMonster();
+      drawHairGuide();
+      drawHairs();
+      drawProjectiles();
+      drawParticles();
+      drawTool();
+      drawSpeechBubbles();
+      ctx.restore();
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = '#241e36';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = -canvas.height; i < canvas.width; i += 80) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + 40, 0);
+        ctx.lineTo(i - 200, canvas.height);
+        ctx.lineTo(i - 240, canvas.height);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#3d315b';
+      ctx.beginPath();
+      ctx.roundRect(monster.x - 165, monster.y - 60, 330, 280, 40);
+      ctx.fill();
+    }
+
+    function drawHorns(x, y, char) {
+      ctx.fillStyle = char.hornColor;
+      if (char.hornStyle === 'antlers') {
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.moveTo(x + dir * 70, y - monster.ry + 25);
+          ctx.lineTo(x + dir * 115, y - monster.ry - 65);
+          ctx.lineTo(x + dir * 95, y - monster.ry - 65);
+          ctx.lineTo(x + dir * 72, y - monster.ry - 15);
+          ctx.lineTo(x + dir * 50, y - monster.ry + 25);
+          ctx.fill();
+        });
+      } else if (char.hornStyle === 'crown') {
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.moveTo(x + dir * 50, y - monster.ry + 20);
+          ctx.lineTo(x + dir * 85, y - monster.ry - 55);
+          ctx.lineTo(x + dir * 115, y - monster.ry - 25);
+          ctx.lineTo(x + dir * 85, y - monster.ry + 25);
+          ctx.fill();
+        });
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x - 75, y - 110);
+        ctx.quadraticCurveTo(x - 130, y - 160, x - 110, y - 190);
+        ctx.quadraticCurveTo(x - 75, y - 160, x - 45, y - 125);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x + 75, y - 110);
+        ctx.quadraticCurveTo(x + 130, y - 160, x + 110, y - 190);
+        ctx.quadraticCurveTo(x + 75, y - 160, x + 45, y - 125);
+        ctx.fill();
+      }
+    }
+
+    function drawEars(x, y, char) {
+      ctx.fillStyle = char.skinColor;
+      [-1, 1].forEach(dir => {
+        const ex = x + dir * monster.rx;
+        if (char.earStyle === 'fluffy') {
+          ctx.beginPath();
+          ctx.arc(ex + dir * 12, y, 24, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (char.earStyle === 'bat') {
+          ctx.beginPath();
+          ctx.moveTo(ex, y - 28);
+          ctx.lineTo(ex + dir * 55, y - 20);
+          ctx.lineTo(ex + dir * 15, y + 25);
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(ex, y - 20);
+          ctx.lineTo(ex + dir * 50, y - 5);
+          ctx.lineTo(ex, y + 25);
+          ctx.fill();
+        }
+      });
+    }
+
+    function drawFullBodyLimbs(x, y, rx, ry, char) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Braços esquerdo e direito com garras
+      [-1, 1].forEach(dir => {
+        const startX = x + dir * (rx * 0.72);
+        const startY = y + ry * 0.35;
+        const elbowX = x + dir * (rx * 1.05 + 22);
+        const elbowY = y + ry * 0.85;
+        const handX = x + dir * (rx * 1.02 + 34);
+        const handY = y + ry * 1.32;
+
+        ctx.strokeStyle = char.skinColor;
+        ctx.lineWidth = 22;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(elbowX, elbowY, handX, handY);
+        ctx.stroke();
+
+        ctx.strokeStyle = char.outlineColor;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Mão e garra
+        ctx.fillStyle = char.skinColor;
+        ctx.beginPath();
+        ctx.arc(handX, handY, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = char.hornColor;
+        ctx.beginPath();
+        ctx.moveTo(handX + dir * 10, handY - 4);
+        ctx.lineTo(handX + dir * 26, handY + 2);
+        ctx.lineTo(handX + dir * 8, handY + 8);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Pernas esquerda e direita com pés
+      [-1, 1].forEach(dir => {
+        const hipX = x + dir * 34;
+        const hipY = y + ry * 0.85;
+        const footX = x + dir * 46;
+        const footY = y + ry + 122;
+
+        ctx.strokeStyle = char.skinColor;
+        ctx.lineWidth = 24;
+        ctx.beginPath();
+        ctx.moveTo(hipX, hipY);
+        ctx.lineTo(footX, footY);
+        ctx.stroke();
+
+        ctx.strokeStyle = char.outlineColor;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Pé com dedinhos
+        ctx.fillStyle = char.skinColor;
+        ctx.beginPath();
+        ctx.ellipse(footX + dir * 10, footY + 8, 24, 13, dir * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      });
+    }
+
+    function drawMonster() {
+      const char = state.currentCharacter;
+      const { x, y, rx, ry } = monster;
+
+      drawFullBodyLimbs(x, y, rx, ry, char);
+      drawHorns(x, y, char);
+      drawEars(x, y, char);
+
+      const heatRatio = Math.min(1, monster.headHeat / 75);
+      ctx.fillStyle = heatRatio > 0
+        ? `rgb(255, ${Math.max(60, 140 - heatRatio * 80)}, 70)`
+        : char.skinColor;
+      ctx.beginPath();
+      ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = char.outlineColor;
+      ctx.stroke();
+
+      // Bochechas coradas de vergonha quando fica tosado/nu
+      if (monster.embarrassedRatio > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = monster.embarrassedRatio * 0.72;
+        ctx.fillStyle = '#ff6b81';
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.ellipse(x + dir * 56, y + 14, 18, 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
+
+      drawMonsterEyes(x, y, char);
+      drawMonsterMouth(x, y);
+    }
+
+    function drawSingleEye(ex, ey, r) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ex, ey, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#1e272e';
+      ctx.stroke();
+
+      if (monster.expression === 'pain') {
+        ctx.strokeStyle = '#eb4d4b';
+        ctx.lineWidth = 4;
+        const d = r * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(ex - d, ey - d);
+        ctx.lineTo(ex + d, ey + d);
+        ctx.moveTo(ex + d, ey - d);
+        ctx.lineTo(ex - d, ey + d);
+        ctx.stroke();
+      } else {
+        const angleToTool = Math.atan2(toolState.y - ey, toolState.x - ex);
+        ctx.fillStyle = '#1e272e';
+        ctx.beginPath();
+        ctx.arc(ex + Math.cos(angleToTool) * (r * 0.33), ey + Math.sin(angleToTool) * (r * 0.33), r * 0.37, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawMonsterEyes(x, y, char) {
+      drawSingleEye(x - 48, y - 25, 24);
+      drawSingleEye(x + 48, y - 25, 24);
+      if (char.eyeCount >= 3) {
+        drawSingleEye(x, y - 62, 20);
+      }
+    }
+
+    function drawMonsterMouth(x, y) {
+      ctx.strokeStyle = '#1e272e';
+      ctx.lineWidth = 4;
+
+      if (monster.expression === 'pain') {
+        ctx.fillStyle = '#833471';
+        ctx.beginPath();
+        ctx.ellipse(x, y + 48, 35, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else if (monster.embarrassedRatio > 0.35) {
+        // Expressao de vergonha / sem graça
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y + 44);
+        ctx.quadraticCurveTo(x, y + 36, x + 24, y + 44);
+        ctx.stroke();
+      } else if (monster.patience < monster.maxPatience * 0.4) {
+        ctx.beginPath();
+        ctx.moveTo(x - 40, y + 50);
+        ctx.lineTo(x - 20, y + 42);
+        ctx.lineTo(x, y + 52);
+        ctx.lineTo(x + 20, y + 42);
+        ctx.lineTo(x + 40, y + 50);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y + 35, 42, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.moveTo(x - 28, y + 58);
+        ctx.lineTo(x - 22, y + 44);
+        ctx.lineTo(x - 16, y + 63);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x + 28, y + 58);
+        ctx.lineTo(x + 22, y + 44);
+        ctx.lineTo(x + 16, y + 63);
+        ctx.fill();
+      }
+    }
+
+    function drawHairGuide() {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 221, 89, 0.75)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+
+      monster.hairs.forEach(h => {
+        if (!h.shouldKeep) return;
+        const startX = monster.x + h.rootX;
+        const startY = monster.y + h.rootY;
+        const endX = startX + Math.cos(h.angle) * (h.length + 10);
+        const endY = startY + Math.sin(h.angle) * (h.length + 10);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+
+    function drawHairs() {
+      const char = state.currentCharacter;
+      monster.hairs.forEach(h => {
+        if (h.cut) return;
+        const startX = monster.x + h.rootX;
+        const startY = monster.y + h.rootY;
+        const currentLen = h.length + h.stretch;
+        const endX = startX + Math.cos(h.tipAngle) * currentLen;
+        const endY = startY + Math.sin(h.tipAngle) * currentLen;
+
+        const baseColor = h.isBeard ? char.beardColor : char.hairColor;
+        ctx.strokeStyle = h.burning > 0 ? '#ff6b6b' : baseColor;
+        ctx.lineWidth = h.hairStyle === 'spiky' ? 7 : 6;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        if (h.hairStyle === 'curly') {
+          const wave = Math.sin(h.curlPhase) * 14;
+          const ctrlX = (startX + endX) / 2 + wave;
+          const ctrlY = (startY + endY) / 2 - wave * 0.5;
+          ctx.quadraticCurveTo(ctrlX, ctrlY, endX, endY);
+        } else if (h.hairStyle === 'spiky') {
+          ctx.lineTo(endX, endY);
+        } else {
+          ctx.quadraticCurveTo((startX + endX) / 2, (startY + endY) / 2 + 8, endX, endY);
+        }
+        ctx.stroke();
+      });
+    }
+
+    function drawProjectiles() {
+      state.projectiles.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = '#2ed573';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 12, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawTool() {
+      ctx.save();
+      ctx.translate(toolState.x, toolState.y);
+      ctx.rotate(toolState.angle);
+
+      if (toolState.index === 0) {
+        // 1 - Motosserra
+        ctx.fillStyle = '#a4b0be';
+        ctx.beginPath();
+        ctx.roundRect(40, -16, 135, 32, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#2f3542';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        const toothOffset = toolState.active ? (Date.now() % 100) / 10 : 0;
+        for (let x = 45 + toothOffset; x < 165; x += 16) {
+          ctx.fillRect(x, -21, 7, 6);
+          ctx.fillRect(x, 15, 7, 6);
+        }
+
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.roundRect(-30, -32, 78, 64, 10);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 7;
+        ctx.strokeRect(-18, -42, 45, 84);
+      } else if (toolState.index === 1) {
+        // 2 - Maçarico
+        ctx.fillStyle = '#3742fa';
+        ctx.beginPath();
+        ctx.roundRect(-35, -22, 75, 44, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffa502';
+        ctx.fillRect(40, -8, 65, 16);
+        ctx.strokeRect(40, -8, 65, 16);
+
+        ctx.fillStyle = '#2f3542';
+        ctx.fillRect(105, -12, 18, 24);
+      } else if (toolState.index === 2) {
+        // 3 - Pinça Gigante
+        const pinchAngle = toolState.active ? 0.04 : 0.22;
+        ctx.strokeStyle = '#ced6e0';
+        ctx.lineWidth = 10;
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(-20, 0);
+        ctx.lineTo(125, -Math.sin(pinchAngle) * 70);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(-20, 0);
+        ctx.lineTo(125, Math.sin(pinchAngle) * 70);
+        ctx.stroke();
+      } else if (toolState.index === 3) {
+        // 4 - Serrote
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath();
+        ctx.roundRect(-36, -24, 68, 48, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#dfe6e9';
+        ctx.beginPath();
+        ctx.moveTo(32, -14);
+        ctx.lineTo(175, -6);
+        ctx.lineTo(175, 12);
+        ctx.lineTo(32, 12);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Dentes triangulares do serrote
+        ctx.fillStyle = '#b2bec3';
+        for (let tx = 40; tx < 168; tx += 12) {
+          ctx.beginPath();
+          ctx.moveTo(tx, 12);
+          ctx.lineTo(tx + 6, 20);
+          ctx.lineTo(tx + 12, 12);
+          ctx.fill();
+        }
+      } else if (toolState.index === 4) {
+        // 5 - Cortador de Grama
+        ctx.fillStyle = '#2ed573';
+        ctx.beginPath();
+        ctx.roundRect(-25, -38, 115, 76, 18);
+        ctx.fill();
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Rodas grandes
+        ctx.fillStyle = '#2f3542';
+        [-15, 70].forEach(wx => {
+          ctx.beginPath();
+          ctx.arc(wx, -42, 14, 0, Math.PI * 2);
+          ctx.arc(wx, 42, 14, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Lâmina giratória embaixo/frente
+        ctx.save();
+        ctx.translate(95, 0);
+        if (toolState.active) ctx.rotate((Date.now() % 200) / 200 * Math.PI * 2);
+        ctx.strokeStyle = '#f1f2f6';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(-24, 0);
+        ctx.lineTo(24, 0);
+        ctx.moveTo(0, -24);
+        ctx.lineTo(0, 24);
+        ctx.stroke();
+        ctx.restore();
+      } else if (toolState.index === 5) {
+        // 6 - Canhão de Folhas
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath();
+        ctx.roundRect(-30, -26, 130, 52, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Boca larga do canhão
+        ctx.fillStyle = '#1e272e';
+        ctx.fillRect(96, -30, 22, 60);
+      } else if (toolState.index === 6) {
+        // 7 - Peixe-Espada
+        const wiggle = Math.sin(Date.now() / 65) * 0.14;
+        ctx.rotate(wiggle);
+
+        // Espada (rostrum)
+        ctx.fillStyle = '#dfe6e9';
+        ctx.beginPath();
+        ctx.moveTo(45, -6);
+        ctx.lineTo(170, 0);
+        ctx.lineTo(45, 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#2f3542';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Corpo do peixe
+        ctx.fillStyle = '#0984e3';
+        ctx.beginPath();
+        ctx.ellipse(-5, 0, 52, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Olho do peixe
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(24, -6, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(26, -6, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cauda
+        ctx.fillStyle = '#74b9ff';
+        ctx.beginPath();
+        ctx.moveTo(-55, 0);
+        ctx.lineTo(-82, -22);
+        ctx.lineTo(-72, 0);
+        ctx.lineTo(-82, 22);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(state.mouse.x, state.mouse.y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    function drawParticles() {
+      state.particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        if (p.type === 'fire') ctx.fillStyle = Math.random() > 0.5 ? '#ff9f43' : '#ee5253';
+        else if (p.type === 'smoke') ctx.fillStyle = '#8395a7';
+        else if (p.type === 'hair') ctx.fillStyle = state.currentCharacter.hairColor;
+        else if (p.type === 'slime') ctx.fillStyle = '#badc58';
+        else ctx.fillStyle = '#ffdd59';
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    function drawSpeechBubbles() {
+      state.speechBubbles.forEach(b => {
+        ctx.save();
+        ctx.font = 'bold 15px Segoe UI';
+        const width = ctx.measureText(b.text).width + 24;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(b.x - width / 2, b.y - 20, width, 38, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#1e272e';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.text, b.x, b.y + 4);
+        ctx.restore();
+      });
+    }
+
+    function updateHUD() {
+      const bar = document.getElementById('patience-bar');
+      bar.style.width = `${(monster.patience / monster.maxPatience) * 100}%`;
+    }
+
+    // =========================================================================
+    // 12. CÁLCULO FINAL DE PONTUAÇÃO
+    // =========================================================================
+    function endGame(forcedByRage = false) {
+      state.gameOver = true;
+      toolState.active = false;
+
+      let totalToCut = 0, correctlyCut = 0, totalToKeep = 0, wronglyCut = 0;
+      monster.hairs.forEach(h => {
+        if (h.shouldKeep) {
+          totalToKeep++;
+          if (h.cut) wronglyCut++;
+        } else {
+          totalToCut++;
+          if (h.cut) correctlyCut++;
+        }
+      });
+
+      const goodPct = totalToCut > 0 ? Math.round((correctlyCut / totalToCut) * 100) : 100;
+      const badPct = totalToKeep > 0 ? Math.round((wronglyCut / totalToKeep) * 100) : 0;
+      let score = forcedByRage ? 0 : goodPct - (badPct * 1.2) - (monster.painCount * 8);
+
+      let grade = 'F';
+      let comment = '"Eu pedi um corte, não uma cirurgia de emergência!"';
+
+      if (!forcedByRage) {
+        if (score >= 85) { grade = 'S'; comment = '"PERFEITO! Vou indicar sua barbearia para todo o pântano!"'; }
+        else if (score >= 70) { grade = 'A'; comment = '"Ficou bem estiloso, tirando os pequenos sustos!"'; }
+        else if (score >= 50) { grade = 'B'; comment = '"Dá pro gasto... pelo menos ainda tenho minhas orelhas."'; }
+        else if (score >= 25) { grade = 'C'; comment = '"Vou ter que usar chapéu pelos próximos 3 séculos."'; }
+      } else {
+        comment = '"CHEGA! VOCÊ PERDEU A PACIÊNCIA DO CLIENTE!"';
+      }
+
+      document.getElementById('result-grade').innerText = `NOTA: ${grade}`;
+      document.getElementById('result-comment').innerText = comment;
+      document.getElementById('stat-good').innerText = `${goodPct}%`;
+      document.getElementById('stat-bad').innerText = `${badPct}%`;
+      document.getElementById('stat-pain').innerText = monster.painCount;
+      document.getElementById('result-modal').classList.remove('hidden');
+    }
+
+    function distToSegment(px, py, x1, y1, x2, y2) {
+      const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+      if (l2 === 0) return Math.hypot(px - x1, py - y1);
+      let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+      t = Math.max(0, Math.min(1, t));
+      return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1)));
+    }
+
+    function gameLoop() {
+      updatePhysics();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    initCustomer();
+    gameLoop();
+  </script>
+</body>
+</html>

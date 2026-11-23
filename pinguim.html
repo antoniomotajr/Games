@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐧 Pinguim no Deserto — Edição Suprema 🧊🔥</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+
+  body {
+    background: #0f172a;
+    background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  #gameWrapper {
+    position: relative;
+    width: 960px;
+    max-width: 98vw;
+    height: 640px;
+    max-height: 92vh;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(245, 158, 11, 0.2);
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    background: #000;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0) 100%);
+  }
+
+  .hudGroup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hudCard {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hudCard span.val {
+    color: #fbbf24;
+  }
+
+  #vidaContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  #vidaBar {
+    width: 180px;
+    height: 14px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #vidaFill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #34d399, #10b981);
+    transition: width 0.15s ease-out, background 0.3s;
+    border-radius: 10px;
+  }
+
+  #frostCharges {
+    display: flex;
+    gap: 4px;
+    margin-left: 4px;
+  }
+
+  .frostIcon {
+    font-size: 14px;
+    opacity: 0.3;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .frostIcon.active {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 6px #38bdf8);
+  }
+
+  .iconBtn {
+    pointer-events: auto;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .iconBtn:hover {
+    transform: scale(1.1);
+    background: rgba(30, 41, 59, 0.95);
+  }
+
+  /* Speech Bubble */
+  #fala {
+    position: absolute;
+    top: 75px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: rgba(255, 255, 255, 0.96);
+    color: #0f172a;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 15px;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+    z-index: 20;
+    white-space: nowrap;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4), 0 0 0 3px rgba(56, 189, 248, 0.5);
+  }
+
+  #fala::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 8px 8px 0;
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.96) transparent;
+    display: block;
+    width: 0;
+  }
+
+  #fala.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Screens / Modals */
+  .screen {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 15, 30, 0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+    z-index: 30;
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s;
+  }
+
+  .screen.hidden {
+    display: none;
+    opacity: 0;
+  }
+
+  .screen h1 {
+    font-size: 2.8em;
+    margin-bottom: 8px;
+    text-shadow: 0 4px 25px rgba(245, 158, 11, 0.5);
+    letter-spacing: -0.5px;
+  }
+
+  .screen h1 span {
+    color: #fbbf24;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .screen p {
+    font-size: 1.05em;
+    color: #cbd5e1;
+    max-width: 580px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    color: white;
+    border: none;
+    padding: 16px 42px;
+    font-size: 1.15em;
+    font-weight: 800;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 8px 25px rgba(245,158,11,0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  .btn:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 12px 35px rgba(245,158,11,0.6);
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .statsGrid {
+    display: flex;
+    gap: 30px;
+    margin: 15px 0 25px;
+  }
+
+  .statBox {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 24px;
+    border-radius: 12px;
+  }
+
+  .statBox span {
+    font-size: 0.85em;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .statBox strong {
+    display: block;
+    font-size: 1.8em;
+    color: #fbbf24;
+  }
+
+  /* Controls Guide */
+  .controlsGuide {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 16px;
+    border-radius: 14px;
+    margin-bottom: 22px;
+    text-align: left;
+    font-size: 0.9em;
+  }
+  .keyBadge {
+    background: rgba(255,255,255,0.15);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    color: #38bdf8;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  /* Mobile On-Screen Controls */
+  #mobileControls {
+    display: none;
+    position: absolute;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    padding: 0 20px;
+    justify-content: space-between;
+    align-items: flex-end;
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 56px);
+    grid-template-rows: repeat(3, 56px);
+    gap: 6px;
+    pointer-events: auto;
+  }
+
+  .dpadBtn, .actionBtn {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    color: white;
+    font-size: 1.4em;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    touch-action: manipulation;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    transition: background 0.1s, transform 0.1s;
+  }
+
+  .dpadBtn:active, .actionBtn:active {
+    background: rgba(245, 158, 11, 0.8);
+    transform: scale(0.92);
+  }
+
+  .actionBtn {
+    pointer-events: auto;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(56,189,248,0.7), rgba(14,165,233,0.8));
+    border: 2px solid rgba(255,255,255,0.4);
+    font-size: 1em;
+    font-weight: bold;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  @media (hover: none) and (pointer: coarse), (max-width: 800px) {
+    #mobileControls { display: flex; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gameWrapper">
+  <canvas id="canvas"></canvas>
+
+  <!-- HUD Overlay -->
+  <div id="hud">
+    <div class="hudGroup">
+      <div class="hudCard">
+        <span id="themeBadge">☀️ Sol Escaldante</span>
+        <span style="opacity:0.3">|</span>
+        Fase <span id="faseNum" class="val">1</span>
+      </div>
+      <div id="vidaContainer">
+        <div id="vidaBar"><div id="vidaFill"></div></div>
+      </div>
+      <div class="hudCard" title="Salto Congelante (Espaço)">
+        ❄️ <div id="frostCharges"></div>
+      </div>
+    </div>
+
+    <div class="hudGroup">
+      <div class="hudCard">🏆 <span id="pontosNum" class="val">0</span></div>
+      <button class="iconBtn" id="btnSound" title="Alternar Som">🔊</button>
+    </div>
+  </div>
+
+  <!-- Speech Bubble -->
+  <div id="fala"></div>
+
+  <!-- Touch Controls -->
+  <div id="mobileControls">
+    <div class="dpad">
+      <div></div>
+      <button class="dpadBtn" data-dir="up">▲</button>
+      <div></div>
+      <button class="dpadBtn" data-dir="left">◀</button>
+      <div></div>
+      <button class="dpadBtn" data-dir="right">▶</button>
+      <div></div>
+      <button class="dpadBtn" data-dir="down">▼</button>
+      <div></div>
+    </div>
+    <button class="actionBtn" id="btnMobileJump">
+      <span>❄️</span>
+      <span style="font-size:10px;">SALTO</span>
+    </button>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="screen" id="startScreen">
+    <h1>🐧 Pinguim <span>no Deserto</span></h1>
+    <p>O coitado do pinguim caiu num deserto escaldante! 😱<br>
+    Descubra o caminho sobre os blocos de gelo dispersos antes de derreter totalmente.</p>
+
+    <div class="controlsGuide">
+      <div><span class="keyBadge">W A S D</span> / <span class="keyBadge">Setas</span> : Mover</div>
+      <div><span class="keyBadge">Espaço</span> / <span class="keyBadge">Shift</span> : Salto de Gelo (Salta 2 casas)</div>
+      <div>🧊 <strong>Blocos de Gelo</strong>: Esfriam & recuperam vida</div>
+      <div>❄️ <strong>Cubos de Gelo</strong>: Recarregam saltos e vida</div>
+    </div>
+
+    <button class="btn" id="btnIniciar">▶ Começar Aventura</button>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div class="screen hidden" id="gameOverScreen">
+    <h1>🥵 Derreteu!</h1>
+    <p id="gameOverMsg">O pinguim virou uma pscina de picolé derretido...</p>
+    <div class="statsGrid">
+      <div class="statBox"><span>Fase</span><strong id="finalFase">1</strong></div>
+      <div class="statBox"><span>Pontos</span><strong id="finalPontos">0</strong></div>
+    </div>
+    <button class="btn" id="btnReiniciar">🔄 Tentar Novamente</button>
+  </div>
+
+  <!-- Phase Complete Screen -->
+  <div class="screen hidden" id="faseScreen">
+    <h1>🎉 Oasis Alcançado!</h1>
+    <p id="faseFrase">O pinguim encontrou sombra e gelo fresco!</p>
+    <div class="statsGrid">
+      <div class="statBox"><span>Bônus da Fase</span><strong id="bonusFase">+150</strong></div>
+      <div class="statBox"><span>Pontuação Total</span><strong id="totalPontos">0</strong></div>
+    </div>
+    <button class="btn" id="btnProxima">▶ Próxima Fase</button>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   SOUND SYNTHESIZER (WEB AUDIO API)
+   ========================================================================== */
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    return this.muted;
+  }
+
+  playSandStep() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.09);
+  }
+
+  playIceStep() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(580, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.07);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.07);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  playJump() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(750, now + 0.18);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.19);
+  }
+
+  playDamage() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, now);
+    osc.frequency.linearRampToValueAtTime(70, now + 0.12);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }
+
+  playPickup() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + i * 0.06);
+      gain.gain.setValueAtTime(0.15, now + i * 0.06);
+      gain.gain.linearRampToValueAtTime(0.01, now + i * 0.06 + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.06);
+      osc.stop(now + i * 0.06 + 0.11);
+    });
+  }
+
+  playVictory() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [440, 554.37, 659.25, 880];
+    notes.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.08);
+      gain.gain.setValueAtTime(0.2, now + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.01, now + i * 0.08 + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.26);
+    });
+  }
+
+  playGameOver() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [300, 260, 220, 150];
+    notes.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + i * 0.12);
+      gain.gain.setValueAtTime(0.18, now + i * 0.12);
+      gain.gain.linearRampToValueAtTime(0.01, now + i * 0.12 + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.21);
+    });
+  }
+}
+
+const audio = new SoundEngine();
+
+/* ==========================================================================
+   GAME CONFIG & STATE
+   ========================================================================== */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const LOGICAL_W = 960;
+const LOGICAL_H = 640;
+const TILE = 64;
+const COLS = LOGICAL_W / TILE; // 15
+const ROWS = LOGICAL_H / TILE; // 10
+
+const VIDA_MAX = 100;
+const DANO_AREIA = 16; // DPS on sand
+const RECUPERA_GELO = 12; // HP/s recovery on ice
+
+let fase = 1;
+let pontos = 0;
+let vida = VIDA_MAX;
+let rodando = false;
+let gameOver = false;
+let vitoriaFase = false;
+let screenShake = 0;
+
+// Frost Charges for Jumping
+let frostCharges = 3;
+const MAX_FROST_CHARGES = 3;
+
+// Map & Entities
+let grid = [];
+let tileDecorations = []; // Visual details per tile
+let pickups = [];         // Items on map
+let particles = [];
+let floatingTexts = [];
+
+// Atmospheric Themes
+const THEMES = [
+  { name: '☀️ Sol Escaldante', bgTop: '#f59e0b', bgBottom: '#d97706', sandLight: '#fde047', sandDark: '#eab308' },
+  { name: '🌾 Ventania de Areia', bgTop: '#d97706', bgBottom: '#b45309', sandLight: '#fef08a', sandDark: '#ca8a04' },
+  { name: '🌅 Crepúsculo Tórrido', bgTop: '#c026d3', bgBottom: '#9333ea', sandLight: '#fb7185', sandDark: '#e11d48' },
+  { name: '🌌 Noite do Deserto', bgTop: '#1e1b4b', bgBottom: '#0f172a', sandLight: '#cbd5e1', sandDark: '#64748b' }
+];
+
+let currentTheme = THEMES[0];
+
+// Player
+let player = {
+  x: 0,
+  y: 0,
+  px: 0,
+  py: 0,
+  moving: false,
+  moveProgress: 0,
+  dirX: 1,
+  dirY: 0,
+  facing: 'right', // left, right, up, down
+  squashX: 1,
+  squashY: 1,
+  isJumping: false,
+  jumpStartX: 0,
+  jumpStartY: 0,
+  jumpTargetX: 0,
+  jumpTargetY: 0,
+  sweatTimer: 0
+};
+
+// Input buffering
+let bufferedInput = null;
+const keysPressed = {};
+
+/* ==========================================================================
+   HUMOROUS PORTUGUESE DIALOGUES
+   ========================================================================== */
+const FRASES_AREIA = [
+  "Cadê o gelo? ...não tem gelo! 😰",
+  "Quente! Quente! QUENTE! 🔥",
+  "Meus pés... estão assando! 🫠",
+  "Eu odeio areia! 😤",
+  "Socorro, virei churrasco! 🍖",
+  "Isso não é Antártida! 🧊❌",
+  "Ai ai ai, minha cauda! 😫",
+  "Quem inventou o calor?! 🤬",
+  "Areia quente na pena! 😩",
+  "Tô virando sopa de pinguim! 🍲"
+];
+
+const FRASES_GELO = [
+  "Ahh, gelinho gostoso! ❄️",
+  "Isso sim é vida! 🐧",
+  "Só mais um pouquinho... 😌",
+  "Gelo = Amor Verdadeiro 💙",
+  "Tô vivo ainda! 🙌",
+  "Salvou minhas patinhas! 🧊",
+  "Ar condicionado natural! ❄️✨"
+];
+
+const FRASES_SALTO = [
+  "VÔOOOOO! 🚀",
+  "Salto congelante! ❄️",
+  "Super Pinguim ao resgate! 🐧✨",
+  "Pula, pula! 🧊"
+];
+
+const FRASES_FASE = [
+  "O pinguim sobreviveu... por enquanto!",
+  "Ufa! Mas a jornada continua... 😅",
+  "Mais areia pela frente... 🏜️",
+  "Ele tá pegando o jeito de esquivar! 🐧",
+  "O sol tá cada vez mais bravo... ☀️",
+  "Menos gelo, mais tensão! ❄️📉",
+  "Isso aqui virou um forno! 🔥"
+];
+
+/* ==========================================================================
+   CANVAS RESIZING & HIGH DPI SUPPORT
+   ========================================================================== */
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.resetTransform();
+  ctx.scale(canvas.width / LOGICAL_W, canvas.height / LOGICAL_H);
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+/* ==========================================================================
+   UTIL & VISUAL FEEDBACK
+   ========================================================================== */
+function falar(texto, duracao = 1800) {
+  const el = document.getElementById('fala');
+  el.textContent = texto;
+  el.classList.add('show');
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(() => el.classList.remove('show'), duracao);
+}
+
+function addFloatingText(text, x, y, color = '#fff') {
+  floatingTexts.push({
+    text, x, y, color,
+    vy: -1.2,
+    alpha: 1,
+    life: 0
+  });
+}
+
+function spawnParticles(x, y, count, type) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 3 + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: Math.random() * 5 + 3,
+      color: type === 'ice' ? '#7dd3fc' : type === 'sand' ? '#fde047' : type === 'gold' ? '#fbbf24' : '#ffffff',
+      life: 0,
+      maxLife: Math.random() * 20 + 20,
+      type
+    });
+  }
+}
+
+function atualizarHUD() {
+  document.getElementById('faseNum').textContent = fase;
+  document.getElementById('pontosNum').textContent = pontos;
+
+  const pct = Math.max(0, vida) / VIDA_MAX * 100;
+  const fill = document.getElementById('vidaFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct > 60 ? 'linear-gradient(90deg,#34d399,#10b981)'
+                        : pct > 30 ? 'linear-gradient(90deg,#facc15,#f59e0b)'
+                        : 'linear-gradient(90deg,#f87171,#dc2626)';
+
+  // Update Frost Charges display
+  const frostContainer = document.getElementById('frostCharges');
+  frostContainer.innerHTML = '';
+  for (let i = 0; i < MAX_FROST_CHARGES; i++) {
+    const icon = document.createElement('span');
+    icon.className = 'frostIcon' + (i < frostCharges ? ' active' : '');
+    icon.textContent = '❄️';
+    frostContainer.appendChild(icon);
+  }
+
+  // Theme badge update
+  document.getElementById('themeBadge').textContent = currentTheme.name;
+}
+
+/* ==========================================================================
+   LEVEL GENERATION WITH GUARANTEED BFS PATH & DYNAMICS
+   ========================================================================== */
+function gerarFase(numFase) {
+  currentTheme = THEMES[(numFase - 1) % THEMES.length];
+  const dificuldade = Math.min(1, (numFase - 1) / 20);
+
+  // Number of ice tiles: starts around 22, decreases down to ~10
+  const totalGelo = Math.max(10, Math.round(22 - dificuldade * 12));
+  const chanceGeloFragil = numFase >= 3 ? Math.min(0.4, (numFase - 2) * 0.08) : 0;
+
+  const inicioY = Math.floor(Math.random() * ROWS);
+  const destinoY = Math.floor(Math.random() * ROWS);
+
+  const inicio = { x: 0, y: inicioY };
+  const destino = { x: COLS - 1, y: destinoY };
+
+  let tentativas = 0;
+
+  while (tentativas < 150) {
+    tentativas++;
+
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill('sand'));
+    tileDecorations = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+    const usadas = new Set();
+    usadas.add(`${inicio.x},${inicio.y}`);
+    usadas.add(`${destino.x},${destino.y}`);
+
+    const posicoesGelo = [inicio];
+
+    let count = 0;
+    while (posicoesGelo.length < totalGelo && count < 600) {
+      count++;
+      const x = Math.floor(Math.random() * COLS);
+      const y = Math.floor(Math.random() * ROWS);
+      const key = `${x},${y}`;
+      if (usadas.has(key)) continue;
+
+      usadas.add(key);
+      posicoesGelo.push({ x, y });
+    }
+
+    // Set ice tiles
+    for (const p of posicoesGelo) {
+      const isFragile = (p.x !== inicio.x || p.y !== inicio.y) && Math.random() < chanceGeloFragil;
+      grid[p.y][p.x] = isFragile ? 'fragile_ice' : 'ice';
+    }
+
+    grid[destino.y][destino.x] = 'goal';
+
+    // Verify BFS solvability
+    if (existeCaminho(inicio, destino)) {
+      break;
+    }
+  }
+
+  // Decorate sand tiles
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (grid[y][x] === 'sand') {
+        const rand = Math.random();
+        if (rand < 0.12) tileDecorations[y][x] = 'pebbles';
+        else if (rand < 0.18) tileDecorations[y][x] = 'cactus';
+        else if (rand < 0.21) tileDecorations[y][x] = 'skull';
+        else if (rand < 0.35) tileDecorations[y][x] = 'dune';
+      }
+    }
+  }
+
+  // Generate Pickups (Ice Cubes and Bonus Coins)
+  pickups = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if ((x !== inicio.x || y !== inicio.y) && (x !== destino.x || y !== destino.y)) {
+        if (grid[y][x] === 'ice' && Math.random() < 0.25) {
+          pickups.push({ x, y, type: Math.random() < 0.5 ? 'ice_cube' : 'coin', animTimer: Math.random() * 10 });
+        }
+      }
+    }
+  }
+
+  // Reset Player position
+  player.x = inicio.x;
+  player.y = inicio.y;
+  player.px = inicio.x;
+  player.py = inicio.y;
+  player.moving = false;
+  player.isJumping = false;
+  player.facing = 'right';
+
+  grid[player.y][player.x] = 'ice';
+  grid[destino.y][destino.x] = 'goal';
+}
+
+function existeCaminho(inicio, destino) {
+  const visitado = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const fila = [inicio];
+  visitado[inicio.y][inicio.x] = true;
+
+  while (fila.length > 0) {
+    const atual = fila.shift();
+    if (atual.x === destino.x && atual.y === destino.y) return true;
+
+    const vizinhos = [
+      { x: atual.x + 1, y: atual.y },
+      { x: atual.x - 1, y: atual.y },
+      { x: atual.x, y: atual.y + 1 },
+      { x: atual.x, y: atual.y - 1 }
+    ];
+
+    for (const v of vizinhos) {
+      if (v.x < 0 || v.x >= COLS || v.y < 0 || v.y >= ROWS) continue;
+      if (visitado[v.y][v.x]) continue;
+
+      const tipo = grid[v.y][v.x];
+      if (tipo === 'ice' || tipo === 'fragile_ice' || tipo === 'goal') {
+        visitado[v.y][v.x] = true;
+        fila.push(v);
+      }
+    }
+  }
+  return false;
+}
+
+/* ==========================================================================
+   INPUT LISTENERS & BUFFERING
+   ========================================================================== */
+document.addEventListener('keydown', e => {
+  audio.init();
+  const k = e.key.toLowerCase();
+  if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' ','shift'].includes(k)) {
+    e.preventDefault();
+  }
+
+  if (k === ' ' || k === 'shift') {
+    tentarSalto();
+    return;
+  }
+
+  let dir = null;
+  if (k === 'arrowleft' || k === 'a') dir = { dx: -1, dy: 0, facing: 'left' };
+  else if (k === 'arrowright' || k === 'd') dir = { dx: 1, dy: 0, facing: 'right' };
+  else if (k === 'arrowup' || k === 'w') dir = { dx: 0, dy: -1, facing: 'up' };
+  else if (k === 'arrowdown' || k === 's') dir = { dx: 0, dy: 1, facing: 'down' };
+
+  if (dir) {
+    keysPressed[k] = true;
+    bufferedInput = dir;
+    processInput();
+  }
+});
+
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  keysPressed[k] = false;
+});
+
+// Mobile Controls
+document.querySelectorAll('.dpadBtn').forEach(btn => {
+  const dirStr = btn.dataset.dir;
+  const map = {
+    left: { dx: -1, dy: 0, facing: 'left' },
+    right: { dx: 1, dy: 0, facing: 'right' },
+    up: { dx: 0, dy: -1, facing: 'up' },
+    down: { dx: 0, dy: 1, facing: 'down' }
+  };
+
+  const handlePress = (e) => {
+    e.preventDefault();
+    audio.init();
+    bufferedInput = map[dirStr];
+    processInput();
+  };
+
+  btn.addEventListener('touchstart', handlePress, { passive: false });
+  btn.addEventListener('mousedown', handlePress);
+});
+
+document.getElementById('btnMobileJump').addEventListener('click', e => {
+  e.preventDefault();
+  audio.init();
+  tentarSalto();
+});
+
+document.getElementById('btnSound').addEventListener('click', () => {
+  audio.init();
+  const isMuted = audio.toggleMute();
+  document.getElementById('btnSound').textContent = isMuted ? '🔇' : '🔊';
+});
+
+/* ==========================================================================
+   MOVEMENT & MECHANICS
+   ========================================================================== */
+function processInput() {
+  if (player.moving || !rodando || gameOver || vitoriaFase || !bufferedInput) return;
+
+  const { dx, dy, facing } = bufferedInput;
+  bufferedInput = null;
+
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+
+  if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+
+  // Track original position before leaving
+  const currentTile = grid[player.y][player.x];
+
+  player.px = player.x;
+  player.py = player.y;
+  player.x = nx;
+  player.y = ny;
+  player.dirX = dx;
+  player.dirY = dy;
+  player.facing = facing;
+  player.moving = true;
+  player.moveProgress = 0;
+  player.squashX = dx !== 0 ? 1.25 : 0.85;
+  player.squashY = dy !== 0 ? 1.25 : 0.85;
+
+  // Check departure from Fragile Ice
+  if (currentTile === 'fragile_ice') {
+    grid[player.py][player.px] = 'sand';
+    spawnParticles(player.px * TILE + TILE / 2, player.py * TILE + TILE / 2, 8, 'ice');
+    addFloatingText('Rachou!', player.px * TILE + TILE / 2, player.py * TILE + TILE / 2, '#7dd3fc');
+  }
+
+  // Handle destination tile reaction
+  const nextTile = grid[ny][nx];
+  if (nextTile === 'sand') {
+    audio.playSandStep();
+    vida -= 7;
+    screenShake = 4;
+    spawnParticles(nx * TILE + TILE / 2, ny * TILE + TILE / 2, 6, 'sand');
+    addFloatingText('-7 HP', nx * TILE + TILE / 2, ny * TILE + TILE / 2, '#ef4444');
+    falar(FRASES_AREIA[Math.floor(Math.random() * FRASES_AREIA.length)], 1300);
+    if (vida <= 0) morrer();
+  } else if (nextTile === 'ice' || nextTile === 'fragile_ice') {
+    audio.playIceStep();
+    spawnParticles(nx * TILE + TILE / 2, ny * TILE + TILE / 2, 5, 'ice');
+    if (Math.random() < 0.25) {
+      falar(FRASES_GELO[Math.floor(Math.random() * FRASES_GELO.length)], 1200);
+    }
+  } else if (nextTile === 'goal') {
+    vencerFase();
+  }
+
+  // Collect Pickups
+  checkPickups(nx, ny);
+}
+
+function tentarSalto() {
+  if (player.moving || !rodando || gameOver || vitoriaFase) return;
+  if (frostCharges <= 0) {
+    falar("Sem cargas de gelo! ❄️❌", 1200);
+    return;
+  }
+
+  // Jump 2 tiles in currently facing direction
+  const dx = player.facing === 'left' ? -2 : player.facing === 'right' ? 2 : 0;
+  const dy = player.facing === 'up' ? -2 : player.facing === 'down' ? 2 : 0;
+
+  const nx = player.x + dx;
+  const ny = player.y + dy;
+
+  if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+
+  frostCharges--;
+  audio.playJump();
+
+  const currentTile = grid[player.y][player.x];
+  if (currentTile === 'fragile_ice') {
+    grid[player.y][player.x] = 'sand';
+    spawnParticles(player.x * TILE + TILE / 2, player.y * TILE + TILE / 2, 8, 'ice');
+  }
+
+  player.isJumping = true;
+  player.moving = true;
+  player.moveProgress = 0;
+  player.jumpStartX = player.x;
+  player.jumpStartY = player.y;
+  player.jumpTargetX = nx;
+  player.jumpTargetY = ny;
+  player.px = player.x;
+  player.py = player.y;
+  player.x = nx;
+  player.y = ny;
+
+  spawnParticles(player.px * TILE + TILE / 2, player.py * TILE + TILE / 2, 12, 'ice');
+  addFloatingText('SALTO! ❄️', player.px * TILE + TILE / 2, player.py * TILE + TILE / 2, '#38bdf8');
+  falar(FRASES_SALTO[Math.floor(Math.random() * FRASES_SALTO.length)], 1400);
+
+  const destTile = grid[ny][nx];
+  if (destTile === 'sand') {
+    vida -= 5;
+    addFloatingText('-5 HP', nx * TILE + TILE / 2, ny * TILE + TILE / 2, '#ef4444');
+    if (vida <= 0) morrer();
+  } else if (destTile === 'goal') {
+    vencerFase();
+  }
+
+  checkPickups(nx, ny);
+  atualizarHUD();
+}
+
+function checkPickups(x, y) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const p = pickups[i];
+    if (p.x === x && p.y === y) {
+      audio.playPickup();
+      if (p.type === 'ice_cube') {
+        frostCharges = Math.min(MAX_FROST_CHARGES, frostCharges + 1);
+        vida = Math.min(VIDA_MAX, vida + 15);
+        addFloatingText('+15 HP & ❄️', x * TILE + TILE / 2, y * TILE + TILE / 2, '#38bdf8');
+        spawnParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 10, 'ice');
+      } else if (p.type === 'coin') {
+        pontos += 50;
+        addFloatingText('+50 PONTOS', x * TILE + TILE / 2, y * TILE + TILE / 2, '#fbbf24');
+        spawnParticles(x * TILE + TILE / 2, y * TILE + TILE / 2, 10, 'gold');
+      }
+      pickups.splice(i, 1);
+      atualizarHUD();
+    }
+  }
+}
+
+function vencerFase() {
+  vitoriaFase = true;
+  audio.playVictory();
+  const bonus = 100 + (fase - 1) * 50;
+  pontos += bonus;
+
+  spawnParticles(player.x * TILE + TILE / 2, player.y * TILE + TILE / 2, 30, 'gold');
+  atualizarHUD();
+
+  document.getElementById('bonusFase').textContent = '+' + bonus;
+  document.getElementById('totalPontos').textContent = pontos;
+  document.getElementById('faseFrase').textContent = FRASES_FASE[Math.floor(Math.random() * FRASES_FASE.length)];
+  document.getElementById('faseScreen').classList.remove('hidden');
+}
+
+function morrer() {
+  gameOver = true;
+  rodando = false;
+  audio.playGameOver();
+  document.getElementById('finalFase').textContent = fase;
+  document.getElementById('finalPontos').textContent = pontos;
+  const msgs = [
+    "O pinguim virou um picolé derretido... 🫠",
+    "Ele tentou bravamente, mas o sol foi implacável! ☀️",
+    "F no chat pro pinguim no deserto. 🐧✝️",
+    "Ele só queria um gelinho refrescante... 🧊💔"
+  ];
+  document.getElementById('gameOverMsg').textContent = msgs[Math.floor(Math.random() * msgs.length)];
+  document.getElementById('gameOverScreen').classList.remove('hidden');
+}
+
+function proximaFase() {
+  fase++;
+  vida = Math.min(VIDA_MAX, vida + 30);
+  frostCharges = Math.min(MAX_FROST_CHARGES, frostCharges + 1);
+  gerarFase(fase);
+  vitoriaFase = false;
+  document.getElementById('faseScreen').classList.add('hidden');
+  atualizarHUD();
+  falar("Fase " + fase + "! Resista ao calor! 🔥", 2000);
+}
+
+function iniciarJogo() {
+  fase = 1;
+  pontos = 0;
+  vida = VIDA_MAX;
+  frostCharges = 3;
+  gameOver = false;
+  vitoriaFase = false;
+  gerarFase(fase);
+  atualizarHUD();
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('gameOverScreen').classList.add('hidden');
+  document.getElementById('faseScreen').classList.add('hidden');
+  rodando = true;
+  falar("Cadê o gelo? ...não tem gelo! 😱", 2200);
+}
+
+/* ==========================================================================
+   UPDATE LOOP
+   ========================================================================== */
+function update(dt) {
+  if (!rodando || gameOver || vitoriaFase) return;
+
+  // Process movement animation
+  if (player.moving) {
+    const speed = player.isJumping ? 3.5 : 5.0;
+    player.moveProgress += dt * speed;
+
+    if (player.moveProgress >= 1) {
+      player.moving = false;
+      player.isJumping = false;
+      player.moveProgress = 0;
+      player.px = player.x;
+      player.py = player.y;
+      player.squashX = 1;
+      player.squashY = 1;
+
+      // After move completes, process any buffered key input
+      processInput();
+    }
+  }
+
+  // Passive HP damage on sand / recovery on ice
+  const currentTile = grid[player.y][player.x];
+  if (currentTile === 'sand') {
+    vida -= DANO_AREIA * dt;
+    player.sweatTimer += dt;
+    if (player.sweatTimer > 0.3) {
+      player.sweatTimer = 0;
+      spawnParticles(player.x * TILE + TILE / 2 + (Math.random() * 20 - 10), player.y * TILE + 10, 2, 'ice');
+    }
+    if (vida <= 0) {
+      vida = 0;
+      morrer();
+    }
+  } else if (currentTile === 'ice' || currentTile === 'fragile_ice' || currentTile === 'goal') {
+    if (vida < VIDA_MAX) {
+      vida = Math.min(VIDA_MAX, vida + RECUPERA_GELO * dt);
+    }
+  }
+
+  // Update screen shake decay
+  if (screenShake > 0) screenShake = Math.max(0, screenShake - dt * 25);
+
+  // Update Floating Texts
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.y += ft.vy;
+    ft.life += dt;
+    ft.alpha = Math.max(0, 1 - ft.life / 0.8);
+    if (ft.life >= 0.8) floatingTexts.splice(i, 1);
+  }
+
+  // Update Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life++;
+    if (p.life >= p.maxLife) particles.splice(i, 1);
+  }
+
+  atualizarHUD();
+}
+
+/* ==========================================================================
+   RENDER SYSTEM
+   ========================================================================== */
+function render(time) {
+  ctx.save();
+  ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+
+  // Apply Screen Shake
+  if (screenShake > 0) {
+    const sx = (Math.random() - 0.5) * screenShake * 2;
+    const sy = (Math.random() - 0.5) * screenShake * 2;
+    ctx.translate(sx, sy);
+  }
+
+  // Render Grid Tiles
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      drawTile(x, y, grid[y][x], time);
+    }
+  }
+
+  // Render Pickups
+  for (const p of pickups) {
+    drawPickup(p, time);
+  }
+
+  // Render Player
+  drawPlayer(time);
+
+  // Render Particles
+  for (const p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, 1 - p.life / p.maxLife);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (1 - p.life / p.maxLife), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Render Floating Texts
+  ctx.font = 'bold 14px system-ui';
+  ctx.textAlign = 'center';
+  for (const ft of floatingTexts) {
+    ctx.fillStyle = ft.color;
+    ctx.globalAlpha = ft.alpha;
+    ctx.fillText(ft.text, ft.x, ft.y);
+  }
+  ctx.globalAlpha = 1;
+
+  // Heat Shimmer Ambient Vignette
+  if (rodando) {
+    const heatIntensity = Math.min(0.45, (1 - vida / VIDA_MAX) * 0.4 + 0.08);
+    const grad = ctx.createRadialGradient(LOGICAL_W / 2, LOGICAL_H / 2, LOGICAL_H * 0.3, LOGICAL_W / 2, LOGICAL_H / 2, LOGICAL_W * 0.6);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(1, `rgba(239, 68, 68, ${heatIntensity})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+  }
+
+  ctx.restore();
+}
+
+/* Tile Drawing */
+function drawTile(x, y, tipo, time) {
+  const px = x * TILE;
+  const py = y * TILE;
+
+  if (tipo === 'sand') {
+    // Sand Base
+    const g = ctx.createLinearGradient(px, py, px, py + TILE);
+    g.addColorStop(0, currentTheme.sandLight);
+    g.addColorStop(1, currentTheme.sandDark);
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, TILE, TILE);
+
+    // Sand Dune Curve
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.beginPath();
+    ctx.arc(px + TILE / 2, py + TILE * 1.2, TILE * 0.7, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Tile Details (Decorations)
+    const decor = tileDecorations[y][x];
+    if (decor === 'cactus') {
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(px + 26, py + 20, 8, 24);
+      ctx.fillRect(px + 18, py + 26, 8, 4);
+      ctx.fillRect(px + 18, py + 20, 4, 6);
+      ctx.fillRect(px + 34, py + 28, 8, 4);
+      ctx.fillRect(px + 38, py + 22, 4, 6);
+    } else if (decor === 'pebbles') {
+      ctx.fillStyle = 'rgba(120, 53, 15, 0.4)';
+      ctx.beginPath();
+      ctx.arc(px + 18, py + 42, 3, 0, Math.PI * 2);
+      ctx.arc(px + 44, py + 22, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (decor === 'skull') {
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(px + 32, py + 30, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (tipo === 'ice' || tipo === 'fragile_ice') {
+    const isFragile = tipo === 'fragile_ice';
+    const g = ctx.createLinearGradient(px, py, px + TILE, py + TILE);
+
+    if (isFragile) {
+      g.addColorStop(0, '#e0f2fe');
+      g.addColorStop(1, '#7dd3fc');
+    } else {
+      g.addColorStop(0, '#bae6fd');
+      g.addColorStop(0.5, '#38bdf8');
+      g.addColorStop(1, '#0284c7');
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, TILE, TILE);
+
+    // Inner Frost Frame
+    ctx.strokeStyle = isFragile ? 'rgba(239, 68, 68, 0.6)' : 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 3, py + 3, TILE - 6, TILE - 6);
+
+    // Crack lines for fragile ice
+    if (isFragile) {
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px + 10, py + 10);
+      ctx.lineTo(px + 30, py + 32);
+      ctx.lineTo(px + 52, py + 20);
+      ctx.stroke();
+    } else {
+      // Shimmer overlay
+      const pulse = Math.sin(time * 0.003 + x + y) * 0.3 + 0.4;
+      ctx.fillStyle = `rgba(255, 255, 255, ${pulse * 0.3})`;
+      ctx.fillRect(px + 6, py + 6, TILE - 12, 6);
+    }
+  } else if (tipo === 'goal') {
+    // Oasis / Goal Flag Tile
+    const g = ctx.createLinearGradient(px, py, px + TILE, py + TILE);
+    g.addColorStop(0, '#4ade80');
+    g.addColorStop(1, '#16a34a');
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, TILE, TILE);
+
+    // Animated Flag
+    const cx = px + TILE / 2;
+    const cy = py + TILE / 2;
+    const wave = Math.sin(time * 0.008) * 4;
+
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(cx - 12, cy - 20, 4, 40);
+
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, cy - 20);
+    ctx.quadraticCurveTo(cx + 8 + wave, cy - 12, cx + 18 + wave, cy - 20);
+    ctx.lineTo(cx + 18 + wave, cy - 4);
+    ctx.lineTo(cx - 8, cy - 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+/* Pickups Rendering */
+function drawPickup(p, time) {
+  const cx = p.x * TILE + TILE / 2;
+  const cy = p.y * TILE + TILE / 2 + Math.sin(time * 0.005 + p.animTimer) * 4;
+
+  if (p.type === 'ice_cube') {
+    ctx.fillStyle = '#7dd3fc';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.fillRect(cx - 10, cy - 10, 20, 20);
+    ctx.strokeRect(cx - 10, cy - 10, 20, 20);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 6, cy - 6, 6, 6);
+  } else if (p.type === 'coin') {
+    ctx.fillStyle = '#fbbf24';
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('★', cx, cy + 3.5);
+  }
+}
+
+/* Player Character Rendering */
+function drawPlayer(time) {
+  let currX = player.x;
+  let currY = player.y;
+
+  if (player.moving) {
+    const t = Math.min(1, player.moveProgress);
+    // Smooth easing
+    const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
+    if (player.isJumping) {
+      currX = player.jumpStartX + (player.jumpTargetX - player.jumpStartX) * ease;
+      currY = player.jumpStartY + (player.jumpTargetY - player.jumpStartY) * ease;
+    } else {
+      currX = player.px + (player.x - player.px) * ease;
+      currY = player.py + (player.y - player.py) * ease;
+    }
+  }
+
+  const cx = currX * TILE + TILE / 2;
+  let cy = currY * TILE + TILE / 2;
+
+  // Jump arc
+  if (player.isJumping) {
+    const jumpArc = Math.sin(player.moveProgress * Math.PI) * 35;
+    cy -= jumpArc;
+  }
+
+  // Idle Bobbing
+  const bob = player.moving ? 0 : Math.sin(time * 0.006) * 2;
+  cy += bob;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Shadow
+  const shadowScale = player.isJumping ? Math.max(0.4, 1 - Math.sin(player.moveProgress * Math.PI) * 0.5) : 1;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+  ctx.beginPath();
+  ctx.ellipse(0, 22, 18 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Scale facing direction
+  const flipX = player.facing === 'left' ? -1 : 1;
+  ctx.scale(flipX * player.squashX, player.squashY);
+
+  // Penguin Body (Outer dark slate)
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 18, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Penguin White Belly
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  ctx.ellipse(0, 3, 12, 17, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(-6, -8, 4.5, 0, Math.PI * 2);
+  ctx.arc(6, -8, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pupils (Directional looking)
+  const isMelting = vida < 30;
+  ctx.fillStyle = '#000000';
+  if (isMelting) {
+    // Dizzy / Distressed Eyes
+    ctx.font = 'bold 8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('x', -6, -6);
+    ctx.fillText('x', 6, -6);
+  } else {
+    ctx.beginPath();
+    ctx.arc(-5, -8, 2, 0, Math.PI * 2);
+    ctx.arc(7, -8, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Beak
+  ctx.fillStyle = '#f97316';
+  ctx.beginPath();
+  ctx.moveTo(-4, -2);
+  ctx.lineTo(4, -2);
+  ctx.lineTo(0, 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // Orange Feet
+  ctx.fillStyle = '#ea580c';
+  ctx.beginPath();
+  ctx.ellipse(-8, 22, 6, 3, 0, 0, Math.PI * 2);
+  ctx.ellipse(8, 22, 6, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sweat Drops when taking sand heat
+  if (grid[player.y] && grid[player.y][player.x] === 'sand') {
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(16, -12, 3, 0, Math.PI * 2);
+    ctx.arc(-16, -6, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* ==========================================================================
+   MAIN GAME LOOP
+   ========================================================================== */
+let lastTime = 0;
+function gameLoop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  update(dt);
+  render(time);
+
+  requestAnimationFrame(gameLoop);
+}
+
+/* ==========================================================================
+   UI EVENT LISTENERS & INITIALIZATION
+   ========================================================================== */
+document.getElementById('btnIniciar').addEventListener('click', () => { audio.init(); iniciarJogo(); });
+document.getElementById('btnReiniciar').addEventListener('click', () => { audio.init(); iniciarJogo(); });
+document.getElementById('btnProxima').addEventListener('click', () => { audio.init(); proximaFase(); });
+
+// Initial setup
+resizeCanvas();
+gerarFase(1);
+atualizarHUD();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
