@@ -926,26 +926,26 @@
                 for (let i = 0; i < trapCount; i++) {
                     const tx = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
                     const ty = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-                    if (grid[ty][tx] === TILE_EMPTY && (tx > 4 || ty > 4)) {
+                    if ((tx !== player.x || ty !== player.y) && grid[ty][tx] === TILE_EMPTY) {
                         grid[ty][tx] = TILE_TRAP;
                     }
                 }
             }
 
-            // 5. Adicionar Buracos no Chão (Buracos / Holes) (Nível 2+)
+            // 5. Adicionar Buracos no Chão (A partir do Nível 2)
             if (lvl >= 2) {
-                const holeCount = Math.min(lvl - 1, 5);
+                const holeCount = Math.min(lvl, 5);
                 for (let i = 0; i < holeCount; i++) {
                     const hx = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
                     const hy = Math.floor(Math.random() * (GRID_SIZE - 4)) + 2;
-                    if (grid[hy][hx] === TILE_EMPTY && (hx > 4 || hy > 4)) {
+                    if ((hx !== player.x || hy !== player.y) && grid[hy][hx] === TILE_EMPTY) {
                         grid[hy][hx] = TILE_HOLE;
                     }
                 }
             }
 
-            // 6. Preencher o Centro com Blocos Verdes Empurráveis (~28% a 35% de densidade)
-            const blockDensity = Math.min(0.28 + (lvl * 0.01), 0.38);
+            // 6. Preencher o Centro com Blocos Verdes Empurráveis (~46% a 55% de densidade)
+            const blockDensity = Math.min(0.46 + (lvl * 0.015), 0.58);
             for (let y = 1; y < GRID_SIZE - 1; y++) {
                 for (let x = 1; x < GRID_SIZE - 1; x++) {
                     // Evitar cobrir spawn do rato
@@ -953,6 +953,25 @@
                     
                     if (grid[y][x] === TILE_EMPTY && Math.random() < blockDensity) {
                         grid[y][x] = TILE_BLOCK;
+
+                        // Chance de criar pares ou trios de blocos para facilitar cercar os gatos
+                        if (Math.random() < 0.35) {
+                            const dirs = [
+                                { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+                                { dx: 0, dy: 1 }, { dx: 0, dy: -1 }
+                            ];
+                            const d = dirs[Math.floor(Math.random() * dirs.length)];
+                            const nx = x + d.dx;
+                            const ny = y + d.dy;
+                            if (
+                                nx > 1 && nx < GRID_SIZE - 2 &&
+                                ny > 1 && ny < GRID_SIZE - 2 &&
+                                Math.abs(nx - player.x) > 1 && Math.abs(ny - player.y) > 1 &&
+                                grid[ny][nx] === TILE_EMPTY
+                            ) {
+                                grid[ny][nx] = TILE_BLOCK;
+                            }
+                        }
                     }
                 }
             }
@@ -1588,7 +1607,7 @@
             ctx.lineTo(cx + 4, py + 6);
             ctx.closePath();
             ctx.fill();
-            ctx.strokeStyle = '#darkgoldenrod';
+            ctx.strokeStyle = '#b8860b';
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
