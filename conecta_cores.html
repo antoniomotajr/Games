@@ -82,20 +82,20 @@ canvas.c{width:100%;height:100%;display:block;border-radius:18px;touch-action:no
 /* ---------- Temas: cenário, tabuleiro e cores dos pontos ---------- */
 const TH={
  sky:{n:'Céu & Nuvens',g:['#4facfe','#bfeaff'],bo:'#ffffff',bd:'#ffffff',gr:'#d6ecff',h:['#8ee0b1','#52c08c'],fx:'cloud',sun:[.16,'#fff3b0'],
-  p:['#2563FF','#00D4FF','#FF2D2D','#FFD500','#00E06B','#B026FF','#FF7A00','#FF2E93']},
+  p:['#2563FF','#00D4FF','#FF2D2D','#FFD500','#00E06B','#B026FF','#FF7A00','#FF2E93','#9A5B2E','#A6E000']},
  cyber:{n:'Neon Cyberpunk',g:['#0f0c20','#2a0b45'],bo:'#140f26',bd:'#ff007f',gr:'#2d1f47',h:['#1d1038','#110820'],fx:'star',glow:1,
-  p:['#FF0080','#00FFD5','#FFEE00','#A020FF','#FF5A00','#00B8FF','#7CFF00','#FF2BD6']},
+  p:['#FF0080','#00FFD5','#FFEE00','#A020FF','#FF5A00','#00B8FF','#7CFF00','#FF2BD6','#FF9100','#E8E8FF']},
  sunset:{n:'Pôr do Sol',g:['#4c1d95','#c026d3','#f97316'],bo:'#fff7ed',bd:'#f97316',gr:'#fce7f3',h:['#4a0e6b','#2a0646'],fx:'star',sun:[.58,'#fde68a'],
-  p:['#FF1744','#FF8A00','#FFD600','#A100FF','#2979FF','#FF4DB8','#00E5C0','#76FF03']},
+  p:['#FF1744','#FF8A00','#FFD600','#A100FF','#2979FF','#FF4DB8','#00E5C0','#76FF03','#6D4C41','#00C853']},
  forest:{n:'Floresta Tropical',g:['#134e5e','#71b280'],bo:'#f4f1ea',bd:'#8b5a2b',gr:'#e5dec9',h:['#2d6a4f','#1b4332'],fx:'fly',
-  p:['#00E04B','#FFB000','#00CFC0','#FF2A2A','#1E9BFF','#C77700','#B5FF2E','#9B5CFF']},
+  p:['#00E04B','#FFB000','#00CFC0','#FF2A2A','#1E9BFF','#C77700','#B5FF2E','#9B5CFF','#FF5FA2','#6B7280']},
  candy:{n:'Doce Pastel',g:['#ff9a9e','#fecfef'],bo:'#ffffff',bd:'#ffb6c1',gr:'#ffe4e6',h:['#fbb1d6','#f48fb1'],fx:'bubble',
-  p:['#FF4DA6','#22B8FF','#9B6BFF','#FFC400','#00E08F','#FF8A2B','#5B6CFF','#FF3D6E']}
+  p:['#FF4DA6','#22B8FF','#9B6BFF','#FFC400','#00E08F','#FF8A2B','#5B6CFF','#FF3D6E','#2EC4B6','#8D6E63']}
 };
 const KEY='dot_link_puzzle_state',$=id=>document.getElementById(id);
 let S={stars:0,coins:100,currentLevel:1,maxUnlockedLevel:1,completedLevels:{},theme:'sky',muted:false,lastDailyClaim:0,claimed:{},infN:0,vol:.25};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
-const T=()=>TH[S.theme]||TH.sky,col=id=>T().p[(id-1)%8];
+const T=()=>TH[S.theme]||TH.sky,col=id=>T().p[(id-1)%10];
 const mix=(h,a)=>{const n=parseInt(h.slice(1),16);return'#'+[16,8,0].map(s=>Math.round((n>>s&255)*(1-a)+255*a).toString(16).padStart(2,'0')).join('')};
 const dk=(h,a)=>{const n=parseInt(h.slice(1),16);return'#'+[16,8,0].map(s=>Math.round((n>>s&255)*(1-a)).toString(16).padStart(2,'0')).join('')};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}hud()}
@@ -115,28 +115,21 @@ const sWin=()=>[392,523,659,784,1047].forEach((f,i)=>tone(f,'triangle',.35,.14,i
 
 /* ---------- Gerador de fases (determinístico e sempre resolvível) ---------- */
 function rngf(s){s>>>=0;return()=>{s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const DIF=[[1,4,3,1,2],[3,5,4,1,2],[6,6,5,2,3],[12,6,6,2,3],[25,7,6,3,4],[50,7,7,3,4],[80,8,8,3,4],[130,9,8,3,4]];
-const FB={n:4,pairs:[0,1,2].map(r=>({id:r+1,a:[r,0],b:[r,3],sol:[0,1,2,3].map(c=>[r,c])}))};
+const DIF=[[1,4,3],[4,5,4],[8,5,5],[12,6,5],[17,6,6],[23,7,6],[30,7,7],[38,8,7],[47,8,8],[57,9,8],[68,9,9],[80,10,9],[95,10,10],[115,11,10],[140,12,10]];
+const FB={n:4,pairs:[0,1,2,3].map(r=>({id:r+1,a:[r,0],b:[r,3],sol:[0,1,2,3].map(c=>[r,c])}))};
 function gen(lv,seed){
  const R=rngf(seed==null?lv*1234567+890123:seed);let d=DIF[0];DIF.forEach(x=>{if(lv>=x[0])d=x});
- const[,n,pc,mt,md]=d,pk=a=>a[Math.floor(R()*a.length)],
- nb=(r,c)=>[[-1,0],[1,0],[0,-1],[0,1]].map(([a,b])=>[r+a,c+b,a,b]).filter(m=>m[0]>=0&&m[1]>=0&&m[0]<n&&m[1]<n);
- for(let at=0;at<200;at++){
-  const g=Array.from({length:n},()=>Array(n).fill(0)),P=[];
-  const walk=p=>{for(let k=0;k<30;k++){
-   const E=[];g.forEach((w,r)=>w.forEach((v,c)=>v||E.push([r,c])));if(E.length<3)return;
-   let[r,c]=pk(E);const path=[[r,c]];g[r][c]=p;let ld=0,tu=0;
-   for(let s=0,L=3+Math.floor(R()*n*1.6);s<L;s++){
-    const N=nb(r,c).filter(m=>!g[m[0]][m[1]]);if(!N.length)break;let m;
-    if(ld&&N.length>1&&R()<.75){const q=N.filter(z=>z[2]!=ld[0]||z[3]!=ld[1]);if(q.length)m=pk(q)}
-    m=m||pk(N);if(ld&&(m[2]!=ld[0]||m[3]!=ld[1]))tu++;ld=[m[2],m[3]];r=m[0];c=m[1];g[r][c]=p;path.push([r,c])}
-   const a=path[0],b=path[path.length-1];
-   if(path.length>=3&&Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>=md&&tu>=mt)return path;
-   path.forEach(([x,y])=>g[x][y]=0)}};
-  for(let p=1;p<=pc;p++){const w=walk(p);if(!w)break;P.push(w)}
-  if(P.length==pc){const ids=[1,2,3,4,5,6,7,8];
-   for(let i=7;i>0;i--){const j=Math.floor(R()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
-   return{n,pairs:P.map((s,i)=>{R()<.5&&s.reverse();return{id:ids[i],a:s[0],b:s[s.length-1],sol:s}})}}}
+ const[,n,pc]=d,pk=a=>a[Math.floor(R()*a.length)];
+ for(let at=0;at<60;at++){
+  let p=[];for(let r=0;r<n;r++)for(let c=0;c<n;c++)p.push([r,r%2?n-1-c:c]);
+  for(let k=0;k<n*n*40;k++){if(R()<.5)p.reverse();const e=p[p.length-1],pv=p[p.length-2],
+   N=[[-1,0],[1,0],[0,-1],[0,1]].map(([a,b])=>[e[0]+a,e[1]+b]).filter(m=>m[0]>=0&&m[1]>=0&&m[0]<n&&m[1]<n&&!(m[0]==pv[0]&&m[1]==pv[1])),
+   m=pk(N),i=p.findIndex(q=>q[0]==m[0]&&q[1]==m[1]);p=p.slice(0,i+1).concat(p.slice(i+1).reverse())}
+  const len=Array(pc).fill(3);for(let k=n*n-pc*3;k>0;k--)len[Math.floor(R()*pc)]++;
+  let o=0;const P=len.map(l=>{const q=p.slice(o,o+l);o+=l;return q});
+  if(P.every(q=>Math.abs(q[0][0]-q[q.length-1][0])+Math.abs(q[0][1]-q[q.length-1][1])>=2)){
+   const ids=[1,2,3,4,5,6,7,8,9,10];for(let i=9;i>0;i--){const j=Math.floor(R()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]]}
+   return{n,pairs:P.map((q,i)=>{R()<.5&&q.reverse();return{id:ids[i],a:q[0],b:q[q.length-1],sol:q}})}}}
  return FB}
 
 /* ---------- Motor do puzzle ---------- */
@@ -144,7 +137,7 @@ class Eng{
  constructor(id){this.cv=$(id);this.x=this.cv.getContext('2d');this.fx=[];
   this.cv.addEventListener('pointerdown',e=>this.dn(e));this.cv.addEventListener('pointermove',e=>this.mv(e));
   addEventListener('pointerup',()=>this.up());addEventListener('pointercancel',()=>this.up())}
- load(L){this.n=L.n;this.P=L.pairs;this.U={};this.P.forEach(p=>this.U[p.id]=[]);this.act=0;this.hist=[];this.moves=0;this.hints=0;this.on=1;this.fx=[];this.t0=0;this.fit();this.cb&&this.cb()}
+ load(L){this.n=L.n;this.P=L.pairs;this.U={};this.P.forEach(p=>this.U[p.id]=[]);this.act=0;this.hist=[];this.moves=0;this.hints=0;this.on=1;this.w2=0;this.fx=[];this.t0=0;this.fit();this.cb&&this.cb()}
  fit(){const s=this.cv.clientWidth||200,d=devicePixelRatio||1;this.cv.width=this.cv.height=Math.round(s*d);this.x.setTransform(d,0,0,d,0,0);this.s=s;this.cs=s/this.n}
  cell(e){const r=this.cv.getBoundingClientRect(),y=(e.clientY-r.top)*this.s/r.height,x=(e.clientX-r.left)*this.s/r.width,
   i=Math.floor(y/this.cs),j=Math.floor(x/this.cs);return i>=0&&j>=0&&i<this.n&&j<this.n?[i,j]:null}
@@ -172,7 +165,9 @@ class Eng{
  hint(){const p=this.P.find(q=>!this.ok(q));if(!p||!this.on)return 0;this.hist.push(this.snap());
   p.sol.forEach(([r,c])=>this.cut(r,c,p.id));this.U[p.id]=p.sol.map(q=>[...q]);this.hints++;sPair();this.burst(...p.a,p.id);this.burst(...p.b,p.id);this.chk();return 1}
  ok(p){const q=this.U[p.id];if(q.length<2)return 0;const a=q[0],b=q.at(-1),e=(u,v)=>u[0]==v[0]&&u[1]==v[1];return e(a,p.a)&&e(b,p.b)||e(a,p.b)&&e(b,p.a)}
- chk(){this.cb&&this.cb();if(this.P.every(p=>this.ok(p))){this.up();this.on=0;this.act=0;this.P.forEach(p=>{this.burst(...p.a,p.id);this.burst(...p.b,p.id)});setTimeout(()=>this.win&&this.win(),700)}}
+ full(){return Object.values(this.U).reduce((a,p)=>a+p.length,0)==this.n*this.n}
+ chk(){this.cb&&this.cb();const all=this.P.every(p=>this.ok(p));if(all&&!this.full()){if(!this.w2){this.w2=1;this.warn&&this.warn()}}else if(!all)this.w2=0;
+  if(all&&this.full()){this.up();this.on=0;this.act=0;this.P.forEach(p=>{this.burst(...p.a,p.id);this.burst(...p.b,p.id)});setTimeout(()=>this.win&&this.win(),700)}}
  burst(r,c,id){const cs=this.cs;for(let i=0;i<16;i++){const a=i/16*6.283+Math.random(),v=1+Math.random()*2.5;
   this.fx.push({x:c*cs+cs/2,y:r*cs+cs/2,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1,l:1,c:col(id)})}}
  draw(t){const{x,s,cs,n}=this;if(!n||!s)return;const th=T(),dt=Math.min(.05,t-(this.t0||t));this.t0=t;
@@ -231,9 +226,9 @@ function show(v){$('home').classList.toggle('hide',v!='home');$('game').classLis
  [menu,game].forEach(e=>e&&e.n&&e.fit())}
 function start(lv,inf){IN=!!inf;
  if(!inf)S.currentLevel=lv;save();
- cur=inf?gen(25+Math.min(S.infN,150),Math.random()*4e9|0):gen(lv);
- $('ttl').textContent=inf?'Infinito '+(S.infN+1):'Fase '+lv;show('game');game.load(cur)}
-function win(){const e=game,st=e.hints?1:e.moves<=e.P.length+2?3:2;let coins=0,ds=0;
+ cur=inf?gen(Math.max(10,S.maxUnlockedLevel)+S.infN,Math.random()*4e9|0):gen(lv);
+ $('ttl').textContent=inf?'Infinito '+(S.infN+1):'Fase '+lv;show('game');game.load(cur);if(!inf&&lv==1)toast('Conecte os pares e preencha todas as casas')}
+function win(){const e=game,st=e.hints?1:e.moves<=e.P.length*2+2?3:2;let coins=0,ds=0;
  if(IN){coins=20;ds=st;S.infN++}
  else{const L=S.currentLevel,old=S.completedLevels[L],pv=old?old.stars:0;ds=Math.max(0,st-pv);coins=old?0:15+2*L;
   S.completedLevels[L]={stars:Math.max(pv,st)};S.maxUnlockedLevel=Math.max(S.maxUnlockedLevel,L+1)}
@@ -249,7 +244,7 @@ function levels(){let h='<h2>Fases</h2><button class="btn y" id="inf" style="fon
  modal(h+'</div>');$('inf').onclick=()=>{closeM();start(0,1)};
  document.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{closeM();start(+b.dataset.l)})}
 function themes(){modal('<h2>Temas</h2>'+Object.entries(TH).map(([k,t])=>
- `<button class="th ${k==S.theme?'on':''}" data-t="${k}"><b>${t.n}</b><span>${t.p.slice(0,6).map(c=>`<i style="background:${c}"></i>`).join('')}</span></button>`).join(''));
+ `<button class="th ${k==S.theme?'on':''}" data-t="${k}"><b>${t.n}</b><span>${t.p.slice(0,8).map(c=>`<i style="background:${c}"></i>`).join('')}</span></button>`).join(''));
  document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{S.theme=b.dataset.t;save();bgInit();themes()})}
 function sound(){
  modal(`<h2>Som</h2><label style="display:block;text-align:left;font-weight:700">🎵 Volume da música <b id="vp" style="float:right">${Math.round(S.vol*100)}%</b>
@@ -270,7 +265,8 @@ function ach(){const n=Object.keys(S.completedLevels).length,
 addEventListener('DOMContentLoaded',()=>{
  hud();bgInit();menu=new Eng('mc');game=new Eng('gc');
  menu.load(PREV);menu.win=()=>{menu.load(PREV)};game.win=win;
- game.cb=()=>{$('mv').textContent=game.moves+(game.moves==1?' movimento':' movimentos');
+ game.warn=()=>toast('Quase! Preencha todas as casas do tabuleiro.');
+ game.cb=()=>{const cv=Object.values(game.U).reduce((a,p)=>a+p.length,0);$('mv').textContent=game.moves+(game.moves==1?' movimento':' movimentos')+' · '+Math.round(cv/(game.n*game.n)*100)+'% preenchido';
   $('dots').innerHTML=game.P.map(p=>`<i class="d${game.ok(p)?' f':''}" style="--c:${col(p.id)}"></i>`).join('')};
  $('play').onclick=()=>{au();start(S.currentLevel)};
  $('lvls').onclick=()=>{au();levels()};
