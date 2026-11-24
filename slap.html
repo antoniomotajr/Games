@@ -148,6 +148,7 @@
   .badge-combo { background: #a855f7; color: #fff; }
   .badge-counter { background: #00ff9d; color: #04131a; }
   .badge-debuff { background: #fb923c; color: #090d16; }
+  .badge-fart { background: #84cc16; color: #090d16; }
 
   #center-stats {
     display: flex;
@@ -678,6 +679,56 @@
     transform: translateY(3px);
     box-shadow: 0 2px 0 #0284c7;
   }
+
+  #bubble-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 14;
+    overflow: hidden;
+  }
+
+  .speech-bubble {
+    --tail: 50%;
+    position: absolute;
+    max-width: min(230px, 44vw);
+    padding: 7px 11px;
+    border-radius: 16px;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    text-align: center;
+    color: #0b1020;
+    background: #ffffff;
+    border: 2.5px solid #000;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+    transform: translate(-50%, -100%);
+    animation: bubblePop 0.22s ease-out;
+    transition: opacity 0.3s;
+  }
+
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    left: var(--tail);
+    bottom: -9px;
+    width: 14px;
+    height: 14px;
+    background: inherit;
+    border-right: 2.5px solid #000;
+    border-bottom: 2.5px solid #000;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .speech-bubble.player { background: #dff9ff; }
+  .speech-bubble.enemy { background: #ffe3e9; }
+  .speech-bubble.out { opacity: 0; }
+
+  @keyframes bubblePop {
+    0% { opacity: 0; margin-top: 10px; }
+    100% { opacity: 1; margin-top: 0; }
+  }
 </style>
 </head>
 <body>
@@ -814,6 +865,7 @@
 
 <div id="hud-bottom"></div>
 <div id="floating-layer"></div>
+<div id="bubble-layer"></div>
 
 <div id="modal-overlay">
   <div class="modal-box">
@@ -822,7 +874,7 @@
       16 adversários com efeitos especiais (Ursinho, Pato, Galinha, Velho Idoso, Tubarão, Pernalonga, Patolino e mais) + plateia interativa!
     </p>
     <div class="controls-grid">
-      <div><strong>👋 GOLPE / ESQUIVA:</strong> Clique esquerdo ou Espaço.</div>
+      <div><strong>👋 GOLPE / 💨 PEIDO:</strong> Clique/Espaço ou tecla [P] / Botão 💨.</div>
       <div><strong>🎉 PLATEIA INTERATIVA:</strong> Clique na plateia para vibrar e ganhar bônus!</div>
       <div><strong>🔄 CÂMERA 360°:</strong> Arraste com o Botão Direito.</div>
       <div><strong>🎵 MÚSICA:</strong> Use <code>📂 MP3</code> ou servidor HTTP para <code>slap.mp3</code>.</div>
@@ -922,6 +974,7 @@
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
       }
+      this.startCrowdAmbience();
       if (!this.musicStarted) {
         this.musicStarted = true;
         this.syncMusicState();
@@ -1237,6 +1290,288 @@
       bp.connect(g);
       g.connect(this.ctx.destination);
       src.start(now);
+      this._voices({ n: 7, f0: [200, 300], glide: 1.25, dur: 1.0, vol: 0.5, attack: 0.12, formants: [800, 1250] });
+    }
+
+    playBubblePop(pitch = 1.0) {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520 * pitch, now);
+      osc.frequency.exponentialRampToValueAtTime(900 * pitch, now + 0.09);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.12, now + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(g);
+      g.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    }
+
+    startCrowdAmbience() {
+      if (!this.ctx || this.ambience) return;
+      const ctx = this.ctx;
+      const sr = ctx.sampleRate;
+      const len = sr * 3;
+      const buf = ctx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        last = (last + 0.05 * w) / 1.05;
+        d[i] = last * 7;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 550;
+      bp.Q.value = 0.6;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 1800;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.35;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 0.01;
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain);
+      src.connect(bp);
+      bp.connect(lp);
+      lp.connect(gain);
+      gain.connect(ctx.destination);
+      src.start();
+      lfo.start();
+      this.ambience = { gain, bp };
+    }
+
+    setCrowdLevel(level) {
+      if (!this.ctx || !this.ambience) return;
+      const l = Math.max(0, Math.min(1, level));
+      const target = this.musicMuted ? 0 : 0.015 + 0.1 * l;
+      const now = this.ctx.currentTime;
+      this.ambience.gain.gain.setTargetAtTime(target, now, 0.15);
+      this.ambience.bp.frequency.setTargetAtTime(450 + l * 500, now, 0.2);
+    }
+
+    // Coro de vozes sintetizadas (sawtooth + formantes)
+    _voices(o) {
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      const n = o.n || 6;
+      const dur = o.dur || 0.9;
+      const vol = o.vol || 0.5;
+      const att = o.attack || 0.1;
+      const f0 = o.f0 || [180, 260];
+      const glide = o.glide || 1.0;
+      const fm = o.formants || [700, 1200];
+      for (let i = 0; i < n; i++) {
+        const st = now + (o.delay || 0) + Math.random() * 0.14;
+        const base = f0[0] + Math.random() * (f0[1] - f0[0]);
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(base, st);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(50, base * glide), st + dur);
+        const vib = ctx.createOscillator();
+        vib.frequency.value = 5 + Math.random() * 2;
+        const vibG = ctx.createGain();
+        vibG.gain.value = base * 0.012;
+        vib.connect(vibG);
+        vibG.connect(osc.frequency);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, st);
+        g.gain.linearRampToValueAtTime(vol, st + att);
+        g.gain.exponentialRampToValueAtTime(0.0001, st + dur);
+        fm.forEach(fc => {
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.value = fc * (0.9 + Math.random() * 0.2);
+          bp.Q.value = 5;
+          osc.connect(bp);
+          bp.connect(g);
+        });
+        g.connect(ctx.destination);
+        osc.start(st);
+        vib.start(st);
+        osc.stop(st + dur + 0.05);
+        vib.stop(st + dur + 0.05);
+      }
+    }
+
+    playCrowdBoo() {
+      this.init();
+      this._voices({ n: 7, f0: [110, 170], glide: 0.8, dur: 1.2, vol: 0.5, attack: 0.25, formants: [300, 800] });
+    }
+
+    playCrowdGasp() {
+      this.init();
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      const dur = 0.45;
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 1.5;
+      bp.frequency.setValueAtTime(700, now);
+      bp.frequency.exponentialRampToValueAtTime(2200, now + dur);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.01, now);
+      g.gain.linearRampToValueAtTime(0.18, now + dur * 0.8);
+      g.gain.exponentialRampToValueAtTime(0.005, now + dur);
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      src.start(now);
+      this._voices({ n: 6, f0: [220, 300], glide: 1.5, dur: 0.55, vol: 0.5, attack: 0.15, formants: [450, 1000] });
+    }
+
+    playCrowdLaugh() {
+      this.init();
+      for (let k = 0; k < 6; k++) {
+        this._voices({ n: 4, f0: [190, 280], glide: 0.85, dur: 0.16, vol: 0.5, attack: 0.02, formants: [750, 1300], delay: k * 0.17 });
+      }
+    }
+
+    playCrowdEw() {
+      this.init();
+      this._voices({ n: 6, f0: [260, 340], glide: 0.55, dur: 1.0, vol: 0.5, attack: 0.12, formants: [320, 2300] });
+    }
+
+    playClaps(count = 6, interval = 0.12, vol = 0.3) {
+      this.init();
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      if (!this.clapBuf) {
+        const len = Math.floor(ctx.sampleRate * 0.06);
+        const b = ctx.createBuffer(1, len, ctx.sampleRate);
+        const d = b.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (len * 0.22));
+        this.clapBuf = b;
+      }
+      for (let k = 0; k < count; k++) {
+        for (let j = 0; j < 4; j++) {
+          const st = now + k * interval + Math.random() * 0.035;
+          const src = ctx.createBufferSource();
+          src.buffer = this.clapBuf;
+          src.playbackRate.value = 0.8 + Math.random() * 0.6;
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.value = 1400 + Math.random() * 1800;
+          bp.Q.value = 1.1;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime((vol * (0.6 + Math.random() * 0.4)) / 2, st);
+          g.gain.exponentialRampToValueAtTime(0.001, st + 0.07);
+          src.connect(bp);
+          bp.connect(g);
+          g.connect(ctx.destination);
+          src.start(st);
+        }
+      }
+    }
+
+    playWhistle() {
+      this.init();
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(2600, now);
+      osc.frequency.linearRampToValueAtTime(3400, now + 0.32);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 14;
+      const vibG = ctx.createGain();
+      vibG.gain.value = 70;
+      vib.connect(vibG);
+      vibG.connect(osc.frequency);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.1, now + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start(now);
+      vib.start(now);
+      osc.stop(now + 0.42);
+      vib.stop(now + 0.42);
+    }
+
+    playAirHorn() {
+      this.init();
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const now = ctx.currentTime;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2500;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.14, now + 0.04);
+      g.gain.setValueAtTime(0.14, now + 0.5);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+      lp.connect(g);
+      g.connect(ctx.destination);
+      [466.16, 554.37, 698.46].forEach((f, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = f;
+        osc.detune.value = (i - 1) * 8;
+        osc.connect(lp);
+        osc.start(now);
+        osc.stop(now + 0.82);
+      });
+    }
+
+    playFart() {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const dur = 0.72;
+
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(118, now);
+      osc.frequency.exponentialRampToValueAtTime(145, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(34, now + dur);
+
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      lfo.frequency.setValueAtTime(32, now);
+      lfo.frequency.linearRampToValueAtTime(11, now + dur);
+      lfoGain.gain.setValueAtTime(30, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(360, now);
+
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.01, now);
+      g.gain.linearRampToValueAtTime(0.55, now + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.002, now + dur);
+
+      osc.connect(lp);
+      lp.connect(g);
+      g.connect(this.ctx.destination);
+
+      osc.start(now);
+      lfo.start(now);
+      osc.stop(now + dur);
+      lfo.stop(now + dur);
     }
 
     playDodge(perfect = false) {
@@ -1270,6 +1605,18 @@
       shake: 0.24,
       cooldown: 0,
       svg: `<svg viewBox="0 0 36 36"><path fill="#fcd34d" stroke="#000" stroke-width="2" d="M12 18V8a2 2 0 1 1 4 0v7h1V6a2 2 0 1 1 4 0v9h1V7a2 2 0 1 1 4 0v10h1v-6a2 2 0 1 1 4 0v11c0 6-4 10-10 10h-3c-5 0-8-4-8-9v-4a2 2 0 1 1 4 0v2z"/></svg>`
+    },
+    {
+      id: 'fart',
+      name: 'Peido Tóxico',
+      cost: 0,
+      unlocked: true,
+      dmgMult: 0.25,
+      speedMult: 1.05,
+      shake: 0.22,
+      cooldown: 2,
+      isFart: true,
+      svg: `<svg viewBox="0 0 36 36"><circle cx="14" cy="21" r="7" fill="#84cc16" stroke="#000" stroke-width="2"/><circle cx="22" cy="18" r="8" fill="#a3e635" stroke="#000" stroke-width="2"/><circle cx="18" cy="12" r="5" fill="#bef264" stroke="#000" stroke-width="2"/><path d="M11 9c1-3 3-3 4 0M22 7c1-3 3-3 4 0" stroke="#4d7c0f" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`
     },
     {
       id: 'gauntlet',
@@ -1447,7 +1794,8 @@
       maxHp: 130,
       stunned: 0,
       inLove: 0,
-      weakened: 0
+      weakened: 0,
+      disoriented: 0
     },
     timing: {
       pos: 0,
@@ -1617,39 +1965,658 @@
   const crowdHitboxes = [];
   const torchFlames = [];
 
-  function addInteractiveFan(parentGroup, x, y, z, scale = 1.0) {
+  // ============================================================
+  //  PLATEIA DETALHADA — personagens, reações, sons e efeitos
+  // ============================================================
+  const FAN_SKINS = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac, 0x6f4a2c];
+  const FAN_SHIRTS = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0xa855f7, 0xec4899, 0x14b8a6, 0xf8fafc, 0x0ea5e9, 0xf97316];
+  const FAN_HAIRS = [0x111827, 0x3f2a14, 0x92400e, 0xfacc15, 0xe5e7eb, 0x7c2d12, 0x1d4ed8, 0xdb2777];
+  const FAN_SIGNS = [
+    ['SLAP!', '#ef4444'], ['K.O.!', '#ca8a04'], ['TAPA NELE!', '#16a34a'], ['VAI!', '#2563eb'],
+    ['❤ VOCÊ', '#db2777'], ['PEIDA!', '#65a30d'], ['MAIS UM!', '#ea580c'], ['🔥 🔥 🔥', '#7e22ce']
+  ];
+  const FAN_EMOTES = {
+    cheer: ['🎉', '👏', '🔥', '🙌'],
+    clap: ['👏'],
+    boo: ['👎', '😡'],
+    gasp: ['😱', '😮'],
+    stink: ['🤢', '🤮', '💨'],
+    laugh: ['😂', '🤣'],
+    love: ['❤️', '😍', '💖']
+  };
+  const FAN_STINK_COLOR = new THREE.Color(0x84cc16);
+
+  const fanMatCache = {};
+  function fanMat(hex) {
+    if (!fanMatCache[hex]) fanMatCache[hex] = new THREE.MeshLambertMaterial({ color: hex });
+    return fanMatCache[hex];
+  }
+
+  const FG = {
+    torso: new THREE.BoxGeometry(0.56, 0.74, 0.34),
+    stripe: new THREE.BoxGeometry(0.58, 0.11, 0.02),
+    head: new THREE.SphereGeometry(0.24, 14, 12),
+    hairCap: new THREE.SphereGeometry(0.262, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.52),
+    hairBack: new THREE.BoxGeometry(0.5, 0.5, 0.12),
+    afro: new THREE.SphereGeometry(0.36, 12, 10),
+    mohawk: new THREE.BoxGeometry(0.07, 0.2, 0.32),
+    bun: new THREE.SphereGeometry(0.1, 8, 8),
+    tail: new THREE.BoxGeometry(0.08, 0.3, 0.08),
+    beard: new THREE.BoxGeometry(0.3, 0.14, 0.12),
+    mustache: new THREE.BoxGeometry(0.15, 0.03, 0.04),
+    nose: new THREE.SphereGeometry(0.035, 6, 6),
+    eyeW: new THREE.SphereGeometry(0.05, 8, 6),
+    pupil: new THREE.SphereGeometry(0.026, 6, 6),
+    brow: new THREE.BoxGeometry(0.1, 0.022, 0.02),
+    mouth: new THREE.BoxGeometry(0.11, 0.045, 0.03),
+    shoulder: new THREE.SphereGeometry(0.085, 8, 8),
+    sleeve: new THREE.CylinderGeometry(0.075, 0.07, 0.22, 8).translate(0, -0.1, 0),
+    fore: new THREE.CylinderGeometry(0.055, 0.05, 0.28, 8).translate(0, -0.33, 0),
+    hand: new THREE.SphereGeometry(0.07, 8, 8),
+    capDome: new THREE.SphereGeometry(0.278, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5),
+    capBrim: new THREE.BoxGeometry(0.3, 0.025, 0.2),
+    band: new THREE.TorusGeometry(0.248, 0.028, 6, 16),
+    horn: new THREE.ConeGeometry(0.05, 0.28, 6),
+    partyHat: new THREE.ConeGeometry(0.12, 0.3, 8),
+    ball: new THREE.SphereGeometry(0.04, 6, 6),
+    glasses: new THREE.BoxGeometry(0.4, 0.07, 0.04),
+    paint: new THREE.BoxGeometry(0.07, 0.07, 0.012),
+    scarf: new THREE.TorusGeometry(0.2, 0.055, 6, 14),
+    scarfTail: new THREE.BoxGeometry(0.08, 0.3, 0.04),
+    pole: new THREE.BoxGeometry(0.03, 0.9, 0.03),
+    board: new THREE.PlaneGeometry(0.64, 0.4),
+    cloth: new THREE.PlaneGeometry(0.5, 0.32),
+    pom: new THREE.IcosahedronGeometry(0.14, 0),
+    foamTube: new THREE.CylinderGeometry(0.1, 0.07, 0.42, 8),
+    foamTip: new THREE.SphereGeometry(0.07, 8, 8)
+  };
+
+  const signTexCache = {};
+  function getSignTexture(text, color) {
+    const key = text + color;
+    if (!signTexCache[key]) {
+      signTexCache[key] = createCanvasTexture(256, 160, (ctx, w, h) => {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = color;
+        ctx.fillRect(8, 8, w - 16, h - 16);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + (text.length > 7 ? 44 : 60) + 'px Impact, "Arial Black", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, w / 2, h / 2 + 4, w - 28);
+      });
+    }
+    return signTexCache[key];
+  }
+
+  const flagTexCache = {};
+  function getFlagTexture(c1, c2) {
+    const key = c1 + c2;
+    if (!flagTexCache[key]) {
+      flagTexCache[key] = createCanvasTexture(128, 80, (ctx, w, h) => {
+        ctx.fillStyle = c1;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = c2;
+        ctx.fillRect(0, h * 0.33, w, h * 0.34);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(w * 0.5, h * 0.5, h * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    return flagTexCache[key];
+  }
+
+  const emojiTexCache = {};
+  function getEmojiTexture(emoji) {
+    if (!emojiTexCache[emoji]) {
+      emojiTexCache[emoji] = createCanvasTexture(128, 128, (ctx, w, h) => {
+        ctx.font = '92px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, w / 2, h / 2 + 6);
+      });
+    }
+    return emojiTexCache[emoji];
+  }
+
+  const flashTex = createCanvasTexture(128, 128, (ctx, w, h) => {
+    const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.25, 'rgba(255,255,255,0.85)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  });
+
+  const crowdFx = { emotes: [], flashes: [] };
+  const crowdWave = { active: false, t: 0, startX: -10, endX: 10, width: 3.4, speed: 9 };
+  const crowdFlashLight = new THREE.PointLight(0xffffff, 0, 16, 2);
+  scene.add(crowdFlashLight);
+  let crowdAudioTimer = 0;
+
+  function chance(p) { return Math.random() < p; }
+
+  function buildDetailedFan() {
     const fan = new THREE.Group();
-    fan.scale.set(scale, scale, scale);
-    const body = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.3, 0.8, 10),
-      new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.75, 0.5) })
-    );
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 10, 10),
-      new THREE.MeshStandardMaterial({ color: 0xf1c27d })
-    );
-    head.position.y = 0.62;
-    const armWave = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.38, 0.1),
-      new THREE.MeshStandardMaterial({ color: 0xfde047 })
-    );
-    armWave.position.set(0.32, 0.35, 0.08);
-    fan.add(body, head, armWave);
-    fan.position.set(x, y, z);
+    const skinHex = randItem(FAN_SKINS);
+    const shirtHex = randItem(FAN_SHIRTS);
+    const hairHex = randItem(FAN_HAIRS);
+    const accentHex = randItem(FAN_SHIRTS);
+
+    const skinMat = new THREE.MeshLambertMaterial({ color: skinHex });
+    const shirtMat = fanMat(shirtHex);
+    const hairMat = fanMat(hairHex);
+    const accentMat = fanMat(accentHex);
+    const darkMat = fanMat(0x111827);
+    const whiteMat = fanMat(0xffffff);
+    const mouthMat = fanMat(0x7f1d1d);
+    const mk = (geo, mat, x = 0, y = 0, z = 0) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      return m;
+    };
+
+    // Tronco com camisa (listra opcional) e cachecol
+    const torso = mk(FG.torso, shirtMat, 0, -0.02, 0);
+    fan.add(torso);
+    if (chance(0.5)) fan.add(mk(FG.stripe, accentMat, 0, 0.05, 0.176));
+    if (chance(0.22)) {
+      const scarf = mk(FG.scarf, accentMat, 0, 0.35, 0);
+      scarf.rotation.x = Math.PI / 2;
+      fan.add(scarf, mk(FG.scarfTail, accentMat, 0.1, 0.2, 0.19));
+    }
+
+    // Cabeça e rosto
+    const headG = new THREE.Group();
+    headG.position.set(0, 0.66, 0);
+    fan.add(headG);
+    const headMesh = mk(FG.head, skinMat);
+    headMesh.scale.set(1, 1.05, 1);
+    headG.add(headMesh);
+    headG.add(mk(FG.nose, skinMat, 0, -0.02, 0.24));
+
+    const makeEye = (sx) => {
+      const g = new THREE.Group();
+      g.position.set(sx * 0.085, 0.04, 0.205);
+      const white = mk(FG.eyeW, whiteMat);
+      white.scale.set(1, 1, 0.6);
+      g.add(white, mk(FG.pupil, darkMat, 0, 0, 0.03));
+      headG.add(g);
+      return g;
+    };
+    const eyeL = makeEye(-1);
+    const eyeR = makeEye(1);
+
+    const browL = mk(FG.brow, hairHex === 0xe5e7eb ? darkMat : hairMat, -0.085, 0.115, 0.205);
+    const browR = mk(FG.brow, hairHex === 0xe5e7eb ? darkMat : hairMat, 0.085, 0.115, 0.205);
+    const mouth = mk(FG.mouth, mouthMat, 0, -0.1, 0.212);
+    headG.add(browL, browR, mouth);
+
+    // Cabelo (variações)
+    const hairStyle = randItem(['bald', 'short', 'short', 'long', 'afro', 'mohawk', 'ponytail', 'bun']);
+    if (hairStyle === 'short' || hairStyle === 'long' || hairStyle === 'ponytail' || hairStyle === 'bun') {
+      headG.add(mk(FG.hairCap, hairMat, 0, 0.01, -0.005));
+    }
+    if (hairStyle === 'long') headG.add(mk(FG.hairBack, hairMat, 0, -0.12, -0.17));
+    if (hairStyle === 'afro') headG.add(mk(FG.afro, hairMat, 0, 0.12, -0.04));
+    if (hairStyle === 'mohawk') headG.add(mk(FG.mohawk, accentMat, 0, 0.27, 0));
+    if (hairStyle === 'bun') headG.add(mk(FG.bun, hairMat, 0, 0.3, -0.05));
+    if (hairStyle === 'ponytail') headG.add(mk(FG.bun, hairMat, 0, 0.08, -0.27), mk(FG.tail, hairMat, 0, -0.1, -0.3));
+    if (chance(0.1)) headG.add(mk(FG.beard, hairMat, 0, -0.17, 0.17));
+    else if (chance(0.12)) headG.add(mk(FG.mustache, hairMat, 0, -0.055, 0.235));
+
+    // Chapéus (exclusivos)
+    const hat = randItem(['none', 'none', 'none', 'none', 'cap', 'cap', 'band', 'horns', 'party']);
+    if (hat === 'cap') {
+      headG.add(mk(FG.capDome, accentMat, 0, 0.03, 0), mk(FG.capBrim, accentMat, 0, 0.05, 0.27));
+    } else if (hat === 'band') {
+      const band = mk(FG.band, accentMat, 0, 0.1, 0);
+      band.rotation.x = Math.PI / 2;
+      headG.add(band);
+    } else if (hat === 'horns') {
+      const helmet = mk(FG.capDome, fanMat(0x94a3b8), 0, 0.03, 0);
+      const hL = mk(FG.horn, whiteMat, -0.27, 0.2, 0);
+      hL.rotation.z = 0.8;
+      const hR = mk(FG.horn, whiteMat, 0.27, 0.2, 0);
+      hR.rotation.z = -0.8;
+      headG.add(helmet, hL, hR);
+    } else if (hat === 'party') {
+      headG.add(mk(FG.partyHat, accentMat, 0, 0.4, 0), mk(FG.ball, whiteMat, 0, 0.56, 0));
+    }
+
+    // Óculos escuros / pintura facial
+    if (chance(0.14)) headG.add(mk(FG.glasses, darkMat, 0, 0.04, 0.225));
+    if (chance(0.16)) headG.add(mk(FG.paint, accentMat, -0.14, -0.04, 0.2), mk(FG.paint, accentMat, 0.14, -0.04, 0.2));
+
+    // Braços articulados (ombro/manga/antebraço/mão)
+    const hitboxes = [torso, headMesh];
+    const makeArm = (side) => {
+      const piv = new THREE.Group();
+      piv.position.set(side * 0.34, 0.27, 0);
+      const hand = mk(FG.hand, skinMat, 0, -0.47, 0);
+      piv.add(mk(FG.shoulder, shirtMat), mk(FG.sleeve, shirtMat), mk(FG.fore, skinMat), hand);
+      fan.add(piv);
+      hitboxes.push(hand);
+      return piv;
+    };
+    const armL = makeArm(-1);
+    const armR = makeArm(1);
+
+    // Acessórios de torcida
+    const kind = randItem(['none', 'none', 'none', 'finger', 'pom', 'sign', 'sign', 'flag']);
+    let signG = null;
+    let flagAnchor = null;
+    if (kind === 'finger') {
+      const orange = fanMat(0xf97316);
+      armR.add(mk(FG.foamTube, orange, 0, -0.7, 0), mk(FG.foamTip, orange, 0, -0.91, 0));
+    } else if (kind === 'pom') {
+      armL.add(mk(FG.pom, accentMat, 0, -0.5, 0));
+      armR.add(mk(FG.pom, accentMat, 0, -0.5, 0));
+    } else if (kind === 'sign') {
+      signG = new THREE.Group();
+      signG.position.set(0.36, 0.2, 0.06);
+      const pick = randItem(FAN_SIGNS);
+      const board = new THREE.Mesh(FG.board, new THREE.MeshBasicMaterial({ map: getSignTexture(pick[0], pick[1]), side: THREE.DoubleSide }));
+      board.position.set(0, 1.1, 0);
+      signG.add(mk(FG.pole, fanMat(0x92400e), 0, 0.45, 0), board);
+      fan.add(signG);
+    } else if (kind === 'flag') {
+      const teamA = '#' + new THREE.Color(randItem(FAN_SHIRTS)).getHexString();
+      const teamB = '#' + new THREE.Color(randItem(FAN_SHIRTS)).getHexString();
+      signG = new THREE.Group();
+      signG.position.set(0.36, 0.2, 0.06);
+      signG.add(mk(FG.pole, fanMat(0xd4d4d8), 0, 0.45, 0));
+      flagAnchor = new THREE.Group();
+      flagAnchor.position.set(0, 0.78, 0);
+      const cloth = new THREE.Mesh(FG.cloth, new THREE.MeshBasicMaterial({ map: getFlagTexture(teamA, teamB), side: THREE.DoubleSide }));
+      cloth.position.x = 0.25;
+      flagAnchor.add(cloth);
+      signG.add(flagAnchor);
+      fan.add(signG);
+    }
+
+    const cur = { lx: 0, rx: 0, lz: -0.1, rz: 0.1, hx: 0, hy: 0, hz: 0, lean: 0, jump: 0, mx: 1, my: 1, eyeS: 1, brow: 0, tint: 0 };
     fan.userData = {
-      baseX: x,
-      baseY: y,
+      baseX: 0, baseY: 0, wx: 0,
       phase: Math.random() * Math.PI * 2,
       cheerBoost: 0,
       cooldown: 0,
-      armWave
+      energy: 0.7 + Math.random() * 0.6,
+      talker: chance(0.35),
+      mood: 'idle', moodT: 0, moodDur: 0, pending: null, flashDelay: 0,
+      armL, armR, head: headG, eyeL, eyeR, browL, browR, mouth,
+      signG, flagAnchor,
+      skinMat, baseSkin: new THREE.Color(skinHex), tinted: false,
+      cur, tgt: Object.assign({}, cur)
     };
-    body.userData.fanRef = fan;
-    head.userData.fanRef = fan;
-    armWave.userData.fanRef = fan;
-    crowdHitboxes.push(body, head, armWave);
+    hitboxes.forEach(m => {
+      m.userData.fanRef = fan;
+      crowdHitboxes.push(m);
+    });
+    return fan;
+  }
+
+  function addInteractiveFan(parentGroup, x, y, z, scale = 1.0, waveCoord = x) {
+    const fan = buildDetailedFan();
+    fan.scale.set(scale, scale, scale);
+    fan.position.set(x, y, z);
+    fan.rotation.order = 'YXZ';
+    fan.rotation.y = Math.atan2(-x, -z); // todos olham para o ringue
+    fan.userData.baseX = x;
+    fan.userData.baseY = y;
+    fan.userData.wx = waveCoord;
     parentGroup.add(fan);
     crowdMembers.push(fan);
+  }
+
+  // ---------- Efeitos visuais ----------
+  function spawnCrowdEmote(fan, emoji) {
+    if (crowdFx.emotes.length > 34) return;
+    const mat = new THREE.SpriteMaterial({ map: getEmojiTexture(emoji), transparent: true, depthWrite: false, depthTest: false });
+    const sp = new THREE.Sprite(mat);
+    const wp = fan.getWorldPosition(new THREE.Vector3());
+    wp.y += 1.2 * fan.scale.y;
+    sp.position.copy(wp);
+    sp.scale.set(0.05, 0.05, 0.05);
+    sp.renderOrder = 999;
+    scene.add(sp);
+    crowdFx.emotes.push({ sp, life: 1.5, maxLife: 1.5, vx: (Math.random() - 0.5) * 0.4 });
+  }
+
+  function spawnCameraFlash(fan) {
+    if (crowdFx.flashes.length > 9) return;
+    const mat = new THREE.SpriteMaterial({ map: flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+    const sp = new THREE.Sprite(mat);
+    const wp = fan.getWorldPosition(new THREE.Vector3());
+    wp.y += 0.35 * fan.scale.y;
+    wp.z += 0.35;
+    sp.position.copy(wp);
+    sp.scale.set(0.3, 0.3, 0.3);
+    sp.renderOrder = 998;
+    scene.add(sp);
+    crowdFx.flashes.push({ sp, life: 0.24, maxLife: 0.24 });
+    crowdFlashLight.position.copy(wp);
+    crowdFlashLight.intensity = 2.4;
+  }
+
+  function updateCrowdFx(dt) {
+    for (let i = crowdFx.emotes.length - 1; i >= 0; i--) {
+      const e = crowdFx.emotes[i];
+      e.life -= dt;
+      if (e.life <= 0) {
+        scene.remove(e.sp);
+        e.sp.material.dispose();
+        crowdFx.emotes.splice(i, 1);
+        continue;
+      }
+      const age = e.maxLife - e.life;
+      const pop = Math.min(1, age / 0.2);
+      const s = 0.85 * (1 - Math.pow(1 - pop, 3));
+      e.sp.scale.set(s, s, s);
+      e.sp.position.y += 0.8 * dt;
+      e.sp.position.x += e.vx * dt;
+      e.sp.material.opacity = Math.min(1, e.life / 0.45);
+    }
+    for (let i = crowdFx.flashes.length - 1; i >= 0; i--) {
+      const f = crowdFx.flashes[i];
+      f.life -= dt;
+      if (f.life <= 0) {
+        scene.remove(f.sp);
+        f.sp.material.dispose();
+        crowdFx.flashes.splice(i, 1);
+        continue;
+      }
+      const k = 1 - f.life / f.maxLife;
+      const s = 0.3 + k * 1.3;
+      f.sp.scale.set(s, s, s);
+      f.sp.material.opacity = 1 - k;
+    }
+    crowdFlashLight.intensity *= Math.exp(-dt * 16);
+    if (crowdFlashLight.intensity < 0.02) crowdFlashLight.intensity = 0;
+  }
+
+  // ---------- Reações ----------
+  function onFanMoodStart(fan, mood) {
+    const u = fan.userData;
+    if (FAN_EMOTES[mood] && chance(0.28)) spawnCrowdEmote(fan, randItem(FAN_EMOTES[mood]));
+    if (mood === 'cheer' && chance(0.4)) u.flashDelay = 0.1 + Math.random() * 1.5;
+  }
+
+  // spec: nome do humor ou [['humor', prob], ...]
+  function crowdReact(spec, dur, fraction = 1, only = null) {
+    const list = only || crowdMembers;
+    for (let i = 0; i < list.length; i++) {
+      const fan = list[i];
+      if (!fan.parent || !fan.parent.visible) continue;
+      if (Math.random() > fraction) continue;
+      let mood = spec;
+      if (Array.isArray(spec)) {
+        const r = Math.random();
+        let acc = 0;
+        mood = spec[spec.length - 1][0];
+        for (let s = 0; s < spec.length; s++) {
+          acc += spec[s][1];
+          if (r < acc) { mood = spec[s][0]; break; }
+        }
+      }
+      fan.userData.pending = { mood, dur: dur * (0.8 + Math.random() * 0.5), delay: Math.random() * 0.35 };
+    }
+  }
+
+  function crowdReactNear(fan, radius, mood, dur) {
+    const near = crowdMembers.filter(f => f.parent === fan.parent && f.position.distanceTo(fan.position) < radius);
+    crowdReact(mood, dur, 1, near);
+  }
+
+  function startCrowdWave() {
+    crowdWave.active = true;
+    crowdWave.t = 0;
+  }
+
+  function crowdFanSpecial(fan) {
+    crowdReactNear(fan, 2.8, 'cheer', 1.8);
+    spawnCrowdEmote(fan, randItem(['🎉', '❤️', '🔥', '👏', '😎']));
+    spawnCameraFlash(fan);
+    if (chance(0.45)) sfx.playWhistle();
+  }
+
+  function crowdOnPlayerHit(q, dmg, hadCounter, weaponId) {
+    if (weaponId === 'heart') {
+      crowdReact('love', 2.2, 0.9);
+      sfx.playCrowdGasp();
+      return;
+    }
+    if (q === 'CRIT' || hadCounter || dmg >= 45) {
+      crowdReact('cheer', 2.1, 0.9);
+      sfx.playCrowdCheer();
+      if (dmg >= 45 || chance(0.25)) sfx.playAirHorn();
+      else if (chance(0.6)) sfx.playWhistle();
+    } else if (q === 'GOOD') {
+      crowdReact('clap', 1.5, 0.8);
+      sfx.playClaps(6);
+    } else {
+      crowdReact('gasp', 0.9, 0.5);
+      sfx.playCrowdGasp();
+    }
+  }
+
+  function crowdOnEnemyHit(dodged, perfect) {
+    if (state.player.hp <= 0) {
+      crowdReact('gasp', 1.5, 0.95);
+      sfx.playCrowdGasp();
+    } else if (!dodged) {
+      crowdReact([['boo', 0.65], ['gasp', 0.35]], 1.9, 0.9);
+      sfx.playCrowdBoo();
+    } else if (perfect) {
+      crowdReact('cheer', 1.8, 0.85);
+      sfx.playCrowdCheer();
+      sfx.playWhistle();
+    } else {
+      crowdReact('clap', 1.2, 0.7);
+      sfx.playClaps(4);
+    }
+  }
+
+  function crowdOnFart() {
+    crowdReact([['stink', 0.6], ['laugh', 0.4]], 2.5, 0.95);
+    setTimeout(() => sfx.playCrowdEw(), 300);
+    setTimeout(() => sfx.playCrowdLaugh(), 850);
+  }
+
+  function crowdOnKO() {
+    crowdReact('cheer', 3.6, 1.0);
+    startCrowdWave();
+    sfx.playAirHorn();
+    setTimeout(() => sfx.playWhistle(), 350);
+    setTimeout(() => sfx.playCrowdCheer(), 700);
+    const visible = crowdMembers.filter(f => f.parent && f.parent.visible);
+    for (let i = 0; i < 5 && visible.length; i++) {
+      const fan = randItem(visible);
+      spawnParticles('confetti', fan.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 0.8, 0.3)), 22);
+    }
+  }
+
+  // ---------- Animação por quadro ----------
+  function updateCrowd(dt, elapsed) {
+    const hype = state.effects.crowdHype;
+    const cw = crowdWave;
+    if (cw.active) {
+      cw.t += dt;
+      if (cw.startX + cw.t * cw.speed - cw.width > cw.endX) cw.active = false;
+    }
+    const front = cw.startX + cw.t * cw.speed;
+    const k = Math.min(1, dt * 22);
+    const lerp = THREE.MathUtils.lerp;
+    const vibeAmp = 0.05 + hype * 0.2;
+    const vibeFreq = 6 + hype * 20;
+
+    for (let idx = 0; idx < crowdMembers.length; idx++) {
+      const fan = crowdMembers[idx];
+      if (!fan.parent || !fan.parent.visible) continue;
+      const u = fan.userData;
+      const ph = u.phase;
+
+      if (u.cooldown > 0) u.cooldown = Math.max(0, u.cooldown - dt);
+      if (u.cheerBoost > 0) u.cheerBoost = Math.max(0, u.cheerBoost - dt * 1.4);
+
+      // Humor pendente (com atraso individual) e expiração
+      if (u.pending) {
+        u.pending.delay -= dt;
+        if (u.pending.delay <= 0) {
+          u.mood = u.pending.mood;
+          u.moodDur = u.pending.dur;
+          u.moodT = 0;
+          u.pending = null;
+          onFanMoodStart(fan, u.mood);
+        }
+      }
+      u.moodT += dt;
+      if (u.mood !== 'idle' && u.moodT > u.moodDur) {
+        u.mood = 'idle';
+        u.moodT = 0;
+      }
+      const mt = u.moodT;
+
+      // Flashes de câmera
+      if (u.flashDelay > 0) {
+        u.flashDelay -= dt;
+        if (u.flashDelay <= 0) spawnCameraFlash(fan);
+      } else if (hype > 0.9 && Math.random() < dt * 0.2) {
+        spawnCameraFlash(fan);
+      }
+
+      const localHype = hype + u.cheerBoost;
+      const e = Math.min(1, localHype / 1.3) * u.energy;
+
+      // Alvos de pose (valores de repouso)
+      let lz = -0.1 + Math.sin(elapsed * 1.5 + ph) * 0.03;
+      let rz = 0.1 + Math.sin(elapsed * 1.5 + ph + 1) * 0.03;
+      let lx = 0, rx = 0;
+      let hy = Math.sin(elapsed * 0.7 + ph) * 0.3, hx = 0, hz = 0;
+      let lean = 0, jump = 0, mx = 1, my = 1, eyeS = 1, brow = 0, tint = 0;
+
+      switch (u.mood) {
+        case 'cheer': {
+          lz = -(2.45 + Math.sin(elapsed * 10 + ph) * 0.3);
+          rz = 2.45 + Math.sin(elapsed * 10 + ph + 1) * 0.3;
+          lx = Math.sin(elapsed * 9 + ph) * 0.15;
+          rx = Math.cos(elapsed * 9 + ph) * 0.15;
+          jump = Math.abs(Math.sin(elapsed * 8.5 + ph)) * 0.28;
+          mx = 1.5; my = 1.9; eyeS = 0.45; brow = -0.2; hx = -0.15;
+          hy = Math.sin(elapsed * 5 + ph) * 0.2;
+          break;
+        }
+        case 'clap': {
+          const c = 0.5 + 0.5 * Math.sin(elapsed * 13 + ph * 0.15);
+          lx = rx = -1.15;
+          lz = 0.25 + 0.4 * c;
+          rz = -(0.25 + 0.4 * c);
+          mx = 1.4; my = 0.8; eyeS = 0.7;
+          jump = Math.abs(Math.sin(elapsed * 6.5 + ph)) * 0.05;
+          break;
+        }
+        case 'boo': {
+          lx = rx = -1.35 + 0.25 * Math.sin(elapsed * 13 + ph);
+          lz = -0.12; rz = 0.12;
+          hy = Math.sin(elapsed * 8 + ph) * 0.45;
+          mx = 0.65; my = 1.8; eyeS = 0.7; brow = 1; lean = 0.12;
+          break;
+        }
+        case 'gasp': {
+          lx = rx = -2.2;
+          lz = 0.35; rz = -0.35;
+          hx = -0.25; hy = 0;
+          mx = 0.7; my = 2.3; eyeS = 1.45; brow = -0.9; lean = -0.12;
+          jump = mt < 0.35 ? Math.sin((mt / 0.35) * Math.PI) * 0.25 : 0;
+          break;
+        }
+        case 'stink': {
+          const fade = Math.min(1, mt / 0.3) * (1 - smooth01((mt - (u.moodDur - 0.6)) / 0.6));
+          rx = -2.2; rz = -0.62;
+          lx = -1.2; lz = 0.8 + 0.5 * Math.sin(elapsed * 16 + ph);
+          hz = 0.2; hx = -0.22; hy = Math.sin(elapsed * 7 + ph) * 0.35;
+          lean = -0.18; mx = 1.5; my = 0.5; eyeS = 0.25; brow = -1;
+          tint = 0.75 * fade;
+          break;
+        }
+        case 'laugh': {
+          const s = Math.abs(Math.sin(elapsed * 18 + ph));
+          lean = 0.15 + 0.2 * Math.sin(elapsed * 18 + ph);
+          rx = -1.5; rz = -0.2;
+          lx = -0.9; lz = 0.55;
+          hx = -0.3 + 0.1 * Math.sin(elapsed * 18 + ph);
+          mx = 1.8; my = 1.6 + 0.8 * s; eyeS = 0.2;
+          jump = s * 0.08;
+          break;
+        }
+        case 'love': {
+          lz = -(3.66 + Math.sin(elapsed * 3 + ph) * 0.1);
+          rz = 3.66 + Math.sin(elapsed * 3 + ph + 1) * 0.1;
+          hz = Math.sin(elapsed * 3 + ph) * 0.15;
+          mx = 1.5; my = 0.9; eyeS = 0.55;
+          jump = Math.abs(Math.sin(elapsed * 4 + ph)) * 0.06;
+          break;
+        }
+        default: { // idle
+          const raise = e * e * 2.3; // empolgação levanta os braços
+          lz -= raise; rz += raise;
+          if (e > 0.25) {
+            my = 1 + e * 1.3; mx = 1 + e * 0.4; eyeS = 1 - e * 0.35;
+            jump = Math.abs(Math.sin(elapsed * (6 + e * 9) + ph)) * e * 0.22;
+            hy *= 0.3;
+          } else if (u.talker) {
+            my = 1 + Math.max(0, Math.sin(elapsed * 9 + ph * 3)) * 0.6;
+          }
+        }
+      }
+
+      // Onda mexicana (sobrepõe a pose)
+      if (cw.active) {
+        const d = front - u.wx;
+        if (d > 0 && d < cw.width) {
+          const w = Math.sin(Math.PI * d / cw.width);
+          lz = lerp(lz, -2.6, w);
+          rz = lerp(rz, 2.6, w);
+          lx = lerp(lx, 0, w);
+          rx = lerp(rx, 0, w);
+          jump = Math.max(jump, 0.4 * w);
+          my = lerp(my, 1.7, w);
+        }
+      }
+
+      const T = u.tgt;
+      T.lx = lx; T.rx = rx; T.lz = lz; T.rz = rz;
+      T.hx = hx; T.hy = hy; T.hz = hz; T.lean = lean; T.jump = jump;
+      T.mx = mx; T.my = my; T.eyeS = eyeS; T.brow = brow; T.tint = tint;
+      const c = u.cur;
+      for (const key in T) c[key] += (T[key] - c[key]) * k;
+
+      u.armL.rotation.set(c.lx, 0, c.lz);
+      u.armR.rotation.set(c.rx, 0, c.rz);
+      u.head.rotation.set(c.hx, c.hy, c.hz);
+      u.mouth.scale.set(c.mx, c.my, 1);
+      const es = Math.max(0.08, c.eyeS);
+      u.eyeL.scale.y = es;
+      u.eyeR.scale.y = es;
+      u.browL.rotation.z = -0.3 * c.brow;
+      u.browR.rotation.z = 0.3 * c.brow;
+      if (c.tint > 0.01 || u.tinted) {
+        u.skinMat.color.copy(u.baseSkin).lerp(FAN_STINK_COLOR, c.tint);
+        u.tinted = c.tint > 0.01;
+      }
+
+      // Corpo inteiro: balanço, pulos e inclinação
+      fan.position.x = u.baseX + Math.sin(elapsed * vibeFreq + idx * 1.7) * vibeAmp * 0.35;
+      fan.position.y = u.baseY + c.jump + Math.abs(Math.sin(elapsed * (5 + localHype * 10) + ph)) * (0.03 + localHype * 0.18);
+      fan.rotation.x = c.lean;
+      fan.rotation.z = Math.cos(elapsed * vibeFreq + ph) * localHype * 0.05;
+
+      // Acessórios
+      if (u.flagAnchor) u.flagAnchor.rotation.y = Math.sin(elapsed * (5 + e * 8) + ph) * 0.45;
+      if (u.signG) u.signG.rotation.z = Math.sin(elapsed * (2 + e * 6) + ph) * (0.06 + e * 0.08);
+    }
   }
 
   function buildNeonArena() {
@@ -1797,7 +2764,8 @@
         Math.sin(ang) * rad,
         1.1 + (i % 2) * 0.45,
         -Math.cos(ang) * rad,
-        1.02
+        1.02,
+        -6.4 + i * 0.75
       );
     }
 
@@ -1873,23 +2841,69 @@
     const legGeo = new THREE.CylinderGeometry(0.22, 0.19, 0.85, 12);
     const bootGeo = new THREE.BoxGeometry(0.28, 0.28, 0.42);
 
+    // Quadril e bunda visíveis quando a calça abaixa
+    const hipBaseGroup = new THREE.Group();
+    hipBaseGroup.position.set(0, 0.96, 0);
+
+    const boxerMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.6,
+      transparent: false,
+      opacity: 1.0
+    });
+    const boxerBrief = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.28, 0.56), boxerMat);
+    boxerBrief.position.set(0, 0.04, 0);
+    boxerBrief.castShadow = true;
+
+    const cheekGeo = new THREE.SphereGeometry(0.27, 14, 14);
+    const cheekL = new THREE.Mesh(cheekGeo, skinMat);
+    cheekL.scale.set(0.95, 0.92, 0.85);
+    cheekL.position.set(-0.21, -0.04, -0.22);
+    cheekL.castShadow = true;
+
+    const cheekR = new THREE.Mesh(cheekGeo, skinMat);
+    cheekR.scale.set(0.95, 0.92, 0.85);
+    cheekR.position.set(0.21, -0.04, -0.22);
+    cheekR.castShadow = true;
+
+    hipBaseGroup.add(boxerBrief, cheekL, cheekR);
+    hipBaseGroup.visible = false;
+    root.add(hipBaseGroup);
+
+    // Coxas de pele: ficam escondidas dentro da calça e aparecem quando ela desce
+    const thighGeo = new THREE.CylinderGeometry(0.16, 0.15, 0.85, 10);
+    const thighL = new THREE.Mesh(thighGeo, skinMat);
+    thighL.position.set(-0.29, 0.65, 0);
+    const thighR = new THREE.Mesh(thighGeo, skinMat);
+    thighR.position.set(0.29, 0.65, 0);
+    root.add(thighL, thighR);
+
+    // Botas fixas no chão (a calça desliza por cima delas)
+    const bootL = new THREE.Mesh(bootGeo, bootMat);
+    bootL.position.set(-0.29, 0.13, 0.07);
+    bootL.castShadow = true;
+    const bootR = new THREE.Mesh(bootGeo, bootMat);
+    bootR.position.set(0.29, 0.13, 0.07);
+    bootR.castShadow = true;
+    root.add(bootL, bootR);
+
+    const pantsGroup = new THREE.Group();
+    pantsGroup.position.set(0, 0.72, 0);
+
     const leftLeg = new THREE.Mesh(legGeo, suitMat);
-    leftLeg.position.set(-0.29, 0.65, 0);
+    leftLeg.position.set(-0.29, -0.07, 0);
     leftLeg.castShadow = true;
-    const leftBoot = new THREE.Mesh(bootGeo, bootMat);
-    leftBoot.position.set(0, -0.52, 0.07);
-    leftBoot.castShadow = true;
-    leftLeg.add(leftBoot);
 
     const rightLeg = new THREE.Mesh(legGeo, suitMat);
-    rightLeg.position.set(0.29, 0.65, 0);
+    rightLeg.position.set(0.29, -0.07, 0);
     rightLeg.castShadow = true;
-    const rightBoot = new THREE.Mesh(bootGeo, bootMat);
-    rightBoot.position.set(0, -0.52, 0.07);
-    rightBoot.castShadow = true;
-    rightLeg.add(rightBoot);
 
-    root.add(leftLeg, rightLeg);
+    const hipCloth = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.38, 0.64), suitMat);
+    hipCloth.position.set(0, 0.24, 0);
+    hipCloth.castShadow = true;
+
+    pantsGroup.add(leftLeg, rightLeg, hipCloth);
+    root.add(pantsGroup);
 
     const torsoGroup = new THREE.Group();
     torsoGroup.position.set(0, 1.1, 0);
@@ -2371,6 +3385,10 @@
       leftArmPivot,
       handGroup,
       itemMeshes,
+      pantsGroup,
+      hipBaseGroup,
+      cheekL,
+      cheekR,
       stunStars,
       baseScale: scale,
       customParts: {
@@ -2436,6 +3454,8 @@
   let enemyChar = null;
   function spawnEnemy(stageIdx) {
     if (enemyChar) scene.remove(enemyChar.root);
+    state.introPending = true;
+    clearBubbles();
     const cfg = ENEMIES[stageIdx] || ENEMIES[0];
     enemyChar = createCharacter(cfg);
     enemyChar.root.position.set(ENEMY_BASE_X, 0.1, 0);
@@ -2447,6 +3467,7 @@
     state.enemy.stunned = 0;
     state.enemy.inLove = 0;
     state.enemy.weakened = 0;
+    state.enemy.disoriented = 0;
     state.player.distractedWeak = 0;
     state.player.vulnerable = 0;
     state.player.barSpeedDebuff = 0;
@@ -2492,20 +3513,26 @@
       mesh.position.x += (Math.random() - 0.5) * 0.35;
       mesh.position.y += (Math.random() - 0.5) * 0.35;
 
-      const speed = (type === 'feathers' || type === 'confetti') ? 3.2 : (type === 'fire' ? 5.5 : 7.0);
-      const vel = new THREE.Vector3(
-        (Math.random() - 0.5) * speed,
-        (Math.random() * 0.8 + 0.25) * speed,
-        (Math.random() - 0.5) * speed
-      );
+      const speed = (type === 'gas') ? 2.6 : ((type === 'feathers' || type === 'confetti') ? 3.2 : (type === 'fire' ? 5.5 : 7.0));
+      const vel = (type === 'gas')
+        ? new THREE.Vector3(
+            (Math.random() * 1.4 + 0.8) * speed,
+            (Math.random() * 0.65 + 0.15) * speed * 0.55,
+            (Math.random() - 0.5) * speed * 1.3
+          )
+        : new THREE.Vector3(
+            (Math.random() - 0.5) * speed,
+            (Math.random() * 0.8 + 0.25) * speed,
+            (Math.random() - 0.5) * speed
+          );
 
       scene.add(mesh);
       particles.push({
         mesh,
         vel,
         type,
-        life: (type === 'feathers' || type === 'hearts' || type === 'confetti') ? 1.55 : 0.65,
-        maxLife: (type === 'feathers' || type === 'hearts' || type === 'confetti') ? 1.55 : 0.65
+        life: (type === 'gas') ? 2.1 : ((type === 'feathers' || type === 'hearts' || type === 'confetti') ? 1.55 : 0.65),
+        maxLife: (type === 'gas') ? 2.1 : ((type === 'feathers' || type === 'hearts' || type === 'confetti') ? 1.55 : 0.65)
       });
     }
   }
@@ -2768,11 +3795,12 @@
     if (state.enemy.stunned > 0) eBadges += `<span class="badge badge-stun">💫 ATORDOADO</span>`;
     if (state.enemy.inLove > 0) eBadges += `<span class="badge badge-love">😍 AMOR</span>`;
     if (state.enemy.weakened > 0) eBadges += `<span class="badge badge-weak">🪶 FRACO</span>`;
+    if (state.enemy.disoriented > 0) eBadges += `<span class="badge badge-fart">💨 DESORIENTADO (${state.enemy.disoriented}T)</span>`;
     ui.enemyBadges.innerHTML = eBadges;
 
     if (enemyChar) {
-      enemyChar.stunStars.visible = state.enemy.stunned > 0;
-      const eyeColor = state.enemy.inLove > 0 ? 0xff2a85 : 0xffffff;
+      enemyChar.stunStars.visible = state.enemy.stunned > 0 || state.enemy.disoriented > 0;
+      const eyeColor = state.enemy.disoriented > 0 ? 0xa3e635 : (state.enemy.inLove > 0 ? 0xff2a85 : 0xffffff);
       enemyChar.eyeL.material.color.setHex(eyeColor);
       enemyChar.eyeR.material.color.setHex(eyeColor);
     }
@@ -2850,6 +3878,7 @@
       state.money += bonusMoney;
       sfx.playCrowdCheer();
       spawnParticles('confetti', fan.position.clone().add(new THREE.Vector3(0, 0.7, 0)), 14);
+      crowdFanSpecial(fan);
       const px = (clientX / window.innerWidth) * 100;
       const py = (clientY / window.innerHeight) * 100;
       showFloatingText(`🎉 TORCIDA +$${bonusMoney}!`, '#34d399', px, py);
@@ -2868,7 +3897,11 @@
     perfectDodge: false,
     enemyHitRecoil: 0,
     playerHitRecoil: 0,
-    koSpin: false
+    koSpin: false,
+    fartActive: false,
+    fartTimer: 0,
+    fartDuration: 2.9,
+    fartFired: false
   };
 
   function setupTimingBar(mode, speedMult = 1.0) {
@@ -2942,16 +3975,73 @@
     }
 
     state.phase = 'PLAYER_AIM';
+    if (state.introPending) {
+      state.introPending = false;
+      say('enemy', 'enemyIntro', 0.85, 500);
+    }
     ui.turnTitle.textContent = state.player.counterReady ? 'CONTRA-ATAQUE!' : 'SEU TURNO';
     ui.turnTitle.style.color = state.player.counterReady ? '#00ff9d' : '#38f2ff';
-    ui.turnSub.textContent = 'Espaço / Clique = Bater • Botão Direito = 360°';
+    ui.turnSub.textContent = 'Espaço/Clique = Bater • [P] ou 💨 = Peido Tóxico • Botão Direito = 360°';
     const w = WEAPONS.find(x => x.id === state.selectedWeapon) || WEAPONS[0];
     setupTimingBar('ATTACK', w.speedMult);
     updateHUD();
   }
 
+  function executePlayerFartAttack() {
+    if (!enemyChar || animState.fartActive) return;
+    hideTimingBar();
+    state.cooldowns['fart'] = 2;
+    if (state.selectedWeapon === 'fart') {
+      state.selectedWeapon = 'hand';
+      equipPlayerWeaponVisual('hand');
+    }
+
+    state.phase = 'PLAYER_FART';
+    animState.fartActive = true;
+    animState.fartTimer = 0;
+    animState.fartFired = false;
+    animState.fartPuffNext = 1.3;
+    animState.fartSfxDown = false;
+    animState.fartSfxUp = false;
+    animState.fartSfxSnap = false;
+    updateHUD();
+  }
+
+  function resolveFartImpact() {
+    if (!enemyChar) return;
+    sfx.playFart();
+    crowdOnFart();
+    bubblesOnFart();
+
+    const fartOrigin = getFartOrigin();
+
+    triggerSlapWaveAt(fartOrigin, 0x84cc16);
+    spawnParticles('gas', fartOrigin, 48);
+
+    const dmg = 10;
+    state.enemy.hp -= dmg;
+    state.enemy.disoriented = 2;
+    state.effects.shake = 0.34;
+    state.effects.crowdHype = Math.min(1.8, state.effects.crowdHype + 0.95);
+
+    animState.enemyHitRecoil = 0.9;
+    enemyChar.headGroup.scale.set(0.85, 1.22, 0.85);
+    enemyChar.mouth.scale.set(0.5, 1.8, 1);
+
+    showFloatingText(`💨 PEIDO TÓXICO! -${dmg}`, '#a3e635', 52, 30);
+    setTimeout(() => {
+      showFloatingText('🤢 ADVERSÁRIO DESORIENTADO!', '#84cc16', 67, 38);
+    }, 320);
+
+    updateHUD();
+  }
+
   function triggerPlayerSlap() {
     if (state.phase !== 'PLAYER_AIM' || !state.timing.active) return;
+    if (state.selectedWeapon === 'fart') {
+      executePlayerFartAttack();
+      return;
+    }
     const p = state.timing.pos;
     const w = WEAPONS.find(x => x.id === state.selectedWeapon) || WEAPONS[0];
     hideTimingBar();
@@ -2968,6 +4058,7 @@
     }
 
     state.phase = 'PLAYER_SLAP';
+    say('player', 'playerAttack', 0.75);
     animState.progress = 0;
     animState.impactDone = false;
     animState.quality = quality;
@@ -2981,6 +4072,7 @@
       ui.turnTitle.textContent = 'RIVAL ATORDOADO';
       ui.turnSub.textContent = 'Perdeu o turno!';
       showFloatingText('💫 ATORDOADO!', '#facc15', 66, 36);
+      say('enemy', 'enemyStun', 0.9, 150);
       updateHUD();
       setTimeout(startPlayerTurn, 1300);
       return;
@@ -2993,9 +4085,27 @@
       sfx.playHarp();
       if (enemyChar) spawnParticles('hearts', enemyChar.headGroup.getWorldPosition(new THREE.Vector3()), 18);
       showFloatingText('😍 APAIXONADO!', '#ff4d94', 66, 36);
+      say('enemy', 'enemyLove', 0.9, 150);
       updateHUD();
       setTimeout(startPlayerTurn, 1400);
       return;
+    }
+
+    if (state.enemy.disoriented > 0) {
+      state.enemy.disoriented--;
+      if (Math.random() < 0.55) {
+        ui.turnTitle.textContent = 'RIVAL DESORIENTADO!';
+        ui.turnSub.textContent = 'Tonto com o mau cheiro, errou o tapa!';
+        sfx.playCartoonBoing();
+        if (enemyChar) {
+          const headPos = enemyChar.headGroup.getWorldPosition(new THREE.Vector3());
+          spawnParticles('gas', headPos, 16);
+        }
+        showFloatingText('🤢 ERROU DE TONTURA!', '#a3e635', 66, 36);
+        updateHUD();
+        setTimeout(startPlayerTurn, 1450);
+        return;
+      }
     }
 
     state.phase = 'ENEMY_DEFEND';
@@ -3005,7 +4115,9 @@
     ui.turnSub.textContent = 'Aperte no verde para esquivar • Botão Direito = 360°';
     animState.dodged = false;
     animState.perfectDodge = false;
-    setupTimingBar('DEFEND', enemyCfg.speed);
+    say('enemy', 'enemyAttack', 0.7);
+    const speedFactor = state.enemy.disoriented > 0 ? enemyCfg.speed * 0.6 : enemyCfg.speed;
+    setupTimingBar('DEFEND', speedFactor);
   }
 
   function triggerPlayerDefense() {
@@ -3048,6 +4160,15 @@
   }
 
   window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyP' && state.phase === 'PLAYER_AIM' && state.timing.active) {
+      e.preventDefault();
+      if ((state.cooldowns['fart'] || 0) > 0) {
+        showFloatingText(`PEIDO EM RECARGA (${state.cooldowns['fart']}T)`, '#f87171', 50, 56);
+      } else {
+        executePlayerFartAttack();
+      }
+      return;
+    }
     if (e.code === 'Space') {
       e.preventDefault();
       handleActionInput();
@@ -3178,6 +4299,7 @@
     const dmg = Math.max(2, Math.round(base * w.dmgMult * mult));
     state.enemy.hp -= dmg;
 
+    bubblesOnPlayerHit(q, hadCounter);
     const impactPos = enemyChar.headGroup.getWorldPosition(new THREE.Vector3());
     const waveColor = w.id === 'fire_glove' ? 0xff5722
       : w.id === 'electric_glove' ? 0x38bdf8
@@ -3234,7 +4356,7 @@
       spawnParticles('default', impactPos, 18);
     }
 
-    if (q === 'CRIT' || dmg >= 35) sfx.playCrowdCheer();
+    crowdOnPlayerHit(q, dmg, hadCounter, w.id);
 
     animState.enemyHitRecoil = 1.0;
     enemyChar.headGroup.scale.set(1.42, 0.7, 1.28);
@@ -3256,6 +4378,7 @@
       state.effects.crowdHype = 1.8;
       sfx.playCrowdCheer();
       showFloatingText('🏆 K.O.!!', '#ff5470', 50, 28);
+      crowdOnKO();
       setTimeout(() => {
         koTriggered = false;
         handleStageVictory();
@@ -3269,6 +4392,9 @@
     if (state.enemy.weakened > 0) {
       dmg = Math.round(dmg * 0.45);
       state.enemy.weakened--;
+    }
+    if (state.enemy.disoriented > 0) {
+      dmg = Math.round(dmg * 0.6);
     }
     if (state.player.vulnerable > 0) {
       dmg = Math.round(dmg * 1.35);
@@ -3286,6 +4412,8 @@
       applyEnemySpecialEffectOnHit(cfg, impactPos);
     }
     sfx.playSlap(animState.dodged ? 0.6 : 1.35, !animState.dodged);
+    crowdOnEnemyHit(animState.dodged, animState.perfectDodge);
+    bubblesOnEnemyHit(animState.dodged);
     spawnParticles('sparks', impactPos, animState.dodged ? 10 : 26);
 
     state.effects.shake = animState.dodged ? 0.15 : 0.55;
@@ -3369,6 +4497,422 @@
     }
   }
 
+  function smooth01(x) {
+    x = Math.min(1, Math.max(0, x));
+    return x * x * (3 - 2 * x);
+  }
+
+  // Interpolação suave entre keyframes [[tempo, valor], ...]
+  function kf(t, frames) {
+    if (t <= frames[0][0]) return frames[0][1];
+    for (let i = 1; i < frames.length; i++) {
+      if (t <= frames[i][0]) {
+        const [t0, v0] = frames[i - 1];
+        const [t1, v1] = frames[i];
+        return v0 + (v1 - v0) * smooth01((t - t0) / (t1 - t0));
+      }
+    }
+    return frames[frames.length - 1][1];
+  }
+
+  function getFartOrigin() {
+    playerChar.root.updateMatrixWorld(true);
+    return playerChar.hipBaseGroup.localToWorld(new THREE.Vector3(0, -0.02, -0.5));
+  }
+
+  function resetFartPose() {
+    const P = playerChar;
+    P.root.rotation.y = Math.PI / 2;
+    P.root.position.set(PLAYER_BASE_X, 0.1, 0);
+    P.pantsGroup.position.set(0, 0.72, 0);
+    P.pantsGroup.rotation.set(0, 0, 0);
+    P.pantsGroup.scale.set(1, 1, 1);
+    P.hipBaseGroup.visible = false;
+    P.cheekL.scale.set(0.95, 0.92, 0.85);
+    P.cheekR.scale.set(0.95, 0.92, 0.85);
+    P.torsoGroup.rotation.set(0, 0, 0);
+    P.rightArmPivot.rotation.set(0, 0, 0);
+    P.elbowPivot.rotation.set(0, 0, 0);
+    P.leftArmPivot.rotation.set(0, 0, 0);
+    P.headGroup.rotation.set(0, 0, 0);
+    P.eyeL.scale.set(1, 1, 1);
+    P.eyeR.scale.set(1, 1, 1);
+    P.browL.rotation.z = -0.22;
+    P.browR.rotation.z = 0.22;
+    P.mouth.scale.set(1, 1, 1);
+  }
+
+  // Sequência (segundos): vira (0–.35) → desce a calça (.35–.8) → força (.8–1.2)
+  // → PEIDA (1.2) → solta (1.2–1.8) → alívio/abana (1.8–2.1) → sobe a calça (2.1–2.5) → desvira (2.5–2.9)
+  function updateFartAnimation(t, dt) {
+    const P = playerChar;
+    const lerp = THREE.MathUtils.lerp;
+    const ramp = (a, b) => smooth01((t - a) / (b - a));
+    const win = (a, b) => ramp(a, a + 0.08) - ramp(b - 0.08, b);
+
+    const turn = kf(t, [[0, 0], [0.35, 1], [2.5, 1], [2.9, 0]]);
+    const drop = kf(t, [[0, 0], [0.35, 0], [0.8, 1], [2.1, 1], [2.5, 0]]);
+    const lean = kf(t, [[0, 0], [0.35, 0.1], [0.8, 0.38], [1.2, 0.55], [1.8, 0.5], [2.1, 0.1], [2.3, 0.38], [2.5, 0.3], [2.9, 0]]);
+    const look = kf(t, [[0, 0], [0.3, 0], [0.6, 1], [2.5, 1], [2.8, 0]]);
+    const strain = kf(t, [[0, 0], [0.8, 0], [1.0, 1], [1.2, 1], [1.35, 0.5], [1.8, 0.25], [2.0, 0]]);
+    const shakeAmt = kf(t, [[0, 0], [0.8, 0], [1.2, 1], [1.8, 0.6], [2.0, 0]]);
+    const relief = kf(t, [[0, 0], [1.8, 0], [1.95, 1], [2.35, 1], [2.5, 0]]);
+    const grab = ramp(0.35, 0.5) - ramp(2.5, 2.65);
+    const fan = ramp(1.8, 1.95) - ramp(2.1, 2.25);
+    const tug = Math.sin(t * 24) * 0.09 * (win(0.4, 0.85) + win(2.1, 2.5));
+
+    // Disparo único do peido
+    if (!animState.fartFired && t >= 1.2) {
+      animState.fartFired = true;
+      resolveFartImpact();
+    }
+    const kick = t - 1.2;
+
+    // Nuvens extras de gás enquanto solta
+    if (t >= animState.fartPuffNext && t < 1.85) {
+      spawnParticles('gas', getFartOrigin(), 7);
+      animState.fartPuffNext += 0.14;
+    }
+
+    // Sons de apoio
+    if (!animState.fartSfxDown && t >= 0.4) { animState.fartSfxDown = true; sfx.playWhoosh(0.6); }
+    if (!animState.fartSfxUp && t >= 2.15) { animState.fartSfxUp = true; sfx.playWhoosh(1.0); }
+    if (!animState.fartSfxSnap && t >= 2.5) { animState.fartSfxSnap = true; sfx.playSlap(0.35, false); }
+
+    // Corpo: giro, pulinhos e tremedeira
+    P.root.rotation.y = Math.PI / 2 - Math.PI * turn;
+    const hopTurn = Math.sin(Math.min(1, t / 0.35) * Math.PI) * 0.12;
+    const hopBack = Math.sin(Math.min(1, Math.max(0, (t - 2.5) / 0.4)) * Math.PI) * 0.1;
+    const hopKick = (kick > 0 && kick < 0.25) ? Math.sin((kick / 0.25) * Math.PI) * 0.16 : 0;
+    P.root.position.x = PLAYER_BASE_X + 0.16 * turn + Math.sin(t * 38) * 0.018 * shakeAmt;
+    P.root.position.y = 0.1 + hopTurn + hopBack + hopKick;
+
+    // Tronco: inclina para empinar a bunda, com tranco no momento do peido
+    const recoil = kick > 0 ? 0.28 * Math.exp(-kick * 9) : 0;
+    P.torsoGroup.rotation.x = lean + Math.sin(t * 34) * 0.035 * shakeAmt - recoil;
+
+    // Calça: desce até os tornozelos (amontoada) e sobe de volta
+    P.pantsGroup.position.set(0, lerp(0.72, 0.40, drop), 0);
+    P.pantsGroup.scale.set(1 + 0.12 * drop, 1 - 0.3 * drop, 1 + 0.12 * drop);
+    P.hipBaseGroup.visible = drop > 0.08;
+
+    // Bochechas tremendo
+    const wig = Math.sin(t * 40) * 0.1 * shakeAmt;
+    P.cheekL.scale.set(0.95 * (1 + wig), 0.92 * (1 + wig), 0.85 * (1 + wig));
+    P.cheekR.scale.set(0.95 * (1 - wig), 0.92 * (1 - wig), 0.85 * (1 - wig));
+
+    // Braços: seguram a cintura da calça; depois abanam o ar
+    P.leftArmPivot.rotation.x = 0.35 * grab + tug;
+    P.leftArmPivot.rotation.z = 0.2 * grab;
+    P.rightArmPivot.rotation.x = lerp(0.35 * grab + tug, -1.1, fan);
+    P.rightArmPivot.rotation.z = lerp(-0.2 * grab, -0.4, fan);
+    P.elbowPivot.rotation.x = lerp(-0.35 * grab, -0.9 + Math.sin(t * 28) * 0.35, fan);
+
+    // Cabeça: olha por cima do ombro para o adversário
+    P.headGroup.rotation.y = 2.2 * look;
+    P.headGroup.rotation.z = Math.sin(t * 34) * 0.06 * shakeAmt + relief * 0.15;
+
+    // Cara: força → olhos cerrados e sobrancelha brava; alívio → olhos sonolentos
+    const eyeY = Math.max(0.12, 1 - 0.8 * strain - 0.45 * relief);
+    P.eyeL.scale.y = eyeY;
+    P.eyeR.scale.y = eyeY;
+    P.browL.rotation.z = -0.22 - 0.35 * strain + 0.25 * relief;
+    P.browR.rotation.z = 0.22 + 0.35 * strain - 0.25 * relief;
+    P.mouth.scale.set(1 - 0.45 * strain + 0.8 * relief, 1 + 1.2 * strain + 0.4 * relief, 1);
+
+    if (t >= animState.fartDuration) {
+      animState.fartActive = false;
+      resetFartPose();
+
+      if (state.enemy.hp <= 0 && !koTriggered) {
+        koTriggered = true;
+        animState.koSpin = true;
+        state.effects.crowdHype = 1.8;
+        sfx.playCrowdCheer();
+        showFloatingText('🏆 K.O. FEDORENTO!!', '#a3e635', 50, 28);
+        crowdOnKO();
+        setTimeout(() => {
+          koTriggered = false;
+          handleStageVictory();
+        }, 1350);
+      } else {
+        startEnemyTurn();
+      }
+    }
+  }
+
+  // ============================================================
+  //  BALÕES DE FALA — provocações entre jogador e adversário
+  // ============================================================
+  const BUBBLE_LINES = {
+    playerAttack: [
+      'Escolhe o lado do rosto que você menos gosta.',
+      'Segura o queixo para não cair no chão.',
+      'Fecha os olhos, vai ser rápido.',
+      'Prepara o rosto, esse vai ter assinatura.',
+      'Vai querendo guardar os dentes na carteira.',
+      'Isso aqui é só um aviso... com a mão aberta.',
+      'Respira fundo, porque vai doer.'
+    ],
+    playerHit: [
+      'Tinha um pernilongo aí, já resolvi.',
+      'Foi mal, minha mão escorregou na sua cara.',
+      'Quer que eu bata do outro lado pra ficar simétrico?',
+      'Esse foi de cortesia.',
+      'Sentiu o vento ou a mão?',
+      'Isso é o que dá me chamar pra briga.'
+    ],
+    playerCrit: [
+      'Agora o rosto está do lado certo.',
+      'Pode me agradecer depois.',
+      'Esse eu dediquei à sua família.',
+      'Isso foi pelo seu bem... e pelo meu entretenimento.'
+    ],
+    playerHurt: [
+      'Ai! Isso foi só pra eu ficar com raiva.',
+      'Meu rosto! Estava no seguro!',
+      'Aguentei de propósito, só pra provocar.',
+      'Foi o vento... só pode ter sido o vento.'
+    ],
+    playerDodge: [
+      'Devagar, quase dormi esperando.',
+      'Errou! Quer que eu segure a cara parada?',
+      'Muito lento, campeão.',
+      'Passou tão perto que ventilou.'
+    ],
+    playerFart: [
+      'Foi mal, o almoço não caiu bem.',
+      'Respira fundo, é por sua conta.',
+      'Arma química liberada.',
+      'Isso é o que chamo de golpe baixo.'
+    ],
+    playerKO: [
+      'Próximo!',
+      'Alguém chama a ambulância... pra ele.',
+      'Eu avisei pra segurar o queixo.'
+    ],
+    enemyIntro: [
+      'Finalmente alguém pra me tirar do sofá.',
+      'Pode começar, eu espero... bocejando.',
+      'Prepara o rosto, calouro.',
+      'Vim buscar o troféu e o seu orgulho.'
+    ],
+    enemyAttack: [
+      'Segura essa cara aí, vai doer!',
+      'Já escolhi o lado, não reclama.',
+      'Agora é a minha vez de brilhar.',
+      'Fica paradinho que eu acerto rapidinho.',
+      'Esse eu vou mandar pelo correio.'
+    ],
+    enemyWeak: [
+      'Isso foi um tapa ou você está fazendo carinho?',
+      'Bate de novo, acho que você esqueceu de colocar força.',
+      'Valeu, eu já estava quase dormindo aqui.',
+      'Foi pra me abanar? Estava calor mesmo.',
+      'Minha avó bate mais forte... e ela tem 90 anos.',
+      'Isso foi a brisa da manhã?'
+    ],
+    enemyGood: [
+      'Hum, até que fez cócegas.',
+      'Só isso? Tô esperando o resto.',
+      'Uau... quase senti.',
+      'Agora sim está esquentando.'
+    ],
+    enemyCrit: [
+      'Ai! Meus dentes estavam pagando aluguel!',
+      'Quem foi? Quem bateu? Ah, foi você.',
+      'Vi estrelas... e eram bonitas.',
+      'Isso doeu até no meu avô!'
+    ],
+    enemyHit: [
+      'Isso, sim, foi um tapa!',
+      'Sentiu? E eu ainda nem aqueci.',
+      'Mais um? Eu pago.',
+      'Ouviu o estalo? Isso é talento.'
+    ],
+    enemyMiss: [
+      'Sorte de principiante!',
+      'Fica parado, não custa nada!',
+      'Hmpf, a mosca desviou.',
+      'Tá, errei. Mas errei com estilo.'
+    ],
+    enemyFart: [
+      'Que cheiro é esse?! Respeita o ringue!',
+      'Isso é arma química! Chamem a fiscalização!',
+      'Meus olhos... estão chorando!',
+      'Você comeu o quê?!'
+    ],
+    enemyStun: [
+      'Tô vendo... estrelinhas...',
+      'Por que o ringue está girando?',
+      'Cadê o chão? Alguém viu o chão?'
+    ],
+    enemyLove: [
+      'Ai, que rosto bonito você tem...',
+      'Não consigo bater em alguém tão lindo.',
+      'Será que ele aceita um café depois?'
+    ],
+    enemyKO: [
+      'Eu só estava... descansando os olhos.',
+      'Ai... minha dignidade...',
+      'Quem foi que apagou a luz?'
+    ]
+  };
+
+  // Falas extras de alguns adversários (misturadas às genéricas)
+  const BUBBLE_FLAVOR = {
+    bear: {
+      enemyIntro: ['Grrr! Parece fofo, mas eu tapo forte.'],
+      enemyAttack: ['Vem cá que eu te dou um abraço... de tapa!']
+    },
+    duck: {
+      enemyIntro: ['Quack! Hoje o pato vai voar... com você.'],
+      enemyAttack: ['Quack! Esse tapa vai dar eco!']
+    },
+    chicken: {
+      enemyIntro: ['Có có có! Quem é o medroso agora?'],
+      enemyAttack: ['Có có! Já vai ver quem canta mais alto!']
+    },
+    elder: {
+      enemyIntro: ['Na minha época, tapa era tapa de verdade.'],
+      enemyAttack: ['Cuidado que minha mão está com artrose... e pesa.']
+    },
+    shark: {
+      enemyIntro: ['Sinto cheiro de orgulho ferido na água.'],
+      enemyAttack: ['Esse vem com mordida de brinde!']
+    }
+  };
+
+  const bubbleBags = {};
+  function pickFromBag(key, arr) {
+    let bag = bubbleBags[key];
+    if (!bag || !bag.length) {
+      bag = arr.slice();
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = bag[i]; bag[i] = bag[j]; bag[j] = tmp;
+      }
+      bubbleBags[key] = bag;
+    }
+    return bag.pop();
+  }
+
+  function pickBubbleLine(pool) {
+    const enemyId = (ENEMIES[state.stage] || ENEMIES[0]).id;
+    const flavor = BUBBLE_FLAVOR[enemyId] && BUBBLE_FLAVOR[enemyId][pool];
+    if (flavor && Math.random() < 0.45) return pickFromBag(enemyId + ':' + pool, flavor);
+    return pickFromBag(pool, BUBBLE_LINES[pool]);
+  }
+
+  const bubbleLayer = document.getElementById('bubble-layer');
+  const bubbles = { player: null, enemy: null };
+  const bubbleVec = new THREE.Vector3();
+
+  function clearBubbles() {
+    ['player', 'enemy'].forEach(side => {
+      if (bubbles[side]) {
+        bubbles[side].el.remove();
+        bubbles[side] = null;
+      }
+    });
+  }
+
+  function showBubble(side, text) {
+    if (!text || !bubbleLayer) return;
+    if (bubbles[side]) bubbles[side].el.remove();
+    const el = document.createElement('div');
+    el.className = 'speech-bubble ' + side;
+    el.textContent = text;
+    el.style.visibility = 'hidden';
+    bubbleLayer.appendChild(el);
+    const secs = Math.max(2.3, 1.3 + text.length * 0.055);
+    bubbles[side] = { el, life: secs };
+    sfx.playBubblePop(side === 'player' ? 1.0 : 0.8);
+  }
+
+  // Fala de uma "pool", com chance e atraso (ms). Ignora se a luta mudou.
+  function say(side, pool, prob = 1, delayMs = 0) {
+    if (Math.random() > prob) return;
+    const stageAtCall = state.stage;
+    const run = () => {
+      if (state.stage !== stageAtCall || state.phase === 'MODAL') return;
+      showBubble(side, pickBubbleLine(pool));
+    };
+    if (delayMs > 0) setTimeout(run, delayMs);
+    else run();
+  }
+
+  function updateBubbles(dt) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    ['player', 'enemy'].forEach(side => {
+      const b = bubbles[side];
+      if (!b) return;
+      const ch = side === 'player' ? playerChar : enemyChar;
+      b.life -= dt;
+      if (b.life <= 0 || !ch) {
+        b.el.remove();
+        bubbles[side] = null;
+        return;
+      }
+      ch.headGroup.getWorldPosition(bubbleVec);
+      bubbleVec.y += 0.95 * (ch.baseScale || 1);
+      bubbleVec.project(camera);
+      if (bubbleVec.z > 1) {
+        b.el.style.visibility = 'hidden';
+        return;
+      }
+      const hx = (bubbleVec.x * 0.5 + 0.5) * w;
+      const hy = (-bubbleVec.y * 0.5 + 0.5) * h;
+      const bw = b.el.offsetWidth;
+      const bh = b.el.offsetHeight;
+
+      // Mantém cada balão do seu lado da tela e dentro da janela
+      let minX = bw / 2 + 8;
+      let maxX = w - bw / 2 - 8;
+      if (side === 'player') maxX = Math.min(maxX, w * 0.5 + 20 - bw / 2);
+      else minX = Math.max(minX, w * 0.5 - 20 + bw / 2);
+      const left = Math.max(minX, Math.min(maxX, hx));
+      let top = hy - 14;
+      if (top - bh < 118) top = 118 + bh;
+
+      const tail = Math.max(0.14, Math.min(0.86, (hx - (left - bw / 2)) / Math.max(1, bw)));
+      b.el.style.left = left + 'px';
+      b.el.style.top = top + 'px';
+      b.el.style.setProperty('--tail', (tail * 100) + '%');
+      b.el.style.visibility = 'visible';
+      b.el.classList.toggle('out', b.life < 0.3);
+    });
+  }
+
+  // ---- Ganchos de combate ----
+  function bubblesOnPlayerHit(q, hadCounter) {
+    if (state.enemy.hp <= 0) {
+      say('enemy', 'enemyKO', 1, 250);
+      say('player', 'playerKO', 0.8, 900);
+      return;
+    }
+    if (q === 'WEAK') say('enemy', 'enemyWeak', 0.95, 350);
+    else if (q === 'CRIT' || hadCounter) say('enemy', 'enemyCrit', 0.8, 300);
+    else say('enemy', 'enemyGood', 0.5, 350);
+    say('player', q === 'CRIT' ? 'playerCrit' : 'playerHit', 0.55, 1000);
+  }
+
+  function bubblesOnEnemyHit(dodged) {
+    if (dodged) {
+      say('player', 'playerDodge', 0.7, 250);
+      say('enemy', 'enemyMiss', 0.6, 900);
+    } else {
+      say('enemy', 'enemyHit', 0.65, 300);
+      say('player', 'playerHurt', 0.55, 950);
+    }
+  }
+
+  function bubblesOnFart() {
+    say('player', 'playerFart', 0.9, 200);
+    say('enemy', 'enemyFart', 0.95, 900);
+  }
+
   const clock = new THREE.Clock();
 
   function animate() {
@@ -3429,15 +4973,24 @@
       playerChar.torsoGroup.position.y = 1.1 + Math.sin(elapsed * 4.2) * 0.035;
       if (enemyChar) {
         enemyChar.torsoGroup.position.y = 1.1 + Math.cos(elapsed * 3.8) * 0.04;
-        if (state.enemy.stunned > 0) {
+        if (state.enemy.stunned > 0 || state.enemy.disoriented > 0) {
           enemyChar.stunStars.rotation.y += dt * 5;
           enemyChar.headGroup.rotation.z = Math.sin(elapsed * 12) * 0.25;
+          if (state.enemy.disoriented > 0) {
+            enemyChar.torsoGroup.rotation.z = Math.cos(elapsed * 7) * 0.14;
+          }
         } else {
           enemyChar.stunStars.rotation.y = 0;
+          enemyChar.torsoGroup.rotation.z *= 0.85;
         }
       }
 
       armTrailMesh.material.opacity *= Math.pow(0.01, dt);
+
+      if (animState.fartActive) {
+        animState.fartTimer += dt;
+        updateFartAnimation(animState.fartTimer, dt);
+      }
 
       if (state.phase === 'PLAYER_SLAP') {
         animState.progress += dt * 3.1;
@@ -3542,10 +5095,12 @@
         playerChar.torsoGroup.rotation.x = -0.32 * r;
         playerChar.root.position.x = PLAYER_BASE_X - 0.45 * r;
       } else {
-        playerChar.headGroup.rotation.x *= 0.82;
-        playerChar.headGroup.rotation.y *= 0.82;
+        if (!animState.fartActive) {
+          playerChar.headGroup.rotation.x *= 0.82;
+          playerChar.headGroup.rotation.y *= 0.82;
+          playerChar.mouth.scale.lerp(new THREE.Vector3(1, 1, 1), dt * 8);
+        }
         playerChar.headGroup.scale.lerp(new THREE.Vector3(1, 1, 1), dt * 8);
-        playerChar.mouth.scale.lerp(new THREE.Vector3(1, 1, 1), dt * 8);
       }
 
       if (slapWaveTimer > 0) {
@@ -3558,23 +5113,7 @@
         slapWaveMesh.material.opacity = 0;
       }
 
-      const vibeAmp = 0.08 + state.effects.crowdHype * 0.34;
-      const vibeFreq = 6 + state.effects.crowdHype * 28;
-      crowdMembers.forEach((fan, idx) => {
-        if (!fan.parent || !fan.parent.visible) return;
-        if (fan.userData.cooldown > 0) fan.userData.cooldown = Math.max(0, fan.userData.cooldown - dt);
-        if (fan.userData.cheerBoost > 0) fan.userData.cheerBoost = Math.max(0, fan.userData.cheerBoost - dt * 1.4);
-
-        const localHype = state.effects.crowdHype + fan.userData.cheerBoost;
-        const vibX = Math.sin(elapsed * vibeFreq + idx * 1.7) * vibeAmp * 0.45;
-        const vibY = Math.abs(Math.sin(elapsed * (5 + localHype * 12) + fan.userData.phase)) * (0.08 + localHype * 0.36);
-        fan.position.x = fan.userData.baseX + vibX;
-        fan.position.y = fan.userData.baseY + vibY;
-        fan.rotation.z = Math.cos(elapsed * vibeFreq + fan.userData.phase) * localHype * 0.16;
-        if (fan.userData.armWave) {
-          fan.userData.armWave.rotation.z = 0.3 + Math.sin(elapsed * (8 + localHype * 18) + idx) * (0.35 + localHype * 0.65);
-        }
-      });
+      updateCrowd(dt, elapsed);
 
       torchFlames.forEach((f, idx) => {
         f.scale.set(1 + Math.sin(elapsed * 18 + idx) * 0.2, 1 + Math.cos(elapsed * 22 + idx) * 0.3, 1);
@@ -3586,6 +5125,16 @@
         if (pt.life <= 0) {
           scene.remove(pt.mesh);
           particles.splice(i, 1);
+          continue;
+        }
+        if (pt.type === 'gas') {
+          pt.vel.multiplyScalar(Math.pow(0.28, dt));
+          pt.vel.y += 0.35 * dt;
+          pt.mesh.position.addScaledVector(pt.vel, dt);
+          const ratio = pt.life / pt.maxLife;
+          const expand = 1.0 + (1.0 - ratio) * 2.1;
+          pt.mesh.scale.set(expand, expand, expand);
+          pt.mesh.material.opacity = ratio * 0.72;
           continue;
         }
         if (pt.type === 'feathers' || pt.type === 'confetti') {
@@ -3605,6 +5154,14 @@
         pt.mesh.position.addScaledVector(pt.vel, dt);
         const s = pt.life / pt.maxLife;
         pt.mesh.scale.set(s, s, s);
+      }
+
+      updateCrowdFx(dt);
+      updateBubbles(rawDt);
+      crowdAudioTimer += dt;
+      if (crowdAudioTimer > 0.12) {
+        crowdAudioTimer = 0;
+        sfx.setCrowdLevel(0.15 + state.effects.crowdHype / 1.6);
       }
 
       updateCameraOrbit(dt);
