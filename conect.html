@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Conect — Conecte os Pontos</title>
+  <style>
+    :root,
+    [data-theme="linkedin"] {
+      --bg-body: #0b0e11;
+      --bg-panel: #161b22;
+      --bg-card: #1f2630;
+      --bg-cell: #262f3b;
+      --bg-cell-hover: #2f3a49;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --text-main: #f0f6fc;
+      --text-muted: #9ba7b4;
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.22);
+      --accent-glow: rgba(34, 197, 94, 0.45);
+      --node-bg: #0f1419;
+      --node-text: #ffffff;
+      --node-done-bg: #15803d;
+      --node-done-text: #ffffff;
+      --hint-color: #facc15;
+      --danger-color: #ef4444;
+      --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="ocean"] {
+      --bg-body: #041220;
+      --bg-panel: #091e33;
+      --bg-card: #0e2a47;
+      --bg-cell: #13375c;
+      --bg-cell-hover: #1a4775;
+      --border-color: rgba(125, 211, 252, 0.14);
+      --border-strong: rgba(125, 211, 252, 0.28);
+      --text-main: #e0f2fe;
+      --text-muted: #7dd3fc;
+      --accent: #06b6d4;
+      --accent-soft: rgba(6, 182, 212, 0.24);
+      --accent-glow: rgba(34, 211, 238, 0.45);
+      --node-bg: #051626;
+      --node-text: #f0f9ff;
+      --node-done-bg: #0284c7;
+      --node-done-text: #ffffff;
+      --hint-color: #fde047;
+      --danger-color: #fb7185;
+      --shadow-card: 0 12px 32px rgba(2, 10, 20, 0.6);
+    }
+
+    [data-theme="sunset"] {
+      --bg-body: #180914;
+      --bg-panel: #261020;
+      --bg-card: #34162c;
+      --bg-cell: #431c38;
+      --bg-cell-hover: #542346;
+      --border-color: rgba(251, 146, 60, 0.16);
+      --border-strong: rgba(251, 146, 60, 0.3);
+      --text-main: #fff1f2;
+      --text-muted: #fda4af;
+      --accent: #f59e0b;
+      --accent-soft: rgba(245, 158, 11, 0.24);
+      --accent-glow: rgba(251, 191, 36, 0.45);
+      --node-bg: #1b0a17;
+      --node-text: #fff7ed;
+      --node-done-bg: #d97706;
+      --node-done-text: #ffffff;
+      --hint-color: #fef08a;
+      --danger-color: #f43f5e;
+      --shadow-card: 0 12px 32px rgba(15, 4, 12, 0.6);
+    }
+
+    [data-theme="forest"] {
+      --bg-body: #07140e;
+      --bg-panel: #0e2218;
+      --bg-card: #153123;
+      --bg-cell: #1c402e;
+      --bg-cell-hover: #25523b;
+      --border-color: rgba(134, 239, 172, 0.14);
+      --border-strong: rgba(134, 239, 172, 0.28);
+      --text-main: #ecfdf5;
+      --text-muted: #86efac;
+      --accent: #10b981;
+      --accent-soft: rgba(16, 185, 129, 0.24);
+      --accent-glow: rgba(52, 211, 153, 0.45);
+      --node-bg: #081810;
+      --node-text: #f0fdf4;
+      --node-done-bg: #059669;
+      --node-done-text: #ffffff;
+      --hint-color: #facc15;
+      --danger-color: #f87171;
+      --shadow-card: 0 12px 32px rgba(3, 12, 8, 0.6);
+    }
+
+    [data-theme="light"] {
+      --bg-body: #eef2f6;
+      --bg-panel: #ffffff;
+      --bg-card: #f8fafc;
+      --bg-cell: #e2e8f0;
+      --bg-cell-hover: #cbd5e1;
+      --border-color: rgba(15, 23, 42, 0.12);
+      --border-strong: rgba(15, 23, 42, 0.24);
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --accent: #2563eb;
+      --accent-soft: rgba(37, 99, 235, 0.18);
+      --accent-glow: rgba(37, 99, 235, 0.35);
+      --node-bg: #0f172a;
+      --node-text: #ffffff;
+      --node-done-bg: #1d4ed8;
+      --node-done-text: #ffffff;
+      --hint-color: #eab308;
+      --danger-color: #dc2626;
+      --shadow-card: 0 10px 28px rgba(15, 23, 42, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    .app-shell {
+      width: 100%;
+      height: 100dvh;
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      position: relative;
+    }
+
+    /* Cabeçalho compacto */
+    .top-header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: var(--shadow-card);
+      flex-shrink: 0;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.95rem;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .brand-title {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .diff-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .diff-facil {
+      background: rgba(34, 197, 94, 0.18);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .diff-medio {
+      background: rgba(59, 130, 246, 0.18);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+    }
+
+    .diff-avancado {
+      background: rgba(249, 115, 22, 0.18);
+      color: #fb923c;
+      border: 1px solid rgba(249, 115, 22, 0.35);
+    }
+
+    .diff-genio {
+      background: rgba(239, 68, 68, 0.18);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: var(--bg-cell-hover);
+      border-color: var(--border-strong);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.94);
+    }
+
+    .icon-btn.muted {
+      opacity: 0.55;
+      border-style: dashed;
+    }
+
+    /* Status e Progresso */
+    .status-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 6px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      box-shadow: var(--shadow-card);
+      flex-shrink: 0;
+    }
+
+    .stats-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 700;
+      gap: 6px;
+    }
+
+    .stat-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 7px;
+      padding: 3px 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .stat-pill span.val {
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-card);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.18s ease-out, background-color 0.25s ease;
+    }
+
+    /* Seletor compacto de dificuldade e temas */
+    .selectors-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .diff-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      flex: 1;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 3px;
+      border-radius: 10px;
+    }
+
+    .diff-tab {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 4px 2px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .diff-tab.active {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .theme-strip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      padding: 4px 6px;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .theme-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .theme-dot:hover {
+      transform: scale(1.12);
+    }
+
+    .theme-dot.active {
+      border-color: var(--text-main);
+      transform: scale(1.15);
+    }
+
+    .theme-dot[data-set-theme="linkedin"] { background: #22c55e; }
+    .theme-dot[data-set-theme="ocean"]    { background: #06b6d4; }
+    .theme-dot[data-set-theme="sunset"]   { background: #f59e0b; }
+    .theme-dot[data-set-theme="forest"]   { background: #10b981; }
+    .theme-dot[data-set-theme="light"]    { background: #cbd5e1; }
+
+    /* Área central do tabuleiro */
+    .board-stage {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .board-wrapper {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      padding: 8px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 1 / 1;
+      position: relative;
+    }
+
+    .grid-board {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      gap: 3px;
+      touch-action: none;
+      position: relative;
+    }
+
+    .cell {
+      background: var(--bg-cell);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: background-color 0.12s ease, transform 0.1s ease, border-color 0.12s ease;
+      cursor: pointer;
+    }
+
+    .cell.in-path {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .cell.path-head {
+      box-shadow: inset 0 0 0 2px var(--accent);
+    }
+
+    .cell.hint-highlight {
+      border-color: var(--hint-color);
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.55);
+      animation: pulseHint 0.8s ease-in-out infinite alternate;
+    }
+
+    .cell.shake {
+      animation: shakeCell 0.3s ease-in-out;
+      border-color: var(--danger-color) !important;
+      background: rgba(239, 68, 68, 0.22) !important;
+    }
+
+    @keyframes pulseHint {
+      from { transform: scale(0.96); }
+      to   { transform: scale(1.04); }
+    }
+
+    @keyframes shakeCell {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    .node-circle {
+      width: 74%;
+      height: 74%;
+      border-radius: 50%;
+      background: var(--node-bg);
+      color: var(--node-text);
+      border: 2px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: clamp(0.75rem, 2.8vw, 1.15rem);
+      z-index: 2;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease;
+    }
+
+    .node-circle.connected {
+      background: var(--node-done-bg);
+      color: var(--node-done-text);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .node-circle.next-target {
+      border-style: dashed;
+      border-color: var(--accent);
+    }
+
+    /* Controles inferiores compactos */
+    .bottom-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .action-btn {
+      background: var(--bg-panel);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      box-shadow: var(--shadow-card);
+      transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+    }
+
+    .action-btn:hover:not(:disabled) {
+      background: var(--bg-cell-hover);
+      border-color: var(--border-strong);
+    }
+
+    .action-btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .action-btn.primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .action-btn.primary:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    /* Toast flutuante discreto */
+    .toast {
+      position: fixed;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--node-bg);
+      color: var(--node-text);
+      border: 1px solid var(--border-strong);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 40;
+      white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Modal de Vitória / Regras */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .modal-desc {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      text-align: left;
+    }
+
+    .modal-desc li {
+      margin-bottom: 6px;
+      margin-left: 16px;
+    }
+
+    .auto-next-tag {
+      display: inline-block;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      animation: pulseHint 0.9s ease-in-out infinite alternate;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 4px;
+    }
+
+    .confetti-piece {
+      position: fixed;
+      top: -12px;
+      width: 8px;
+      height: 14px;
+      border-radius: 2px;
+      z-index: 45;
+      pointer-events: none;
+      animation: fallConfetti linear forwards;
+    }
+
+    @keyframes fallConfetti {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body data-theme="linkedin">
+  <!-- Música de fundo em loop -->
+  <audio id="bgMusic" src="./conect.mp3" loop preload="auto"></audio>
+
+  <div class="app-shell">
+    <!-- Cabeçalho -->
+    <header class="top-header">
+      <div class="brand-group">
+        <div class="brand-logo">C</div>
+        <div class="brand-title-wrap">
+          <span class="brand-title">Conect</span>
+          <span id="diffBadge" class="diff-badge diff-facil">Fácil</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="musicBtn" class="icon-btn" title="Mute / Unmute música (conect.mp3)" aria-label="Mute ou ativar música">🎵</button>
+        <button id="soundBtn" class="icon-btn" title="Efeitos sonoros" aria-label="Alternar efeitos sonoros">🔊</button>
+        <button id="helpBtn" class="icon-btn" title="Como jogar" aria-label="Como jogar">?</button>
+      </div>
+    </header>
+
+    <!-- Painel de Estatísticas -->
+    <section class="status-panel">
+      <div class="stats-row">
+        <div class="stat-pill">Fase <span id="levelVal" class="val">1</span></div>
+        <div class="stat-pill">Casas <span id="cellsVal" class="val">0/36</span></div>
+        <div class="stat-pill">Pontos <span id="nodesVal" class="val">1/6</span></div>
+        <div class="stat-pill">Tempo <span id="timerVal" class="val">00:00</span></div>
+      </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </section>
+
+    <!-- Dificuldade e 5 Temas -->
+    <section class="selectors-row">
+      <div class="diff-tabs" role="tablist" aria-label="Dificuldade">
+        <button class="diff-tab active" data-diff="facil">Fácil</button>
+        <button class="diff-tab" data-diff="medio">Médio</button>
+        <button class="diff-tab" data-diff="avancado">Avançado</button>
+        <button class="diff-tab" data-diff="genio">Gênio</button>
+      </div>
+      <div class="theme-strip" title="Escolher tema de fundo">
+        <button class="theme-dot active" data-set-theme="linkedin" title="LinkedIn Dark"></button>
+        <button class="theme-dot" data-set-theme="ocean" title="Oceano Profundo"></button>
+        <button class="theme-dot" data-set-theme="sunset" title="Pôr do Sol"></button>
+        <button class="theme-dot" data-set-theme="forest" title="Floresta"></button>
+        <button class="theme-dot" data-set-theme="light" title="Claro Clean"></button>
+      </div>
+    </section>
+
+    <!-- Tabuleiro -->
+    <main class="board-stage">
+      <div id="boardWrapper" class="board-wrapper">
+        <div id="gridBoard" class="grid-board"></div>
+      </div>
+    </main>
+
+    <!-- Botões de Ação -->
+    <footer class="bottom-controls">
+      <button id="clearBtn" class="action-btn">↩ Limpar</button>
+      <button id="hintBtn" class="action-btn">💡 Dica</button>
+      <button id="newPuzzleBtn" class="action-btn primary">⚡ Nova Fase</button>
+    </footer>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Modal Como Jogar -->
+  <div id="helpModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-title">Como Jogar o Conect</div>
+      <ul class="modal-desc">
+        <li>Arraste o dedo ou mouse de célula em célula na horizontal ou vertical para criar uma linha contínua.</li>
+        <li>Conecte os números em ordem crescente: <strong>1 → 2 → 3 ... até o último número</strong>.</li>
+        <li>Para vencer, você deve <strong>preencher 100% das casas</strong> do tabuleiro e terminar no último número.</li>
+        <li>Ao concluir, o jogo avança automaticamente para a próxima fase!</li>
+      </ul>
+      <div class="modal-actions">
+        <button id="closeHelpBtn" class="action-btn primary" style="padding: 8px 18px;">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Vitória -->
+  <div id="winModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-title">🎉 Fase Concluída!</div>
+      <p id="winSummary" style="font-size: 0.88rem; color: var(--text-muted);"></p>
+      <div><span class="auto-next-tag">Avançando para a próxima fase...</span></div>
+      <div class="modal-actions">
+        <button id="nextLevelNowBtn" class="action-btn primary" style="padding: 8px 16px;">Ir Agora</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_HISTORY_KEY = "conect_game_signatures_v2";
+      const STORAGE_THEME_KEY = "conect_game_theme_v1";
+      const STORAGE_MUSIC_MUTED_KEY = "conect_game_music_muted_v1";
+
+      const DIFF_CONFIG = {
+        facil:   { label: "Fácil",    cls: "diff-facil",   sizes: [5, 6], nodesMin: 5,  nodesMax: 7 },
+        medio:   { label: "Médio",    cls: "diff-medio",   sizes: [6, 7], nodesMin: 7,  nodesMax: 10 },
+        avancado:{ label: "Avançado", cls: "diff-avancado",sizes: [7, 8], nodesMin: 10, nodesMax: 14 },
+        genio:   { label: "Gênio",    cls: "diff-genio",   sizes: [8, 9], nodesMin: 14, nodesMax: 19 }
+      };
+
+      // Fase 1 inicial inspirada na imagem 6x6 com caminho hamiltoniano válido
+      const LEVEL_1_DATA = {
+        rows: 6,
+        cols: 6,
+        nodes: {
+          "0,1": 1,
+          "2,3": 2,
+          "3,4": 3,
+          "2,1": 4,
+          "4,2": 5,
+          "5,3": 6
+        },
+        solution: [
+          [0,1],[0,2],[0,3],[0,4],[0,5],
+          [1,5],[1,4],[1,3],[2,3],[3,3],
+          [3,4],[2,4],[2,5],[3,5],[4,5],
+          [4,4],[5,4],[5,5],[5,3],[5,2],
+          [5,1],[5,0],[4,0],[3,0],[2,0],
+          [1,0],[0,0],[1,1],[2,1],[3,1],
+          [4,1],[4,2],[4,3],[3,2],[2,2],[1,2]
+        ]
+      };
+
+      const state = {
+        level: 1,
+        difficulty: "facil",
+        rows: 6,
+        cols: 6,
+        nodes: {},         // "r,c" -> number
+        totalNodes: 6,
+        solution: [],      // [[r,c], ...]
+        path: [],          // [[r,c], ...]
+        isDrawing: false,
+        seconds: 0,
+        timerId: null,
+        soundEnabled: true,
+        musicMuted: false,
+        hintUsedAtStep: -1,
+        levelCompleted: false,
+        autoNextTimeout: null,
+        usedSignatures: new Set()
+      };
+
+      // Elementos DOM
+      const bgMusic = document.getElementById("bgMusic");
+      const musicBtn = document.getElementById("musicBtn");
+      const gridBoard = document.getElementById("gridBoard");
+      const boardWrapper = document.getElementById("boardWrapper");
+      const diffBadge = document.getElementById("diffBadge");
+      const levelVal = document.getElementById("levelVal");
+      const cellsVal = document.getElementById("cellsVal");
+      const nodesVal = document.getElementById("nodesVal");
+      const timerVal = document.getElementById("timerVal");
+      const progressFill = document.getElementById("progressFill");
+      const clearBtn = document.getElementById("clearBtn");
+      const hintBtn = document.getElementById("hintBtn");
+      const newPuzzleBtn = document.getElementById("newPuzzleBtn");
+      const soundBtn = document.getElementById("soundBtn");
+      const helpBtn = document.getElementById("helpBtn");
+      const helpModal = document.getElementById("helpModal");
+      const closeHelpBtn = document.getElementById("closeHelpBtn");
+      const winModal = document.getElementById("winModal");
+      const winSummary = document.getElementById("winSummary");
+      const nextLevelNowBtn = document.getElementById("nextLevelNowBtn");
+      const toastEl = document.getElementById("toast");
+
+      // Controle de música de fundo (conect.mp3)
+      bgMusic.volume = 0.35;
+
+      function updateMusicButtonUI() {
+        musicBtn.textContent = state.musicMuted ? "🔇" : "🎵";
+        musicBtn.classList.toggle("muted", state.musicMuted);
+      }
+
+      function syncBackgroundMusic() {
+        bgMusic.muted = state.musicMuted;
+        updateMusicButtonUI();
+        if (!state.musicMuted && bgMusic.paused) {
+          bgMusic.play().catch(() => {});
+        }
+      }
+
+      function unlockMusicOnFirstInteraction() {
+        if (!state.musicMuted && bgMusic.paused) {
+          bgMusic.play().catch(() => {});
+        }
+      }
+
+      window.addEventListener("pointerdown", unlockMusicOnFirstInteraction, { once: true });
+      window.addEventListener("keydown", unlockMusicOnFirstInteraction, { once: true });
+
+      musicBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        state.musicMuted = !state.musicMuted;
+        try {
+          localStorage.setItem(STORAGE_MUSIC_MUTED_KEY, String(state.musicMuted));
+        } catch (_) {}
+        syncBackgroundMusic();
+        showToast(state.musicMuted ? "Música mutada" : "Música ativada");
+      });
+
+      // Web Audio API para efeitos sonoros
+      let audioCtx = null;
+      function playTone(freq = 520, duration = 0.06, type = "sine") {
+        if (!state.soundEnabled) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + duration);
+        } catch (_) {}
+      }
+
+      function playVictorySound() {
+        if (!state.soundEnabled) return;
+        [523.25, 659.25, 783.99, 1046.5].forEach((n, idx) => {
+          setTimeout(() => playTone(n, 0.14, "triangle"), idx * 85);
+        });
+      }
+
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1650);
+      }
+
+      // Histórico de assinaturas sem repetição
+      function loadSignatures() {
+        try {
+          const raw = localStorage.getItem(STORAGE_HISTORY_KEY);
+          if (raw) {
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) state.usedSignatures = new Set(arr);
+          }
+        } catch (_) {}
+      }
+
+      function saveSignature(sig) {
+        state.usedSignatures.add(sig);
+        try {
+          const arr = Array.from(state.usedSignatures).slice(-400);
+          localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(arr));
+        } catch (_) {}
+      }
+
+      function computeSignature(rows, cols, nodesMap) {
+        const entries = Object.entries(nodesMap)
+          .sort((a, b) => a[1] - b[1])
+          .map(([coord, num]) => `${num}:${coord}`)
+          .join("|");
+        return `${rows}x${cols}_${entries}`;
+      }
+
+      // Gerador de Caminho Hamiltoniano (cobre 100% da grade) via Warnsdorff aleatorizado
+      function generateHamiltonianPath(rows, cols) {
+        const total = rows * cols;
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+        for (let attempt = 0; attempt < 90; attempt++) {
+          const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
+          const startR = Math.floor(Math.random() * rows);
+          const startC = Math.floor(Math.random() * cols);
+          const path = [[startR, startC]];
+          visited[startR][startC] = true;
+
+          const getOnwardDegree = (r, c) => {
+            let deg = 0;
+            for (const [dr, dc] of dirs) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
+                deg++;
+              }
+            }
+            return deg;
+          };
+
+          let steps = 0;
+          const maxSteps = total * 45;
+
+          const dfs = (r, c) => {
+            if (path.length === total) return true;
+            if (++steps > maxSteps) return false;
+
+            const neighbors = [];
+            for (const [dr, dc] of dirs) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
+                neighbors.push({ nr, nc, deg: getOnwardDegree(nr, nc), jitter: Math.random() });
+              }
+            }
+
+            neighbors.sort((a, b) => (a.deg - b.deg) || (a.jitter - b.jitter));
+
+            for (const nb of neighbors) {
+              visited[nb.nr][nb.nc] = true;
+              path.push([nb.nr, nb.nc]);
+              if (dfs(nb.nr, nb.nc)) return true;
+              path.pop();
+              visited[nb.nr][nb.nc] = false;
+            }
+            return false;
+          };
+
+          if (dfs(startR, startC) && path.length === total) {
+            return path;
+          }
+        }
+
+        // Fallback serpente garantido 100%
+        const snake = [];
+        for (let r = 0; r < rows; r++) {
+          if (r % 2 === 0) {
+            for (let c = 0; c < cols; c++) snake.push([r, c]);
+          } else {
+            for (let c = cols - 1; c >= 0; c--) snake.push([r, c]);
+          }
+        }
+        return snake;
+      }
+
+      function buildPuzzleForDifficulty(diffKey) {
+        const cfg = DIFF_CONFIG[diffKey] || DIFF_CONFIG.facil;
+        for (let tryCount = 0; tryCount < 25; tryCount++) {
+          const size = cfg.sizes[Math.floor(Math.random() * cfg.sizes.length)];
+          const rows = size, cols = size;
+          const totalCells = rows * cols;
+          const path = generateHamiltonianPath(rows, cols);
+
+          const maxAllowed = Math.min(cfg.nodesMax, totalCells - 1);
+          const minAllowed = Math.min(cfg.nodesMin, maxAllowed);
+          const count = minAllowed + Math.floor(Math.random() * (maxAllowed - minAllowed + 1));
+
+          const nodesMap = {};
+          nodesMap[`${path[0][0]},${path[0][1]}`] = 1;
+          nodesMap[`${path[totalCells - 1][0]},${path[totalCells - 1][1]}`] = count;
+
+          const availableIndices = [];
+          for (let i = 1; i < totalCells - 1; i++) availableIndices.push(i);
+
+          for (let i = availableIndices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
+          }
+
+          const chosenIndices = availableIndices.slice(0, count - 2).sort((a, b) => a - b);
+          chosenIndices.forEach((idx, idxPos) => {
+            const [r, c] = path[idx];
+            nodesMap[`${r},${c}`] = idxPos + 2;
+          });
+
+          const sig = computeSignature(rows, cols, nodesMap);
+          if (!state.usedSignatures.has(sig)) {
+            saveSignature(sig);
+            return { rows, cols, nodes: nodesMap, totalNodes: count, solution: path };
+          }
+        }
+
+        const size = cfg.sizes[0];
+        const path = generateHamiltonianPath(size, size);
+        const count = cfg.nodesMin;
+        const nodesMap = {};
+        nodesMap[`${path[0][0]},${path[0][1]}`] = 1;
+        nodesMap[`${path[path.length - 1][0]},${path[path.length - 1][1]}`] = count;
+        const step = Math.max(1, Math.floor((path.length - 1) / (count - 1)));
+        for (let n = 2; n < count; n++) {
+          const idx = Math.min(path.length - 2, (n - 1) * step);
+          nodesMap[`${path[idx][0]},${path[idx][1]}`] = n;
+        }
+        return { rows: size, cols: size, nodes: nodesMap, totalNodes: count, solution: path };
+      }
+
+      function syncDifficultyWithLevel(lvl) {
+        if (lvl <= 3) return "facil";
+        if (lvl <= 7) return "medio";
+        if (lvl <= 12) return "avancado";
+        return "genio";
+      }
+
+      function applyDifficultyUI(diffKey) {
+        const cfg = DIFF_CONFIG[diffKey];
+        diffBadge.textContent = cfg.label;
+        diffBadge.className = `diff-badge ${cfg.cls}`;
+        document.querySelectorAll(".diff-tab").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.diff === diffKey);
+        });
+      }
+
+      function loadLevel(lvl, customDiff = null, useInitialLevel1 = false) {
+        clearTimeout(state.autoNextTimeout);
+        state.levelCompleted = false;
+        winModal.classList.remove("open");
+
+        state.level = lvl;
+        state.difficulty = customDiff || syncDifficultyWithLevel(lvl);
+        applyDifficultyUI(state.difficulty);
+
+        let puzzle;
+        if (useInitialLevel1 && lvl === 1 && state.difficulty === "facil") {
+          puzzle = LEVEL_1_DATA;
+          saveSignature(computeSignature(puzzle.rows, puzzle.cols, puzzle.nodes));
+        } else {
+          puzzle = buildPuzzleForDifficulty(state.difficulty);
+        }
+
+        state.rows = puzzle.rows;
+        state.cols = puzzle.cols;
+        state.nodes = puzzle.nodes;
+        state.totalNodes = puzzle.totalNodes;
+        state.solution = puzzle.solution;
+        state.path = [];
+        state.isDrawing = false;
+        state.hintUsedAtStep = -1;
+        state.seconds = 0;
+
+        startTimer();
+        renderGrid();
+        refreshHintButton();
+        updateHUD();
+      }
+
+      function startTimer() {
+        clearInterval(state.timerId);
+        updateTimerLabel();
+        state.timerId = setInterval(() => {
+          if (!state.levelCompleted) {
+            state.seconds++;
+            updateTimerLabel();
+          }
+        }, 1000);
+      }
+
+      function updateTimerLabel() {
+        const m = String(Math.floor(state.seconds / 60)).padStart(2, "0");
+        const s = String(state.seconds % 60).padStart(2, "0");
+        timerVal.textContent = `${m}:${s}`;
+      }
+
+      function renderGrid() {
+        gridBoard.innerHTML = "";
+        gridBoard.style.gridTemplateColumns = `repeat(${state.cols}, 1fr)`;
+        gridBoard.style.gridTemplateRows = `repeat(${state.rows}, 1fr)`;
+
+        for (let r = 0; r < state.rows; r++) {
+          for (let c = 0; c < state.cols; c++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.dataset.r = r;
+            cell.dataset.c = c;
+
+            const key = `${r},${c}`;
+            if (state.nodes[key] !== undefined) {
+              const circle = document.createElement("div");
+              circle.className = "node-circle";
+              circle.textContent = state.nodes[key];
+              cell.appendChild(circle);
+            }
+
+            gridBoard.appendChild(cell);
+          }
+        }
+
+        fitBoardToViewport();
+        updateBoardVisuals();
+      }
+
+      function fitBoardToViewport() {
+        const stage = boardWrapper.parentElement;
+        if (!stage) return;
+        const rect = stage.getBoundingClientRect();
+        const available = Math.max(180, Math.min(rect.width - 8, rect.height - 8));
+        boardWrapper.style.width = `${available}px`;
+        boardWrapper.style.height = `${available}px`;
+      }
+
+      function getHighestConnectedNode() {
+        let highest = 0;
+        for (const [r, c] of state.path) {
+          const val = state.nodes[`${r},${c}`];
+          if (val && val === highest + 1) {
+            highest = val;
+          }
+        }
+        return highest;
+      }
+
+      function updateBoardVisuals() {
+        const pathSet = new Set(state.path.map(([r, c]) => `${r},${c}`));
+        const head = state.path.length ? state.path[state.path.length - 1] : null;
+        const headKey = head ? `${head[0]},${head[1]}` : null;
+        const highestNode = getHighestConnectedNode();
+        const nextTargetNum = highestNode + 1;
+
+        const cells = gridBoard.children;
+        for (let i = 0; i < cells.length; i++) {
+          const cell = cells[i];
+          const r = Number(cell.dataset.r);
+          const c = Number(cell.dataset.c);
+          const key = `${r},${c}`;
+
+          cell.classList.toggle("in-path", pathSet.has(key));
+          cell.classList.toggle("path-head", key === headKey);
+
+          const circle = cell.querySelector(".node-circle");
+          if (circle) {
+            const num = state.nodes[key];
+            const isReachedInOrder = num <= highestNode && pathSet.has(key);
+            circle.classList.toggle("connected", isReachedInOrder);
+            circle.classList.toggle("next-target", num === nextTargetNum);
+          }
+        }
+      }
+
+      function updateHUD() {
+        const totalCells = state.rows * state.cols;
+        const filled = state.path.length;
+        const highestNode = Math.max(1, getHighestConnectedNode());
+
+        levelVal.textContent = state.level;
+        cellsVal.textContent = `${filled}/${totalCells}`;
+        nodesVal.textContent = `${highestNode}/${state.totalNodes}`;
+
+        const pct = Math.round((filled / totalCells) * 100);
+        progressFill.style.width = `${pct}%`;
+      }
+
+      function refreshHintButton() {
+        const currentStep = state.path.length;
+        if (state.levelCompleted || currentStep >= state.solution.length) {
+          hintBtn.disabled = true;
+          return;
+        }
+        hintBtn.disabled = (state.hintUsedAtStep === currentStep);
+      }
+
+      function clearHintHighlights() {
+        document.querySelectorAll(".cell.hint-highlight").forEach(el => {
+          el.classList.remove("hint-highlight");
+        });
+      }
+
+      function triggerHint() {
+        const currentStep = state.path.length;
+        if (hintBtn.disabled || state.hintUsedAtStep === currentStep) return;
+
+        clearHintHighlights();
+
+        let matchesSolution = true;
+        for (let i = 0; i < state.path.length; i++) {
+          const [pr, pc] = state.path[i];
+          const [sr, sc] = state.solution[i];
+          if (pr !== sr || pc !== sc) {
+            matchesSolution = false;
+            break;
+          }
+        }
+
+        if (matchesSolution && currentStep < state.solution.length) {
+          const [hr, hc] = state.solution[currentStep];
+          const targetCell = gridBoard.querySelector(`.cell[data-r="${hr}"][data-c="${hc}"]`);
+          if (targetCell) {
+            targetCell.classList.add("hint-highlight");
+            setTimeout(() => targetCell.classList.remove("hint-highlight"), 2200);
+          }
+        } else if (state.path.length > 0) {
+          const [hr, hc] = state.path[state.path.length - 1];
+          const cell = gridBoard.querySelector(`.cell[data-r="${hr}"][data-c="${hc}"]`);
+          if (cell) {
+            cell.classList.add("hint-highlight");
+            setTimeout(() => cell.classList.remove("hint-highlight"), 2200);
+          }
+        }
+
+        state.hintUsedAtStep = currentStep;
+        refreshHintButton();
+        playTone(680, 0.08, "sine");
+        showToast("Dica revelada (avançe ou altere o caminho para usar de novo)");
+      }
+
+      function shakeCell(r, c) {
+        const cell = gridBoard.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+        if (!cell) return;
+        cell.classList.remove("shake");
+        void cell.offsetWidth;
+        cell.classList.add("shake");
+        setTimeout(() => cell.classList.remove("shake"), 320);
+      }
+
+      function isAdjacent(a, b) {
+        return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+      }
+
+      function isInPath(r, c) {
+        return state.path.some(([pr, pc]) => pr === r && pc === c);
+      }
+
+      function handleCellEnter(r, c) {
+        if (!state.isDrawing || state.levelCompleted) return;
+        if (r < 0 || r >= state.rows || c < 0 || c >= state.cols) return;
+
+        const last = state.path[state.path.length - 1];
+        if (!last) return;
+        if (last[0] === r && last[1] === c) return;
+
+        if (state.path.length >= 2) {
+          const prev = state.path[state.path.length - 2];
+          if (prev[0] === r && prev[1] === c) {
+            state.path.pop();
+            clearHintHighlights();
+            refreshHintButton();
+            updateBoardVisuals();
+            updateHUD();
+            playTone(360, 0.05, "sine");
+            return;
+          }
+        }
+
+        if (!isAdjacent(last, [r, c])) return;
+        if (isInPath(r, c)) return;
+
+        const key = `${r},${c}`;
+        const cellNum = state.nodes[key];
+        const highestNode = getHighestConnectedNode();
+        const totalCells = state.rows * state.cols;
+
+        if (cellNum !== undefined) {
+          if (cellNum !== highestNode + 1) {
+            shakeCell(r, c);
+            playTone(210, 0.12, "sawtooth");
+            showToast(`Conecte o número ${highestNode + 1} antes do ${cellNum}!`);
+            return;
+          }
+
+          if (cellNum === state.totalNodes && state.path.length + 1 < totalCells) {
+            const faltam = totalCells - (state.path.length + 1);
+            shakeCell(r, c);
+            playTone(210, 0.12, "sawtooth");
+            showToast(`Faltam ${faltam} casa(s) para preencher 100%!`);
+            return;
+          }
+        }
+
+        state.path.push([r, c]);
+        clearHintHighlights();
+        refreshHintButton();
+        updateBoardVisuals();
+        updateHUD();
+        playTone(460 + state.path.length * 6, 0.05, "sine");
+
+        checkVictory();
+      }
+
+      function checkVictory() {
+        const totalCells = state.rows * state.cols;
+        const highestNode = getHighestConnectedNode();
+
+        if (state.path.length === totalCells && highestNode === state.totalNodes) {
+          state.levelCompleted = true;
+          state.isDrawing = false;
+          clearInterval(state.timerId);
+          hintBtn.disabled = true;
+
+          playVictorySound();
+          spawnConfetti();
+
+          winSummary.textContent = `Fase ${state.level} (${DIFF_CONFIG[state.difficulty].label}) completa em ${timerVal.textContent}!`;
+          winModal.classList.add("open");
+
+          state.autoNextTimeout = setTimeout(() => {
+            loadLevel(state.level + 1);
+          }, 1500);
+        }
+      }
+
+      function spawnConfetti() {
+        const colors = ["#22c55e", "#3b82f6", "#f59e0b", "#ec4899", "#06b6d4", "#eab308"];
+        for (let i = 0; i < 36; i++) {
+          const piece = document.createElement("div");
+          piece.className = "confetti-piece";
+          piece.style.left = `${Math.random() * 100}vw`;
+          piece.style.background = colors[i % colors.length];
+          piece.style.animationDuration = `${1.1 + Math.random() * 0.9}s`;
+          piece.style.animationDelay = `${Math.random() * 0.25}s`;
+          document.body.appendChild(piece);
+          setTimeout(() => piece.remove(), 2200);
+        }
+      }
+
+      function clearCurrentPath() {
+        if (state.levelCompleted) return;
+        state.path = [];
+        state.hintUsedAtStep = -1;
+        clearHintHighlights();
+        refreshHintButton();
+        updateBoardVisuals();
+        updateHUD();
+        playTone(320, 0.07, "sine");
+      }
+
+      gridBoard.addEventListener("pointerdown", (e) => {
+        if (state.levelCompleted) return;
+        const cell = e.target.closest(".cell");
+        if (!cell) return;
+
+        const r = Number(cell.dataset.r);
+        const c = Number(cell.dataset.c);
+
+        if (state.path.length === 0) {
+          if (state.nodes[`${r},${c}`] !== 1) {
+            shakeCell(r, c);
+            playTone(210, 0.11, "sawtooth");
+            showToast("Comece pelo ponto 1!");
+            return;
+          }
+          state.isDrawing = true;
+          state.path = [[r, c]];
+          clearHintHighlights();
+          refreshHintButton();
+          updateBoardVisuals();
+          updateHUD();
+          playTone(480, 0.06, "sine");
+        } else {
+          const head = state.path[state.path.length - 1];
+          if (head[0] === r && head[1] === c) {
+            state.isDrawing = true;
+          } else if (isInPath(r, c)) {
+            const idx = state.path.findIndex(([pr, pc]) => pr === r && pc === c);
+            if (idx !== -1) {
+              state.path = state.path.slice(0, idx + 1);
+              state.isDrawing = true;
+              clearHintHighlights();
+              refreshHintButton();
+              updateBoardVisuals();
+              updateHUD();
+              playTone(380, 0.05, "sine");
+            }
+          } else {
+            shakeCell(r, c);
+            showToast("Continue a partir da ponta atual da linha!");
+          }
+        }
+      });
+
+      window.addEventListener("pointermove", (e) => {
+        if (!state.isDrawing || state.levelCompleted) return;
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        const cell = target ? target.closest(".cell") : null;
+        if (cell) {
+          handleCellEnter(Number(cell.dataset.r), Number(cell.dataset.c));
+        }
+      }, { passive: true });
+
+      window.addEventListener("pointerup", () => {
+        state.isDrawing = false;
+      });
+
+      clearBtn.addEventListener("click", clearCurrentPath);
+      hintBtn.addEventListener("click", triggerHint);
+
+      newPuzzleBtn.addEventListener("click", () => {
+        loadLevel(state.level + 1, state.difficulty, false);
+        showToast(`Fase ${state.level} gerada!`);
+      });
+
+      nextLevelNowBtn.addEventListener("click", () => {
+        clearTimeout(state.autoNextTimeout);
+        loadLevel(state.level + 1);
+      });
+
+      soundBtn.addEventListener("click", () => {
+        state.soundEnabled = !state.soundEnabled;
+        soundBtn.textContent = state.soundEnabled ? "🔊" : "🔇";
+        showToast(state.soundEnabled ? "Efeitos ativados" : "Efeitos mutados");
+      });
+
+      helpBtn.addEventListener("click", () => helpModal.classList.add("open"));
+      closeHelpBtn.addEventListener("click", () => helpModal.classList.remove("open"));
+      helpModal.addEventListener("click", (e) => {
+        if (e.target === helpModal) helpModal.classList.remove("open");
+      });
+
+      document.querySelectorAll(".diff-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+          const chosenDiff = tab.dataset.diff;
+          loadLevel(state.level + 1, chosenDiff, false);
+          showToast(`Dificuldade: ${DIFF_CONFIG[chosenDiff].label}`);
+        });
+      });
+
+      function setTheme(themeName) {
+        document.body.setAttribute("data-theme", themeName);
+        document.querySelectorAll(".theme-dot").forEach(dot => {
+          dot.classList.toggle("active", dot.dataset.setTheme === themeName);
+        });
+        try {
+          localStorage.setItem(STORAGE_THEME_KEY, themeName);
+        } catch (_) {}
+      }
+
+      document.querySelectorAll(".theme-dot").forEach(dot => {
+        dot.addEventListener("click", () => {
+          setTheme(dot.dataset.setTheme);
+          playTone(580, 0.05, "sine");
+        });
+      });
+
+      window.addEventListener("resize", fitBoardToViewport);
+
+      // Inicialização
+      loadSignatures();
+      try {
+        const savedTheme = localStorage.getItem(STORAGE_THEME_KEY);
+        if (savedTheme) setTheme(savedTheme);
+        const savedMuted = localStorage.getItem(STORAGE_MUSIC_MUTED_KEY);
+        if (savedMuted !== null) state.musicMuted = savedMuted === "true";
+      } catch (_) {}
+
+      syncBackgroundMusic();
+      loadLevel(1, "facil", true);
+    })();
+  </script>
+</body>
+</html>
