@@ -1,0 +1,2887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Corrida de Porcos com Jóqueis 3D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --outline: #121214;
+    }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Nunito', sans-serif;
+      background: #38bdf8;
+      color: #121214;
+    }
+    .font-cartoon {
+      font-family: 'Fredoka', 'Nunito', sans-serif;
+    }
+    #game-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+    #ui-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .interactive {
+      pointer-events: auto;
+    }
+    @media (max-width:700px) and (orientation:portrait){#garage-body{flex-direction:column}#garage-panel{width:100%!important;height:52%}}
+    .cartoon-box {
+      border: 4px solid var(--outline);
+      border-radius: 24px;
+      box-shadow: 0 7px 0 var(--outline), 0 14px 26px rgba(0,0,0,0.25);
+    }
+    .cartoon-card {
+      border: 3px solid var(--outline);
+      border-radius: 18px;
+      box-shadow: 0 4px 0 var(--outline);
+    }
+    .cartoon-btn {
+      border: 3.5px solid var(--outline);
+      border-radius: 18px;
+      box-shadow: 0 6px 0 var(--outline);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s ease;
+      cursor: pointer;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.22);
+    }
+    .cartoon-btn:hover:not(:disabled) {
+      filter: brightness(1.05);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 var(--outline);
+    }
+    .cartoon-btn:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 var(--outline);
+    }
+    .cartoon-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    .text-stroke-dark {
+      -webkit-text-stroke: 2.5px var(--outline);
+      paint-order: stroke fill;
+      text-shadow: 0 4px 0 var(--outline);
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(-1.5deg); }
+      50% { transform: translateY(-8px) rotate(1.5deg); }
+    }
+    .animate-float {
+      animation: floatSlow 2.6s ease-in-out infinite;
+    }
+    @keyframes pulsePop {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    .animate-pop {
+      animation: pulsePop 0.9s ease-in-out infinite;
+    }
+    .cartoon-scroll::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    .cartoon-scroll::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.12);
+      border-radius: 999px;
+    }
+    .cartoon-scroll::-webkit-scrollbar-thumb {
+      background: #121214;
+      border-radius: 999px;
+    }
+    #speed-lines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 5;
+      background: radial-gradient(circle at center, transparent 48%, rgba(255, 255, 255, 0.22) 76%, rgba(255, 190, 20, 0.42) 100%);
+    }
+    #speed-lines.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- Three.js Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Turbo / Chili Speed Vignette -->
+  <div id="speed-lines"></div>
+
+  <!-- UI Overlay Layer -->
+  <div id="ui-layer" class="flex flex-col justify-between p-3 sm:p-5">
+
+    <!-- ==================== MAIN MENU OVERLAY ==================== -->
+    <div id="screen-menu" class="interactive w-full h-full flex flex-col justify-between pointer-events-none">
+      <div class="flex items-center justify-between gap-2 pointer-events-auto">
+        <div class="flex items-center gap-2 sm:gap-3 bg-amber-300 cartoon-card px-3.5 py-2">
+          <span class="text-2xl">🪙</span>
+          <div>
+            <div class="text-[11px] font-black uppercase tracking-wider text-amber-900 leading-none">Moedas</div>
+            <div id="menu-coins" class="font-cartoon text-xl sm:text-2xl font-bold text-slate-950 leading-tight">0</div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="hidden sm:flex items-center gap-2 bg-lime-300 cartoon-card px-3.5 py-2">
+            <span class="text-xl">🏆</span>
+            <span id="menu-champ-badge" class="font-cartoon text-sm font-bold text-slate-950">Nível 1 • Copa do Chiqueiro</span>
+          </div>
+          <button id="btn-mute-menu" class="cartoon-btn bg-sky-300 text-slate-950 px-3.5 py-2.5 text-xl" title="Áudio">🔊</button>
+        </div>
+      </div>
+
+      <div class="my-auto flex flex-col items-center text-center pointer-events-auto">
+        <div class="animate-float mb-4 sm:mb-6">
+          <div class="inline-block bg-rose-500 text-white font-cartoon text-xs sm:text-sm font-bold uppercase tracking-widest px-4 py-1 rounded-full border-3 border-slate-950 shadow-[0_3px_0_#121214] mb-2">
+            Edição Cartoon 3D • Campeonatos Infinitos
+          </div>
+          <h1 class="font-cartoon text-4xl sm:text-6xl md:text-7xl font-bold text-amber-300 text-stroke-dark leading-none tracking-tight">
+            CORRIDA DE PORCOS
+          </h1>
+          <div class="font-cartoon text-2xl sm:text-4xl md:text-5xl font-bold text-lime-300 text-stroke-dark mt-1">
+            COM JÓQUEIS! 🐷🏇
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 w-full max-w-xl justify-center px-2">
+          <button id="btn-start-race" class="cartoon-btn w-full sm:w-auto bg-lime-400 text-slate-950 text-xl sm:text-2xl px-8 py-4 flex items-center justify-center gap-2.5">
+            <span>🏁</span>
+            <span>CORRER AGORA!</span>
+          </button>
+          <button id="btn-open-garage" class="cartoon-btn w-full sm:w-auto bg-amber-300 text-slate-950 text-xl sm:text-2xl px-7 py-4 flex items-center justify-center gap-2.5">
+            <span>🎨</span>
+            <span>GARAGEM</span>
+          </button>
+        </div>
+
+        <div class="mt-5 bg-white/90 backdrop-blur-sm cartoon-card px-4 py-2.5 text-xs sm:text-sm font-extrabold text-slate-800 max-w-2xl">
+          <span class="text-orange-600">A/D ou Setas</span> (ou toque esq/dir): Faixas •
+          <span class="text-sky-600">Espaço/W/↑</span>: Pular •
+          <span class="text-amber-600">Shift</span>: Turbo •
+          <span class="text-rose-600">E/Enter</span>: Poder Especial
+        </div>
+      </div>
+
+      <div class="flex justify-center pointer-events-auto">
+        <div id="menu-theme-info" class="bg-white/95 cartoon-card px-4 py-2 text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
+          <span>🐷</span>
+          <span>Fase Atual: Nível 1 — Copa do Chiqueiro</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RACE HUD OVERLAY ==================== -->
+    <div id="screen-hud" class="hidden w-full h-full flex flex-col justify-between pointer-events-none">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="bg-amber-300 cartoon-card px-3.5 py-2 flex items-baseline gap-1">
+            <span id="hud-pos" class="font-cartoon text-3xl sm:text-4xl font-bold text-slate-950 leading-none">1º</span>
+            <span class="font-cartoon text-sm sm:text-base font-bold text-slate-700">/6</span>
+          </div>
+          <div class="bg-white/95 cartoon-card px-3 py-2 hidden sm:block">
+            <div id="hud-champ-title" class="font-cartoon text-sm font-bold text-orange-600 leading-tight">Nível 1 • Copa do Chiqueiro</div>
+            <div id="hud-champ-sub" class="text-[11px] font-extrabold text-slate-600">Chegue no Top 3 para avançar!</div>
+          </div>
+        </div>
+
+        <div class="hidden md:flex flex-col items-center bg-white/95 cartoon-card px-4 py-2 w-64 lg:w-80">
+          <div class="w-full flex justify-between text-[11px] font-black uppercase text-slate-700 mb-1">
+            <span>Largada</span>
+            <span id="hud-progress-pct">0%</span>
+            <span>Chegada 🏁</span>
+          </div>
+          <div class="w-full h-4 bg-slate-200 rounded-full border-2 border-slate-950 overflow-hidden relative">
+            <div id="hud-progress-bar" class="h-full bg-gradient-to-r from-lime-400 to-emerald-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pointer-events-auto">
+          <div class="bg-amber-300 cartoon-card px-3 py-2 flex items-center gap-1.5">
+            <span class="text-lg sm:text-xl">🪙</span>
+            <span id="hud-coins" class="font-cartoon text-lg sm:text-xl font-bold text-slate-950">0</span>
+          </div>
+          <button id="btn-mute-hud" class="cartoon-btn bg-sky-300 text-slate-950 px-2.5 py-2 text-lg" title="Mudo">🔊</button>
+          <button id="btn-quit-race" class="cartoon-btn bg-rose-400 text-slate-950 px-3 py-2 text-sm sm:text-base" title="Voltar ao Menu">✕</button>
+        </div>
+      </div>
+
+      <div class="md:hidden mt-1.5 bg-white/95 cartoon-card px-3 py-1.5 w-full">
+        <div class="w-full h-3 bg-slate-200 rounded-full border-2 border-slate-950 overflow-hidden">
+          <div id="hud-progress-bar-mobile" class="h-full bg-gradient-to-r from-lime-400 to-emerald-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <div id="hud-banner" class="my-auto self-center text-center pointer-events-none opacity-0 transition-opacity duration-200">
+        <div id="hud-banner-text" class="font-cartoon text-5xl sm:text-7xl font-bold text-amber-300 text-stroke-dark animate-pop">
+          3
+        </div>
+        <div id="hud-banner-sub" class="mt-2 inline-block bg-slate-950/85 text-white font-cartoon text-sm sm:text-lg px-4 py-1 rounded-full border-2 border-amber-300 hidden">
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-2.5">
+        <div class="bg-white/95 cartoon-card p-2.5 sm:p-3 flex items-center gap-3 sm:w-72 pointer-events-auto">
+          <div class="flex-1">
+            <div class="flex justify-between items-center text-xs font-black uppercase mb-1">
+              <span class="text-orange-600">⚡ Turbo [Shift]</span>
+              <span id="hud-turbo-pct" class="text-slate-900">0%</span>
+            </div>
+            <div class="w-full h-4 bg-slate-200 rounded-full border-2 border-slate-950 overflow-hidden">
+              <div id="hud-turbo-bar" class="h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500" style="width: 0%"></div>
+            </div>
+          </div>
+          <button id="btn-turbo-action" class="cartoon-btn bg-orange-400 text-slate-950 px-3 py-2 text-xs sm:text-sm shrink-0">
+            TURBO
+          </button>
+        </div>
+
+        <div class="flex sm:hidden items-center justify-between gap-2 pointer-events-auto">
+          <button id="btn-touch-jump" class="cartoon-btn flex-1 bg-sky-300 text-slate-950 py-2.5 text-sm">
+            ⬆️ PULAR
+          </button>
+          <button id="btn-touch-power" class="cartoon-btn flex-1 bg-fuchsia-400 text-slate-950 py-2.5 text-sm">
+            ✨ PODER [E]
+          </button>
+        </div>
+
+        <div class="hidden sm:flex items-center gap-3 bg-white/95 cartoon-card p-2.5 pointer-events-auto">
+          <div id="power-slot-box" class="w-14 h-14 rounded-2xl border-3 border-slate-950 bg-slate-100 flex items-center justify-center text-3xl shadow-[inset_0_3px_0_rgba(0,0,0,0.12)] relative overflow-hidden">
+            <span id="power-slot-icon" class="font-cartoon font-bold text-slate-400">?</span>
+          </div>
+          <div class="pr-1">
+            <div class="text-[11px] font-black uppercase text-fuchsia-700 leading-none">Poder Especial [E]</div>
+            <div id="power-slot-name" class="font-cartoon text-base font-bold text-slate-900 leading-tight mt-0.5">Vazio</div>
+            <button id="btn-power-action" disabled class="cartoon-btn mt-1 bg-fuchsia-400 text-slate-950 px-3 py-1 text-xs">
+              ATIVAR PODER
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== GARAGE / CUSTOMIZATION SCREEN ==================== -->
+    <div id="screen-garage" class="hidden w-full h-full flex flex-col gap-3 pointer-events-none">
+      <div id="garage-header" class="flex items-center justify-between gap-2 bg-amber-300 cartoon-card px-4 py-2.5 pointer-events-auto">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl sm:text-3xl">🎨</span>
+          <div>
+            <h2 class="font-cartoon text-xl sm:text-2xl font-bold text-slate-950 leading-none">Garagem Cartoon</h2>
+            <p class="text-xs font-extrabold text-amber-950">Customize seu Porco e Jóquei ao vivo em 3D!</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="bg-white cartoon-card px-3 py-1.5 flex items-center gap-1.5">
+            <span>🪙</span>
+            <span id="garage-coins" class="font-cartoon text-lg sm:text-xl font-bold text-slate-950">0</span>
+          </div>
+          <button id="btn-close-garage" class="cartoon-btn bg-lime-400 text-slate-950 px-4 py-2 text-sm sm:text-base">
+            ✓ PRONTO
+          </button>
+        </div>
+      </div>
+
+      <div id="garage-body" class="flex-1 min-h-0 flex gap-3 w-full pointer-events-none">
+        <!-- ESQUERDA: palco 3D (porco + jóquei giram 360°, o canvas fica atrás) -->
+        <div id="garage-stage" class="flex-1 min-w-0 flex flex-col justify-between pointer-events-none">
+          <div class="self-start bg-slate-950/75 text-white text-xs font-extrabold px-3 py-1.5 rounded-full border-2 border-white/40">
+            🔄 Arraste para girar 360°
+          </div>
+          <div class="flex items-center justify-center gap-3 pointer-events-auto">
+            <button id="garage-rot-left" class="cartoon-btn bg-sky-300 text-slate-950 w-12 h-12 text-xl">◀</button>
+            <button id="garage-rot-auto" class="cartoon-btn bg-lime-400 text-slate-950 px-4 h-12 text-sm">⏸ AUTO</button>
+            <button id="garage-rot-right" class="cartoon-btn bg-sky-300 text-slate-950 w-12 h-12 text-xl">▶</button>
+          </div>
+          <div id="garage-equipped-summary" class="bg-white/95 cartoon-card p-3 text-xs font-extrabold text-slate-800 hidden lg:block self-start">
+          </div>
+        </div>
+        <!-- DIREITA: janela de itens -->
+        <div id="garage-panel" class="bg-white/95 backdrop-blur-md cartoon-box p-3 sm:p-4 flex flex-col min-h-0 pointer-events-auto" style="width:clamp(290px,44vw,500px)">
+          <div id="garage-tabs" class="flex gap-1.5 overflow-x-auto pb-2 cartoon-scroll shrink-0"></div>
+          <div id="garage-items-grid" class="grid gap-2.5 overflow-y-auto pr-1 pt-1 cartoon-scroll flex-1 min-h-0" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr));align-content:start"></div>
+        </div>
+      </div>
+
+      <div class="h-1"></div>
+    </div>
+
+    <!-- ==================== PODIUM / RESULTS MODAL ==================== -->
+    <div id="screen-results" class="hidden interactive fixed inset-0 bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-3 z-30 pointer-events-auto">
+      <div class="bg-amber-50 cartoon-box w-full max-w-lg p-5 sm:p-6 text-center">
+        <div id="result-badge" class="inline-block bg-lime-400 text-slate-950 font-cartoon text-xs sm:text-sm font-bold uppercase px-4 py-1 rounded-full border-3 border-slate-950 mb-2">
+          CLASSIFICADO!
+        </div>
+        <h2 id="result-title" class="font-cartoon text-3xl sm:text-4xl font-bold text-slate-950 leading-tight">
+          1º LUGAR! CAMPEÃO!
+        </h2>
+        <p id="result-subtitle" class="text-sm font-extrabold text-slate-600 mt-1">
+          Você avançou para o próximo nível do campeonato!
+        </p>
+
+        <div id="result-standings" class="mt-4 space-y-1.5 max-h-52 overflow-y-auto cartoon-scroll text-left"></div>
+
+        <div class="mt-4 bg-amber-300 cartoon-card p-3 flex items-center justify-between">
+          <span class="font-cartoon font-bold text-slate-950 text-base sm:text-lg">Recompensa da Corrida:</span>
+          <span id="result-reward" class="font-cartoon font-bold text-slate-950 text-xl sm:text-2xl">+150 🪙</span>
+        </div>
+
+        <div class="mt-5 flex flex-col sm:flex-row gap-3 justify-center">
+          <button id="btn-next-stage" class="cartoon-btn flex-1 bg-lime-400 text-slate-950 py-3 px-5 text-lg">
+            PRÓXIMA FASE ➡️
+          </button>
+          <button id="btn-result-garage" class="cartoon-btn bg-amber-300 text-slate-950 py-3 px-4 text-lg">
+            🎨 GARAGEM
+          </button>
+          <button id="btn-result-menu" class="cartoon-btn bg-sky-300 text-slate-950 py-3 px-4 text-lg">
+            MENU
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== TOAST / NOTIFICATION BANNER ==================== -->
+    <div id="toast-msg" class="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-slate-950 text-amber-300 font-cartoon font-bold text-sm sm:text-base px-5 py-2.5 rounded-full border-3 border-amber-300 shadow-[0_5px_0_#121214] opacity-0 pointer-events-none transition-all duration-200 -translate-y-2">
+      Mensagem!
+    </div>
+  </div>
+
+  <!-- ==================== MAIN OPTIMIZED GAME MODULE ==================== -->
+  <script type="module">
+    import * as THREE from 'three';
+
+    // =========================================================================
+    // 1. CATALOGO DE PERSONALIZACAO, TEMAS & PODERES
+    // =========================================================================
+    const CUSTOMIZATION_CATALOG = {
+      skin: {
+        label: 'Pele do Porco',
+        icon: '🐷',
+        items: [
+          { id: 'pink', name: 'Rosa Clássico', price: 0, bodyColor: 0xff8fab, bellyColor: 0xffb3c6, snoutColor: 0xff5c8a, earColor: 0xfb6f92 },
+          { id: 'spotted', name: 'Preto Malhado', price: 120, bodyColor: 0xf8fafc, bellyColor: 0xe2e8f0, snoutColor: 0xf4a261, earColor: 0x1e293b, spotColor: 0x1e293b },
+          { id: 'boar', name: 'Javali Marrom', price: 220, bodyColor: 0x7c4a2d, bellyColor: 0xa1623b, snoutColor: 0x5c341d, earColor: 0x4a2815 },
+          { id: 'gold', name: 'Porco Dourado', price: 450, bodyColor: 0xfbbf24, bellyColor: 0xfde68a, snoutColor: 0xf59e0b, earColor: 0xd97706, emissive: 0x451a03 },
+          { id: 'robot', name: 'Robô Metálico', price: 650, bodyColor: 0x94a3b8, bellyColor: 0x64748b, snoutColor: 0x38bdf8, earColor: 0x475569, emissive: 0x082f49 },
+          { id: 'electric', name: 'Azul Elétrico', price: 850, bodyColor: 0x3b82f6, bellyColor: 0x93c5fd, snoutColor: 0x60a5fa, earColor: 0x1d4ed8, emissive: 0x172554 }
+        ]
+      },
+      saddle: {
+        label: 'Selas',
+        icon: '🪑',
+        items: [
+          { id: 'leather', name: 'Couro Simples', price: 0, color: 0x92400e, trim: 0xd97706, style: 'leather' },
+          { id: 'cowboy_saddle', name: 'Sela de Cowboy', price: 180, color: 0x78350f, trim: 0xfbbf24, style: 'cowboy' },
+          { id: 'royal_saddle', name: 'Sela Real Vermelha', price: 380, color: 0xdc2626, trim: 0xfacc15, style: 'royal' },
+          { id: 'space_saddle', name: 'Sela Espacial', price: 620, color: 0x4f46e5, trim: 0x22d3ee, style: 'space' }
+        ]
+      },
+      pigAcc: {
+        label: 'Acessório Porco',
+        icon: '🕶️',
+        items: [
+          { id: 'none', name: 'Nenhum', price: 0, type: 'none' },
+          { id: 'sunglasses', name: 'Óculos Escuros', price: 140, type: 'sunglasses' },
+          { id: 'crown', name: 'Coroa Real', price: 320, type: 'crown' },
+          { id: 'viking', name: 'Capacete Viking', price: 420, type: 'viking' },
+          { id: 'angel_wings', name: 'Asas de Anjo', price: 550, type: 'angel_wings' },
+          { id: 'bat_wings', name: 'Asas de Morcego', price: 550, type: 'bat_wings' }
+        ]
+      },
+      hat: {
+        label: 'Chapéu Jóquei',
+        icon: '🤠',
+        items: [
+          { id: 'none', name: 'Sem Chapéu', price: 0, type: 'none' },
+          { id: 'jockey_cap', name: 'Capacete de Jóquei', price: 0, type: 'jockey_cap', color: 0xef4444, brimColor: 0xfacc15 },
+          { id: 'cowboy_hat', name: 'Chapéu de Cowboy', price: 160, type: 'cowboy_hat', color: 0xb45309, bandColor: 0xef4444 },
+          { id: 'top_hat', name: 'Cartola Elegante', price: 280, type: 'top_hat', color: 0x1e293b, bandColor: 0xef4444 },
+          { id: 'cap', name: 'Boné Esportivo', price: 120, type: 'cap', color: 0x22c55e, brimColor: 0xfef08a },
+          { id: 'sombrero', name: 'Sombrero Festivo', price: 360, type: 'sombrero', color: 0xeab308, bandColor: 0xec4899 },
+          { id: 'king_crown', name: 'Coroa de Rei', price: 520, type: 'king_crown', color: 0xfacc15, bandColor: 0xdc2626 }
+        ]
+      },
+      face: {
+        label: 'Rosto / Barba',
+        icon: '🧔',
+        items: [
+          { id: 'clean', name: 'Sem Barba', price: 0, type: 'clean' },
+          { id: 'mustache', name: 'Bigode Mexicano', price: 130, type: 'mustache', color: 0x1e1b18 },
+          { id: 'beard', name: 'Barba de Lenhador', price: 240, type: 'beard', color: 0x5c341d },
+          { id: 'aviator', name: 'Óculos Aviador', price: 210, type: 'aviator', color: 0xfacc15 },
+          { id: 'eyepatch', name: 'Tapa-Olho Pirata', price: 190, type: 'eyepatch', color: 0x111111 }
+        ]
+      },
+      outfit: {
+        label: 'Roupa Jóquei',
+        icon: '🧥',
+        items: [
+          { id: 'plaid', name: 'Camisa Xadrez', price: 0, type: 'plaid', color: 0xef4444, accent: 0x1e293b },
+          { id: 'leather_jacket', name: 'Jaqueta de Couro', price: 250, type: 'leather_jacket', color: 0x1e293b, accent: 0xe2e8f0 },
+          { id: 'knight', name: 'Armadura de Cavaleiro', price: 460, type: 'knight', color: 0xcbd5e1, accent: 0xdc2626 },
+          { id: 'overalls', name: 'Macacão Jeans', price: 200, type: 'overalls', color: 0x2563eb, accent: 0xfacc15 },
+          { id: 'cape', name: 'Capa de Super-Herói', price: 490, type: 'cape', color: 0xe11d48, accent: 0xfacc15 }
+        ]
+      },
+      boots: {
+        label: 'Botas Jóquei',
+        icon: '🥾',
+        items: [
+          { id: 'riding', name: 'Botas de Montaria', price: 0, color: 0x451a03, spur: false },
+          { id: 'cowboy_boots', name: 'Botas Cowboy c/ Espora', price: 220, color: 0x78350f, spur: true },
+          { id: 'neon_sneakers', name: 'Tênis Neon', price: 380, color: 0x10b981, spur: false, neon: true }
+        ]
+      }
+    };
+
+    const THEMES = [
+      {
+        id: 'pigsty',
+        name: 'Copa do Chiqueiro',
+        icon: '🐷',
+        skyTop: '#38bdf8',
+        skyBottom: '#bae6fd',
+        fogColor: 0xbae6fd,
+        trackColor: 0xd6a87c,
+        sideColor: 0x65a30d,
+        sunColor: 0xfffbeb,
+        hemiSky: 0xe0f2fe,
+        hemiGround: 0x65a30d,
+        propType: 'pigsty'
+      },
+      {
+        id: 'farm',
+        name: 'Troféu da Fazenda',
+        icon: '🚜',
+        skyTop: '#0ea5e9',
+        skyBottom: '#fef08a',
+        fogColor: 0xfef9c3,
+        trackColor: 0xc2956e,
+        sideColor: 0x4ade80,
+        sunColor: 0xfff7ed,
+        hemiSky: 0xfef9c3,
+        hemiGround: 0x4ade80,
+        propType: 'farm'
+      },
+      {
+        id: 'desert',
+        name: 'Rali do Deserto',
+        icon: '🌵',
+        skyTop: '#f59e0b',
+        skyBottom: '#fde68a',
+        fogColor: 0xfde68a,
+        trackColor: 0xe7bc7b,
+        sideColor: 0xf59e0b,
+        sunColor: 0xffedd5,
+        hemiSky: 0xfef3c7,
+        hemiGround: 0xd97706,
+        propType: 'desert'
+      },
+      {
+        id: 'snow',
+        name: 'Circuito da Neve',
+        icon: '⛄',
+        skyTop: '#0284c7',
+        skyBottom: '#e0f2fe',
+        fogColor: 0xe0f2fe,
+        trackColor: 0xcbd5e1,
+        sideColor: 0xf8fafc,
+        sunColor: 0xf0f9ff,
+        hemiSky: 0xf0f9ff,
+        hemiGround: 0x94a3b8,
+        propType: 'snow'
+      },
+      {
+        id: 'volcano',
+        name: 'Ilha Vulcânica',
+        icon: '🌋',
+        skyTop: '#4c1d95',
+        skyBottom: '#fb7185',
+        fogColor: 0x7f1d1d,
+        trackColor: 0x334155,
+        sideColor: 0x1e293b,
+        sunColor: 0xfdba74,
+        hemiSky: 0xfca5a5,
+        hemiGround: 0x450a0a,
+        propType: 'volcano'
+      }
+    ];
+
+    const POWERUPS = [
+      { id: 'chili', name: 'Pimenta Malagueta!', icon: '🌶️' },
+      { id: 'pie', name: 'Torta na Cara!', icon: '🥧' },
+      { id: 'bubble', name: 'Escudo de Bolha!', icon: '🫧' },
+      { id: 'giant', name: 'Porco Gigante!', icon: '🦖' },
+      { id: 'magnet', name: 'Ímã de Milho!', icon: '🧲' }
+    ];
+
+    // =========================================================================
+    // 2. AUDIO PROCEDURAL SEGURO (WEB AUDIO API)
+    // =========================================================================
+    class CartoonAudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isPlayingBgm = false;
+      }
+
+      ensureContext() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+
+      setMuted(mute) {
+        this.muted = mute;
+        if (this.muted) {
+          this.stopBgm();
+        }
+      }
+
+      toggleMute() {
+        this.setMuted(!this.muted);
+        if (!this.muted) {
+          this.ensureContext();
+          this.playClick();
+        }
+        return this.muted;
+      }
+
+      playTone({ type = 'sine', freqStart, freqEnd, duration, gainPeak = 0.14, delay = 0, filterFreq = null }) {
+        if (this.muted) return;
+        this.ensureContext();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqStart, now);
+        if (freqEnd && freqEnd !== freqStart) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), now + duration);
+        }
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(gainPeak, now + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        if (filterFreq) {
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(filterFreq, now);
+          filter.Q.setValueAtTime(2.5, now);
+          osc.connect(filter);
+          filter.connect(gain);
+        } else {
+          osc.connect(gain);
+        }
+
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+        osc.onended = () => {
+          try {
+            osc.disconnect();
+            gain.disconnect();
+          } catch {}
+        };
+      }
+
+      playClick() {
+        this.playTone({ type: 'triangle', freqStart: 520, freqEnd: 780, duration: 0.07, gainPeak: 0.12 });
+      }
+
+      playJump() {
+        this.playTone({ type: 'sine', freqStart: 200, freqEnd: 620, duration: 0.22, gainPeak: 0.16 });
+      }
+
+      playOink() {
+        const base = 240 + Math.random() * 50;
+        this.playTone({ type: 'sawtooth', freqStart: base, freqEnd: base * 1.28, duration: 0.16, gainPeak: 0.11, filterFreq: 920 });
+      }
+
+      playCoin() {
+        this.playTone({ type: 'sine', freqStart: 987.77, freqEnd: 987.77, duration: 0.08, gainPeak: 0.12 });
+        this.playTone({ type: 'sine', freqStart: 1318.51, freqEnd: 1318.51, duration: 0.14, gainPeak: 0.12, delay: 0.055 });
+      }
+
+      playApple() {
+        this.playTone({ type: 'triangle', freqStart: 440, freqEnd: 880, duration: 0.14, gainPeak: 0.14 });
+      }
+
+      playBoxPickup() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((f, idx) => {
+          this.playTone({ type: 'triangle', freqStart: f, freqEnd: f, duration: 0.1, gainPeak: 0.11, delay: idx * 0.05 });
+        });
+      }
+
+      playTurbo() {
+        this.playTone({ type: 'sawtooth', freqStart: 150, freqEnd: 520, duration: 0.34, gainPeak: 0.12 });
+      }
+
+      playSplatOrHit() {
+        this.playTone({ type: 'square', freqStart: 180, freqEnd: 65, duration: 0.18, gainPeak: 0.14 });
+      }
+
+      playCountdownBeep(finalGo = false) {
+        this.playTone({ type: 'square', freqStart: finalGo ? 880 : 440, freqEnd: finalGo ? 1174.66 : 440, duration: finalGo ? 0.28 : 0.14, gainPeak: 0.11 });
+      }
+
+      startBgm() {
+        if (this.muted || this.isPlayingBgm) return;
+        this.ensureContext();
+        if (!this.ctx) return;
+        this.stopBgm();
+        this.isPlayingBgm = true;
+        this.bgmStep = 0;
+
+        const bassNotes = [130.81, 196.0, 146.83, 196.0, 164.81, 196.0, 130.81, 196.0];
+        const leadNotes = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 523.25, 392.0];
+
+        this.bgmTimer = setInterval(() => {
+          if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+          const step = this.bgmStep % bassNotes.length;
+          this.playTone({ type: 'triangle', freqStart: bassNotes[step], freqEnd: bassNotes[step], duration: 0.13, gainPeak: 0.05 });
+          if (this.bgmStep % 2 === 0) {
+            this.playTone({ type: 'sine', freqStart: leadNotes[step], freqEnd: leadNotes[step], duration: 0.14, gainPeak: 0.038 });
+          }
+          this.bgmStep++;
+        }, 180);
+      }
+
+      stopBgm() {
+        this.isPlayingBgm = false;
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    }
+
+    const audio = new CartoonAudioEngine();
+
+    // =========================================================================
+    // 3. PERSISTENCIA (localStorage)
+    // =========================================================================
+    const STORAGE_KEY = 'corrida_porcos_joqueis_save_v1';
+
+    function loadSaveData() {
+      const defaults = {
+        coins: 250,
+        level: 1,
+        unlocked: ['pink', 'leather', 'none', 'jockey_cap', 'clean', 'plaid', 'riding'],
+        equipped: {
+          skin: 'pink',
+          saddle: 'leather',
+          pigAcc: [],
+          hat: 'jockey_cap',
+          face: [],
+          outfit: 'plaid',
+          boots: 'riding'
+        }
+      };
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return defaults;
+        const parsed = JSON.parse(raw);
+        return {
+          coins: typeof parsed.coins === 'number' ? parsed.coins : defaults.coins,
+          level: typeof parsed.level === 'number' && parsed.level >= 1 ? parsed.level : 1,
+          unlocked: Array.isArray(parsed.unlocked) ? Array.from(new Set([...defaults.unlocked, ...parsed.unlocked])) : defaults.unlocked,
+          equipped: { ...defaults.equipped, ...(parsed.equipped || {}) }
+        };
+      } catch {
+        return defaults;
+      }
+    }
+
+    let saveData = loadSaveData();
+
+    // Categorias com vários itens ao mesmo tempo; cada item ocupa um "slot".
+    // Equipar um item só troca o item do MESMO slot (ex.: óculos + coroa + asas juntos).
+    const MULTI = { pigAcc: true, face: true };
+    const SLOTS = { sunglasses: 'olhos', crown: 'cabeca', viking: 'cabeca', angel_wings: 'asas', bat_wings: 'asas',
+                    mustache: 'boca', beard: 'boca', aviator: 'olhos', eyepatch: 'olhos' };
+    const idsOf = v => Array.isArray(v) ? v : (v && v !== 'none' && v !== 'clean' ? [v] : []);
+    function equipItem(cat, item) {
+      if (!MULTI[cat]) { saveData.equipped[cat] = item.id; return; }
+      let list = idsOf(saveData.equipped[cat]);
+      if (item.type === 'none' || item.type === 'clean') list = [];
+      else if (list.includes(item.id)) list = list.filter(i => i !== item.id);
+      else list = [...list.filter(i => SLOTS[i] !== SLOTS[item.id]), item.id];
+      saveData.equipped[cat] = list;
+    }
+
+    function persistSave() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
+      } catch {}
+    }
+
+    function getThemeForLevel(level) {
+      return THEMES[(level - 1) % THEMES.length];
+    }
+
+    // =========================================================================
+    // 4. CACHE DE GEOMETRIAS, MATERIAIS TOON & OUTLINES
+    // =========================================================================
+    function createToonGradientTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 4;
+      canvas.height = 1;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#787878';
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = '#b8b8b8';
+      ctx.fillRect(1, 0, 1, 1);
+      ctx.fillStyle = '#e6e6e6';
+      ctx.fillRect(2, 0, 1, 1);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(3, 0, 1, 1);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.minFilter = THREE.NearestFilter;
+      tex.magFilter = THREE.NearestFilter;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const toonGradientMap = createToonGradientTexture();
+    const outlineMaterial = new THREE.MeshBasicMaterial({
+      color: 0x121214,
+      side: THREE.BackSide
+    });
+
+    // Material cache keyed by `${colorHex}_${emissiveHex}`
+    const toonMaterialCache = new Map();
+    function getToonMaterial(colorHex, emissiveHex = 0x000000) {
+      const key = `${colorHex}_${emissiveHex}`;
+      let mat = toonMaterialCache.get(key);
+      if (!mat) {
+        mat = new THREE.MeshToonMaterial({
+          color: colorHex,
+          emissive: emissiveHex,
+          emissiveIntensity: emissiveHex ? 0.35 : 0,
+          gradientMap: toonGradientMap
+        });
+        toonMaterialCache.set(key, mat);
+      }
+      return mat;
+    }
+
+    // Shared geometries cache to prevent per-object allocation churn
+    const SHARED_GEOS = (() => {
+      const pigBody = new THREE.SphereGeometry(0.78, 14, 12);
+      pigBody.scale(0.95, 0.88, 1.32);
+
+      const spot = new THREE.SphereGeometry(0.28, 8, 8);
+      spot.scale(1.1, 0.6, 1.2);
+
+      const pigHead = new THREE.SphereGeometry(0.52, 14, 12);
+      pigHead.scale(1.02, 0.96, 1.08);
+
+      const snout = new THREE.CylinderGeometry(0.25, 0.28, 0.26, 12);
+      snout.rotateX(Math.PI / 2);
+
+      const nostril = new THREE.SphereGeometry(0.055, 6, 6);
+      const eye = new THREE.SphereGeometry(0.11, 8, 8);
+      const pupil = new THREE.SphereGeometry(0.055, 6, 6);
+      const ear = new THREE.BoxGeometry(0.26, 0.1, 0.36);
+      const tail = new THREE.TorusGeometry(0.16, 0.055, 6, 10, Math.PI * 1.5);
+      const leg = new THREE.CylinderGeometry(0.14, 0.12, 0.55, 8);
+      const hoof = new THREE.CylinderGeometry(0.125, 0.13, 0.14, 8);
+      const saddleBase = new THREE.BoxGeometry(0.95, 0.22, 0.85);
+      const jLeg = new THREE.BoxGeometry(0.18, 0.42, 0.2);
+      const jBoot = new THREE.BoxGeometry(0.2, 0.24, 0.3);
+      const torso = new THREE.CylinderGeometry(0.26, 0.32, 0.66, 10);
+      const arm = new THREE.CylinderGeometry(0.09, 0.08, 0.48, 8);
+      const hand = new THREE.SphereGeometry(0.1, 6, 6);
+      const jHead = new THREE.SphereGeometry(0.32, 12, 10);
+      const jEye = new THREE.SphereGeometry(0.055, 6, 6);
+      const bubble = new THREE.SphereGeometry(1.75, 16, 12);
+      const dizzyStar = new THREE.OctahedronGeometry(0.16, 0);
+
+      // Obstacles & pickups
+      const fencePost = new THREE.BoxGeometry(0.24, 1.25, 0.24);
+      const fenceRail = new THREE.BoxGeometry(2.3, 0.2, 0.14);
+      const barrel = new THREE.CylinderGeometry(0.58, 0.58, 1.25, 10);
+      const barrelHoop = new THREE.CylinderGeometry(0.61, 0.61, 0.16, 10);
+      const hay = new THREE.BoxGeometry(1.75, 1.05, 1.25);
+      const mud = new THREE.CylinderGeometry(1.25, 1.35, 0.12, 12);
+      const coin = new THREE.CapsuleGeometry(0.28, 0.55, 4, 8);
+      const apple = new THREE.SphereGeometry(0.36, 10, 8);
+      const appleLeaf = new THREE.BoxGeometry(0.22, 0.08, 0.12);
+      const box = new THREE.BoxGeometry(1.15, 1.15, 1.15);
+      const boxBar = new THREE.BoxGeometry(0.22, 0.55, 1.24);
+      const pie = new THREE.CylinderGeometry(0.42, 0.32, 0.26, 10);
+      const particle = new THREE.DodecahedronGeometry(0.25, 0);
+
+      // Scenery props
+      const trunk = new THREE.CylinderGeometry(0.35, 0.5, 2.2, 6);
+      const treeCrown = new THREE.DodecahedronGeometry(1.65, 0);
+      const shed = new THREE.BoxGeometry(3.2, 2.2, 2.8);
+      const roofCone4 = new THREE.ConeGeometry(2.8, 1.5, 4);
+      const barn = new THREE.BoxGeometry(4.2, 3.4, 3.8);
+      const silo = new THREE.CylinderGeometry(1.3, 1.3, 5.2, 10);
+      const siloCap = new THREE.SphereGeometry(1.32, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+      const cactusStem = new THREE.CylinderGeometry(0.42, 0.48, 3.4, 8);
+      const cactusArm = new THREE.CylinderGeometry(0.28, 0.3, 1.3, 6);
+      const pyramid = new THREE.ConeGeometry(5.5, 4.8, 4);
+      const pine1 = new THREE.ConeGeometry(1.7, 2.4, 7);
+      const pine2 = new THREE.ConeGeometry(1.25, 2.0, 7);
+      const snowBall1 = new THREE.SphereGeometry(0.95, 10, 8);
+      const snowBall2 = new THREE.SphereGeometry(0.65, 10, 8);
+      const volcanoRock = new THREE.DodecahedronGeometry(1.8, 0);
+      const volcanoLava = new THREE.SphereGeometry(0.75, 8, 6);
+
+      return {
+        pigBody, spot, pigHead, snout, nostril, eye, pupil, ear, tail,
+        leg, hoof, saddleBase, jLeg, jBoot, torso, arm, hand, jHead, jEye,
+        bubble, dizzyStar,
+        fencePost, fenceRail, barrel, barrelHoop, hay, mud,
+        coin, apple, appleLeaf, box, boxBar, pie, particle,
+        trunk, treeCrown, shed, roofCone4, barn, silo, siloCap,
+        cactusStem, cactusArm, pyramid, pine1, pine2, snowBall1, snowBall2,
+        volcanoRock, volcanoLava
+      };
+    })();
+
+    function addOutline(mesh, scaleFactor = 1.07) {
+      if (!mesh || !mesh.geometry) return mesh;
+      const outlineMesh = new THREE.Mesh(mesh.geometry, outlineMaterial);
+      outlineMesh.scale.setScalar(scaleFactor);
+      mesh.add(outlineMesh);
+      return mesh;
+    }
+
+    // =========================================================================
+    // 5. CONSTRUTOR PROCEDURAL DE PORCO + JOQUEI (3D)
+    // =========================================================================
+    function buildPigJockeyRacer(config, options = { withOutlines: true }) {
+      const root = new THREE.Group();
+
+      const skinItem = CUSTOMIZATION_CATALOG.skin.items.find(i => i.id === config.skin) || CUSTOMIZATION_CATALOG.skin.items[0];
+      const saddleItem = CUSTOMIZATION_CATALOG.saddle.items.find(i => i.id === config.saddle) || CUSTOMIZATION_CATALOG.saddle.items[0];
+      const pigAccItems = idsOf(config.pigAcc).map(id => CUSTOMIZATION_CATALOG.pigAcc.items.find(i => i.id === id)).filter(Boolean);
+      const hatItem = CUSTOMIZATION_CATALOG.hat.items.find(i => i.id === config.hat) || CUSTOMIZATION_CATALOG.hat.items[0];
+      const faceItems = idsOf(config.face).map(id => CUSTOMIZATION_CATALOG.face.items.find(i => i.id === id)).filter(Boolean);
+      const outfitItem = CUSTOMIZATION_CATALOG.outfit.items.find(i => i.id === config.outfit) || CUSTOMIZATION_CATALOG.outfit.items[0];
+      const bootsItem = CUSTOMIZATION_CATALOG.boots.items.find(i => i.id === config.boots) || CUSTOMIZATION_CATALOG.boots.items[0];
+
+      const skinMat = getToonMaterial(skinItem.bodyColor, skinItem.emissive || 0x000000);
+      const snoutMat = getToonMaterial(skinItem.snoutColor);
+      const earMat = getToonMaterial(skinItem.earColor);
+      const eyeWhiteMat = getToonMaterial(0xffffff);
+      const pupilMat = getToonMaterial(0x111111);
+      const hoofMat = getToonMaterial(0x332219);
+
+      const pigGroup = new THREE.Group();
+      pigGroup.position.set(0, 0.95, 0);
+      root.add(pigGroup);
+
+      const bodyMesh = new THREE.Mesh(SHARED_GEOS.pigBody, skinMat);
+      bodyMesh.castShadow = true;
+      if (options.withOutlines) addOutline(bodyMesh, 1.06);
+      pigGroup.add(bodyMesh);
+
+      if (skinItem.spotColor) {
+        const spotMat = getToonMaterial(skinItem.spotColor);
+        const s1 = new THREE.Mesh(SHARED_GEOS.spot, spotMat);
+        s1.position.set(0.55, 0.35, 0.2);
+        const s2 = new THREE.Mesh(SHARED_GEOS.spot, spotMat);
+        s2.position.set(-0.52, 0.25, -0.35);
+        pigGroup.add(s1, s2);
+      }
+
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, 0.22, -0.92);
+      pigGroup.add(headGroup);
+
+      const headMesh = new THREE.Mesh(SHARED_GEOS.pigHead, skinMat);
+      headMesh.castShadow = true;
+      if (options.withOutlines) addOutline(headMesh, 1.07);
+      headGroup.add(headMesh);
+
+      const snoutMesh = new THREE.Mesh(SHARED_GEOS.snout, snoutMat);
+      snoutMesh.position.set(0, -0.04, -0.52);
+      if (options.withOutlines) addOutline(snoutMesh, 1.08);
+      headGroup.add(snoutMesh);
+
+      const nLeft = new THREE.Mesh(SHARED_GEOS.nostril, pupilMat);
+      nLeft.position.set(-0.09, -0.03, -0.65);
+      const nRight = new THREE.Mesh(SHARED_GEOS.nostril, pupilMat);
+      nRight.position.set(0.09, -0.03, -0.65);
+      headGroup.add(nLeft, nRight);
+
+      const eyeL = new THREE.Mesh(SHARED_GEOS.eye, eyeWhiteMat);
+      eyeL.position.set(-0.24, 0.14, -0.36);
+      const pupL = new THREE.Mesh(SHARED_GEOS.pupil, pupilMat);
+      pupL.position.set(-0.26, 0.14, -0.45);
+      const eyeR = new THREE.Mesh(SHARED_GEOS.eye, eyeWhiteMat);
+      eyeR.position.set(0.24, 0.14, -0.36);
+      const pupR = new THREE.Mesh(SHARED_GEOS.pupil, pupilMat);
+      pupR.position.set(0.26, 0.14, -0.45);
+      headGroup.add(eyeL, pupL, eyeR, pupR);
+
+      const earLeftPivot = new THREE.Group();
+      earLeftPivot.position.set(-0.38, 0.35, -0.12);
+      const earRightPivot = new THREE.Group();
+      earRightPivot.position.set(0.38, 0.35, -0.12);
+
+      const earL = new THREE.Mesh(SHARED_GEOS.ear, earMat);
+      earL.position.set(-0.1, -0.04, -0.14);
+      earL.rotation.z = 0.25;
+      if (options.withOutlines) addOutline(earL, 1.09);
+      earLeftPivot.add(earL);
+
+      const earR = new THREE.Mesh(SHARED_GEOS.ear, earMat);
+      earR.position.set(0.1, -0.04, -0.14);
+      earR.rotation.z = -0.25;
+      if (options.withOutlines) addOutline(earR, 1.09);
+      earRightPivot.add(earR);
+
+      headGroup.add(earLeftPivot, earRightPivot);
+
+      // Pig Accessories
+      for (const pigAccItem of pigAccItems) {
+      if (pigAccItem.type === 'sunglasses') {
+        const glassMat = getToonMaterial(0x0f172a);
+        const frameMat = getToonMaterial(0xfacc15);
+        const lensGeo = new THREE.BoxGeometry(0.26, 0.15, 0.06);
+        const gL = new THREE.Mesh(lensGeo, glassMat);
+        gL.position.set(-0.22, 0.15, -0.48);
+        const gR = new THREE.Mesh(lensGeo, glassMat);
+        gR.position.set(0.22, 0.15, -0.48);
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.05), frameMat);
+        bridge.position.set(0, 0.17, -0.48);
+        headGroup.add(gL, gR, bridge);
+      } else if (pigAccItem.type === 'crown') {
+        const crownMat = getToonMaterial(0xfacc15);
+        const crownMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.24, 7), crownMat);
+        crownMesh.position.set(0, 0.56, -0.05);
+        if (options.withOutlines) addOutline(crownMesh, 1.08);
+        headGroup.add(crownMesh);
+      } else if (pigAccItem.type === 'viking') {
+        const helmMat = getToonMaterial(0x94a3b8);
+        const hornMat = getToonMaterial(0xfef3c7);
+        const helm = new THREE.Mesh(new THREE.SphereGeometry(0.54, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), helmMat);
+        helm.position.set(0, 0.08, -0.02);
+        const hornGeo = new THREE.ConeGeometry(0.08, 0.34, 6);
+        const hL = new THREE.Mesh(hornGeo, hornMat);
+        hL.position.set(-0.56, 0.28, -0.05);
+        hL.rotation.z = 0.75;
+        const hR = new THREE.Mesh(hornGeo, hornMat);
+        hR.position.set(0.56, 0.28, -0.05);
+        hR.rotation.z = -0.75;
+        headGroup.add(helm, hL, hR);
+      } else if (pigAccItem.type === 'angel_wings' || pigAccItem.type === 'bat_wings') {
+        const isAngel = pigAccItem.type === 'angel_wings';
+        const wingMat = getToonMaterial(isAngel ? 0xffffff : 0x312e81);
+        const wingGeo = new THREE.BoxGeometry(0.75, 0.42, 0.08);
+        const wL = new THREE.Mesh(wingGeo, wingMat);
+        wL.position.set(-0.85, 0.38, 0.15);
+        wL.rotation.y = 0.35;
+        wL.rotation.z = isAngel ? 0.25 : -0.15;
+        if (options.withOutlines) addOutline(wL, 1.07);
+        const wR = new THREE.Mesh(wingGeo, wingMat);
+        wR.position.set(0.85, 0.38, 0.15);
+        wR.rotation.y = -0.35;
+        wR.rotation.z = isAngel ? -0.25 : 0.15;
+        if (options.withOutlines) addOutline(wR, 1.07);
+        pigGroup.add(wL, wR);
+      }
+      }
+
+      const tailPivot = new THREE.Group();
+      tailPivot.position.set(0, 0.18, 0.96);
+      const tailMesh = new THREE.Mesh(SHARED_GEOS.tail, earMat);
+      tailMesh.position.set(0, 0.1, 0.12);
+      tailPivot.add(tailMesh);
+      pigGroup.add(tailPivot);
+
+      const legs = [];
+      const legCoords = [
+        { x: -0.42, y: -0.32, z: -0.52, phase: 0 },
+        { x: 0.42, y: -0.32, z: -0.52, phase: Math.PI },
+        { x: -0.42, y: -0.32, z: 0.52, phase: Math.PI },
+        { x: 0.42, y: -0.32, z: 0.52, phase: 0 }
+      ];
+      legCoords.forEach(c => {
+        const pivot = new THREE.Group();
+        pivot.position.set(c.x, c.y, c.z);
+        const legMesh = new THREE.Mesh(SHARED_GEOS.leg, skinMat);
+        legMesh.position.y = -0.25;
+        legMesh.castShadow = true;
+        if (options.withOutlines) addOutline(legMesh, 1.08);
+        const hoofMesh = new THREE.Mesh(SHARED_GEOS.hoof, hoofMat);
+        hoofMesh.position.y = -0.52;
+        pivot.add(legMesh, hoofMesh);
+        pigGroup.add(pivot);
+        legs.push({ pivot, phase: c.phase });
+      });
+
+      const saddleMat = getToonMaterial(saddleItem.color);
+      const trimMat = getToonMaterial(saddleItem.trim);
+      const saddleGroup = new THREE.Group();
+      saddleGroup.position.set(0, 0.56, 0.02);
+
+      const saddleBase = new THREE.Mesh(SHARED_GEOS.saddleBase, saddleMat);
+      if (options.withOutlines) addOutline(saddleBase, 1.07);
+      saddleGroup.add(saddleBase);
+
+      if (saddleItem.style === 'cowboy') {
+        const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.24, 8), trimMat);
+        horn.position.set(0, 0.2, -0.28);
+        horn.rotation.x = -0.35;
+        saddleGroup.add(horn);
+      } else if (saddleItem.style === 'royal') {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 0.9), trimMat);
+        trim.position.y = 0.08;
+        saddleGroup.add(trim);
+      } else if (saddleItem.style === 'space') {
+        const pack = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.34, 0.26), trimMat);
+        pack.position.set(0, 0.2, 0.45);
+        saddleGroup.add(pack);
+      }
+      pigGroup.add(saddleGroup);
+
+      // Jockey
+      const jockeyGroup = new THREE.Group();
+      jockeyGroup.position.set(0, 0.78, 0.02);
+      pigGroup.add(jockeyGroup);
+
+      const outfitMat = getToonMaterial(outfitItem.color);
+      const accentMat = getToonMaterial(outfitItem.accent);
+      const jSkinMat = getToonMaterial(0xffdbac);
+      const hairMat = getToonMaterial(0x3b2314);
+      const bootMat = getToonMaterial(bootsItem.color, bootsItem.neon ? 0x064e3b : 0x000000);
+
+      [-0.36, 0.36].forEach(lx => {
+        const jLeg = new THREE.Mesh(SHARED_GEOS.jLeg, outfitMat);
+        jLeg.position.set(lx, -0.05, 0);
+        jLeg.rotation.z = lx < 0 ? 0.35 : -0.35;
+        const jBoot = new THREE.Mesh(SHARED_GEOS.jBoot, bootMat);
+        jBoot.position.set(lx * 1.15, -0.24, -0.06);
+        if (bootsItem.spur) {
+          const spur = new THREE.Mesh(SHARED_GEOS.pupil, trimMat);
+          spur.position.set(lx * 1.4, -0.24, 0.06);
+          jockeyGroup.add(spur);
+        }
+        jockeyGroup.add(jLeg, jBoot);
+      });
+
+      const torsoMesh = new THREE.Mesh(SHARED_GEOS.torso, outfitMat);
+      torsoMesh.position.set(0, 0.36, 0);
+      torsoMesh.castShadow = true;
+      if (options.withOutlines) addOutline(torsoMesh, 1.07);
+      jockeyGroup.add(torsoMesh);
+
+      if (outfitItem.type === 'cape') {
+        const capeMesh = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.72, 0.06), accentMat);
+        capeMesh.position.set(0, 0.32, 0.24);
+        capeMesh.rotation.x = 0.28;
+        if (options.withOutlines) addOutline(capeMesh, 1.07);
+        jockeyGroup.add(capeMesh);
+      } else {
+        const sash = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.14, 0.56), accentMat);
+        sash.position.set(0, 0.26, 0);
+        jockeyGroup.add(sash);
+      }
+
+      [-0.34, 0.34].forEach(ax => {
+        const arm = new THREE.Mesh(SHARED_GEOS.arm, outfitMat);
+        arm.position.set(ax, 0.44, -0.2);
+        arm.rotation.x = -0.95;
+        arm.rotation.z = ax < 0 ? -0.2 : 0.2;
+        const hand = new THREE.Mesh(SHARED_GEOS.hand, jSkinMat);
+        hand.position.set(ax * 0.85, 0.28, -0.44);
+        jockeyGroup.add(arm, hand);
+      });
+
+      const jHeadGroup = new THREE.Group();
+      jHeadGroup.position.set(0, 0.88, -0.06);
+      jockeyGroup.add(jHeadGroup);
+
+      const jHeadMesh = new THREE.Mesh(SHARED_GEOS.jHead, jSkinMat);
+      jHeadMesh.castShadow = true;
+      if (options.withOutlines) addOutline(jHeadMesh, 1.07);
+      jHeadGroup.add(jHeadMesh);
+
+      const jEyeL = new THREE.Mesh(SHARED_GEOS.jEye, pupilMat);
+      jEyeL.position.set(-0.11, 0.04, -0.29);
+      const jEyeR = new THREE.Mesh(SHARED_GEOS.jEye, pupilMat);
+      jEyeR.position.set(0.11, 0.04, -0.29);
+      jHeadGroup.add(jEyeL, jEyeR);
+
+      for (const faceItem of faceItems) {
+      if (faceItem.type === 'mustache') {
+        const mus = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.08), getToonMaterial(faceItem.color));
+        mus.position.set(0, -0.07, -0.31);
+        jHeadGroup.add(mus);
+      } else if (faceItem.type === 'beard') {
+        const beard = new THREE.Mesh(SHARED_GEOS.jHead, getToonMaterial(faceItem.color));
+        beard.position.set(0, -0.1, -0.04);
+        beard.scale.set(1.02, 0.72, 1.0);
+        jHeadGroup.add(beard);
+      } else if (faceItem.type === 'aviator') {
+        const avMat = getToonMaterial(faceItem.color);
+        const lensMat = getToonMaterial(0x1e293b);
+        const l1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.05), lensMat);
+        l1.position.set(-0.12, 0.05, -0.32);
+        const l2 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.05), lensMat);
+        l2.position.set(0.12, 0.05, -0.32);
+        const br = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.03, 0.04), avMat);
+        br.position.set(0, 0.07, -0.32);
+        jHeadGroup.add(l1, l2, br);
+      } else if (faceItem.type === 'eyepatch') {
+        const patch = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.13, 0.06), getToonMaterial(0x111111));
+        patch.position.set(0.12, 0.05, -0.31);
+        jHeadGroup.add(patch);
+      }
+      }
+
+      if (hatItem.type === 'jockey_cap') {
+        const capMat = getToonMaterial(hatItem.color);
+        const brimMat = getToonMaterial(hatItem.brimColor);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), capMat);
+        dome.position.set(0, 0.06, 0);
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.36, 0.05, 12), brimMat);
+        brim.position.set(0, 0.06, -0.22);
+        brim.rotation.x = 0.18;
+        jHeadGroup.add(dome, brim);
+      } else if (hatItem.type === 'cowboy_hat') {
+        const hMat = getToonMaterial(hatItem.color);
+        const bMat = getToonMaterial(hatItem.bandColor);
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.64, 0.05, 14), hMat);
+        brim.position.set(0, 0.22, 0);
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.26, 10), hMat);
+        crown.position.set(0, 0.35, 0);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.285, 0.29, 0.07, 10), bMat);
+        band.position.set(0, 0.25, 0);
+        if (options.withOutlines) addOutline(brim, 1.05);
+        jHeadGroup.add(brim, crown, band);
+      } else if (hatItem.type === 'top_hat') {
+        const hMat = getToonMaterial(hatItem.color);
+        const bMat = getToonMaterial(hatItem.bandColor);
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.54, 0.05, 14), hMat);
+        brim.position.set(0, 0.24, 0);
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.42, 12), hMat);
+        cyl.position.set(0, 0.46, 0);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.08, 12), bMat);
+        band.position.set(0, 0.28, 0);
+        jHeadGroup.add(brim, cyl, band);
+      } else if (hatItem.type === 'cap') {
+        const cMat = getToonMaterial(hatItem.color);
+        const bMat = getToonMaterial(hatItem.brimColor);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.33, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), cMat);
+        dome.position.set(0, 0.07, 0);
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.28), bMat);
+        visor.position.set(0, 0.1, -0.34);
+        visor.rotation.x = 0.2;
+        jHeadGroup.add(dome, visor);
+      } else if (hatItem.type === 'sombrero') {
+        const sMat = getToonMaterial(hatItem.color);
+        const bMat = getToonMaterial(hatItem.bandColor);
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.85, 0.06, 16), sMat);
+        brim.position.set(0, 0.23, 0);
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.34, 14), sMat);
+        cone.position.set(0, 0.42, 0);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.31, 0.08, 14), bMat);
+        band.position.set(0, 0.28, 0);
+        jHeadGroup.add(brim, cone, band);
+      } else if (hatItem.type === 'king_crown') {
+        const cMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 0.28, 8), getToonMaterial(hatItem.color));
+        cMesh.position.set(0, 0.38, 0);
+        jHeadGroup.add(cMesh);
+      } else {
+        const hair = new THREE.Mesh(new THREE.SphereGeometry(0.33, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
+        hair.position.set(0, 0.05, 0.03);
+        jHeadGroup.add(hair);
+      }
+
+      const bubbleMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.32
+      });
+      const bubbleMesh = new THREE.Mesh(SHARED_GEOS.bubble, bubbleMat);
+      bubbleMesh.visible = false;
+      root.add(bubbleMesh);
+
+      const dizzyGroup = new THREE.Group();
+      dizzyGroup.position.set(0, 2.55, 0);
+      dizzyGroup.visible = false;
+      const starMat = getToonMaterial(0xfacc15);
+      for (let i = 0; i < 3; i++) {
+        const angle = (i / 3) * Math.PI * 2;
+        const st = new THREE.Mesh(SHARED_GEOS.dizzyStar, starMat);
+        st.position.set(Math.cos(angle) * 0.55, 0, Math.sin(angle) * 0.55);
+        dizzyGroup.add(st);
+      }
+      root.add(dizzyGroup);
+
+      return {
+        root,
+        pigGroup,
+        headGroup,
+        earLeftPivot,
+        earRightPivot,
+        tailPivot,
+        legs,
+        jockeyGroup,
+        jHeadGroup,
+        bubbleMesh,
+        dizzyGroup
+      };
+    }
+
+    function animatePigJockey(rig, time, speedRatio = 1, isAirborne = false, isDizzy = false) {
+      const freq = 14 + speedRatio * 7;
+      const t = time * freq;
+
+      if (!isAirborne) {
+        const bounce = Math.abs(Math.sin(t));
+        const stretch = 1 + Math.sin(t * 2) * 0.08 * Math.min(1.5, speedRatio);
+        const squash = 1 / Math.sqrt(stretch);
+
+        rig.pigGroup.position.y = 0.95 + bounce * 0.24;
+        rig.pigGroup.scale.set(squash, stretch, squash);
+        rig.pigGroup.rotation.x = Math.cos(t) * 0.09;
+
+        for (let i = 0; i < rig.legs.length; i++) {
+          const l = rig.legs[i];
+          l.pivot.rotation.x = Math.sin(t + l.phase) * 0.85;
+        }
+
+        rig.jockeyGroup.position.y = 0.78 + bounce * 0.14;
+        rig.jockeyGroup.rotation.x = -0.18 + Math.cos(t) * 0.12;
+      } else {
+        rig.pigGroup.scale.set(0.95, 1.12, 1.02);
+        for (let i = 0; i < rig.legs.length; i++) {
+          rig.legs[i].pivot.rotation.x = i < 2 ? -0.55 : 0.45;
+        }
+        rig.jockeyGroup.rotation.x = -0.28;
+      }
+
+      rig.earLeftPivot.rotation.z = 0.25 + Math.sin(t * 1.3) * 0.28;
+      rig.earRightPivot.rotation.z = -0.25 - Math.sin(t * 1.3) * 0.28;
+      rig.tailPivot.rotation.y = Math.sin(time * 18) * 0.45;
+
+      if (rig.dizzyGroup.visible) {
+        rig.dizzyGroup.rotation.y = time * 6;
+      }
+      if (rig.bubbleMesh.visible) {
+        rig.bubbleMesh.rotation.y = time * 1.8;
+        rig.bubbleMesh.scale.setScalar(1 + Math.sin(time * 8) * 0.04);
+      }
+    }
+
+    // =========================================================================
+    // 6. OBJECT POOLS PARA CENARIO, OBSTACULOS, ITENS & PARTICULAS
+    // =========================================================================
+    const LANE_WIDTH = 3.2;
+    const LANES = [-LANE_WIDTH, 0, LANE_WIDTH];
+    const TRACK_LENGTH = 440;
+
+    const worldEntitiesGroup = new THREE.Group();
+
+    // Reusable Scenery Pool
+    const sceneryPool = [];
+    function getPooledSceneryProp(propType, sideSign) {
+      let entry = sceneryPool.find(p => !p.inUse);
+      if (!entry) {
+        const g = new THREE.Group();
+        // Build a lightweight composite scenery holder with swappable child variants
+        const variants = {
+          pigstyTree: (() => {
+            const cg = new THREE.Group();
+            const tr = new THREE.Mesh(SHARED_GEOS.trunk, getToonMaterial(0x78350f));
+            tr.position.y = 1.1;
+            const cr = new THREE.Mesh(SHARED_GEOS.treeCrown, getToonMaterial(0x22c55e));
+            cr.position.y = 3.1;
+            addOutline(cr, 1.06);
+            cg.add(tr, cr);
+            return cg;
+          })(),
+          pigstyShed: (() => {
+            const sg = new THREE.Group();
+            const b = new THREE.Mesh(SHARED_GEOS.shed, getToonMaterial(0xf472b6));
+            b.position.y = 1.1;
+            addOutline(b, 1.06);
+            const rf = new THREE.Mesh(SHARED_GEOS.roofCone4, getToonMaterial(0xe11d48));
+            rf.position.y = 2.95;
+            rf.rotation.y = Math.PI / 4;
+            sg.add(b, rf);
+            return sg;
+          })(),
+          farmBarn: (() => {
+            const bg = new THREE.Group();
+            const b = new THREE.Mesh(SHARED_GEOS.barn, getToonMaterial(0xdc2626));
+            b.position.y = 1.7;
+            addOutline(b, 1.05);
+            const rf = new THREE.Mesh(SHARED_GEOS.roofCone4, getToonMaterial(0xfef08a));
+            rf.position.y = 4.25;
+            rf.scale.set(1.25, 1.2, 1.25);
+            rf.rotation.y = Math.PI / 4;
+            bg.add(b, rf);
+            return bg;
+          })(),
+          farmSilo: (() => {
+            const slg = new THREE.Group();
+            const s = new THREE.Mesh(SHARED_GEOS.silo, getToonMaterial(0xe2e8f0));
+            s.position.y = 2.6;
+            addOutline(s, 1.06);
+            const c = new THREE.Mesh(SHARED_GEOS.siloCap, getToonMaterial(0xef4444));
+            c.position.y = 5.2;
+            slg.add(s, c);
+            return slg;
+          })(),
+          desertCactus: (() => {
+            const ctg = new THREE.Group();
+            const st = new THREE.Mesh(SHARED_GEOS.cactusStem, getToonMaterial(0x16a34a));
+            st.position.y = 1.7;
+            addOutline(st, 1.07);
+            const ar = new THREE.Mesh(SHARED_GEOS.cactusArm, getToonMaterial(0x16a34a));
+            ar.position.set(0.55, 2.1, 0);
+            ar.rotation.z = -0.6;
+            ctg.add(st, ar);
+            return ctg;
+          })(),
+          desertPyramid: (() => {
+            const pg = new THREE.Group();
+            const py = new THREE.Mesh(SHARED_GEOS.pyramid, getToonMaterial(0xeab308));
+            py.position.y = 2.4;
+            py.rotation.y = Math.PI / 4;
+            addOutline(py, 1.04);
+            pg.add(py);
+            return pg;
+          })(),
+          snowPine: (() => {
+            const png = new THREE.Group();
+            const c1 = new THREE.Mesh(SHARED_GEOS.pine1, getToonMaterial(0x15803d));
+            c1.position.y = 2.1;
+            const c2 = new THREE.Mesh(SHARED_GEOS.pine2, getToonMaterial(0xffffff));
+            c2.position.y = 3.4;
+            png.add(c1, c2);
+            return png;
+          })(),
+          snowMan: (() => {
+            const smg = new THREE.Group();
+            const b1 = new THREE.Mesh(SHARED_GEOS.snowBall1, getToonMaterial(0xffffff));
+            b1.position.y = 0.95;
+            const b2 = new THREE.Mesh(SHARED_GEOS.snowBall2, getToonMaterial(0xffffff));
+            b2.position.y = 2.25;
+            smg.add(b1, b2);
+            return smg;
+          })(),
+          volcanoRock: (() => {
+            const vlg = new THREE.Group();
+            const rk = new THREE.Mesh(SHARED_GEOS.volcanoRock, getToonMaterial(0x1e293b));
+            rk.position.y = 1.3;
+            const lv = new THREE.Mesh(SHARED_GEOS.volcanoLava, getToonMaterial(0xf97316, 0xea580c));
+            lv.position.y = 1.9;
+            vlg.add(rk, lv);
+            return vlg;
+          })()
+        };
+        Object.values(variants).forEach(v => {
+          v.visible = false;
+          g.add(v);
+        });
+        entry = { group: g, variants, inUse: false };
+        sceneryPool.push(entry);
+        worldEntitiesGroup.add(g);
+      }
+
+      entry.inUse = true;
+      entry.group.visible = true;
+      Object.values(entry.variants).forEach(v => { v.visible = false; });
+
+      let chosenKey = 'pigstyTree';
+      if (propType === 'pigsty') chosenKey = Math.random() < 0.5 ? 'pigstyTree' : 'pigstyShed';
+      else if (propType === 'farm') chosenKey = Math.random() < 0.55 ? 'farmBarn' : 'farmSilo';
+      else if (propType === 'desert') chosenKey = Math.random() < 0.6 ? 'desertCactus' : 'desertPyramid';
+      else if (propType === 'snow') chosenKey = Math.random() < 0.6 ? 'snowPine' : 'snowMan';
+      else chosenKey = 'volcanoRock';
+
+      entry.variants[chosenKey].visible = true;
+      const xOffset = sideSign * (7.8 + Math.random() * 13);
+      entry.group.position.set(xOffset, 0, 0);
+      return entry;
+    }
+
+    // Reusable Track Item / Obstacle Pool
+    const itemPool = [];
+    function createItemHolderGroup() {
+      const root = new THREE.Group();
+
+      const fenceGroup = new THREE.Group();
+      const fMat = getToonMaterial(0xb45309);
+      const fpL = new THREE.Mesh(SHARED_GEOS.fencePost, fMat);
+      fpL.position.set(-0.95, 0.62, 0);
+      const fpR = new THREE.Mesh(SHARED_GEOS.fencePost, fMat);
+      fpR.position.set(0.95, 0.62, 0);
+      const fr1 = new THREE.Mesh(SHARED_GEOS.fenceRail, fMat);
+      fr1.position.set(0, 0.88, 0);
+      const fr2 = new THREE.Mesh(SHARED_GEOS.fenceRail, fMat);
+      fr2.position.set(0, 0.45, 0);
+      addOutline(fpL, 1.08);
+      addOutline(fpR, 1.08);
+      fenceGroup.add(fpL, fpR, fr1, fr2);
+
+      const barrelGroup = new THREE.Group();
+      const bm = new THREE.Mesh(SHARED_GEOS.barrel, getToonMaterial(0xd97706));
+      bm.position.y = 0.62;
+      addOutline(bm, 1.08);
+      const bh = new THREE.Mesh(SHARED_GEOS.barrelHoop, getToonMaterial(0x334155));
+      bh.position.y = 0.62;
+      barrelGroup.add(bm, bh);
+
+      const hayMesh = new THREE.Mesh(SHARED_GEOS.hay, getToonMaterial(0xeab308));
+      hayMesh.position.y = 0.52;
+      addOutline(hayMesh, 1.07);
+
+      const mudMesh = new THREE.Mesh(SHARED_GEOS.mud, getToonMaterial(0x5c341d));
+      mudMesh.position.y = 0.06;
+      mudMesh.scale.set(1.05, 1, 1.35);
+
+      const coinMesh = new THREE.Mesh(SHARED_GEOS.coin, getToonMaterial(0xfacc15, 0x713f12));
+      coinMesh.position.y = 0.9;
+      addOutline(coinMesh, 1.1);
+
+      const appleGroup = new THREE.Group();
+      const apMesh = new THREE.Mesh(SHARED_GEOS.apple, getToonMaterial(0xef4444));
+      apMesh.position.y = 0.9;
+      addOutline(apMesh, 1.1);
+      const lfMesh = new THREE.Mesh(SHARED_GEOS.appleLeaf, getToonMaterial(0x22c55e));
+      lfMesh.position.set(0.14, 1.28, 0);
+      lfMesh.rotation.z = -0.4;
+      appleGroup.add(apMesh, lfMesh);
+
+      const boxGroup = new THREE.Group();
+      const bxMesh = new THREE.Mesh(SHARED_GEOS.box, getToonMaterial(0xf59e0b, 0x78350f));
+      bxMesh.position.y = 1.1;
+      addOutline(bxMesh, 1.08);
+      const brMesh = new THREE.Mesh(SHARED_GEOS.boxBar, getToonMaterial(0xffffff));
+      brMesh.position.y = 1.15;
+      boxGroup.add(bxMesh, brMesh);
+
+      const subs = {
+        fence: fenceGroup,
+        barrel: barrelGroup,
+        hay: hayMesh,
+        mud: mudMesh,
+        coin: coinMesh,
+        apple: appleGroup,
+        box: boxGroup
+      };
+      Object.values(subs).forEach(s => {
+        s.visible = false;
+        root.add(s);
+      });
+      return { root, subs };
+    }
+
+    function acquireTrackItem(kind, x, z) {
+      let entry = itemPool.find(it => !it.inUse);
+      if (!entry) {
+        const holder = createItemHolderGroup();
+        entry = {
+          kind: 'coin',
+          holder,
+          mesh: holder.root,
+          pos: holder.root.position,
+          collected: false,
+          radius: 1.2,
+          inUse: false
+        };
+        itemPool.push(entry);
+        worldEntitiesGroup.add(holder.root);
+      }
+
+      entry.kind = kind;
+      entry.inUse = true;
+      entry.collected = false;
+      entry.mesh.visible = true;
+      entry.mesh.rotation.set(0, 0, 0);
+      entry.pos.set(x, 0, z);
+      entry.radius = kind === 'mud' ? 1.55 : kind === 'box' ? 1.35 : 1.2;
+
+      Object.entries(entry.holder.subs).forEach(([k, obj]) => {
+        obj.visible = k === kind;
+      });
+      return entry;
+    }
+
+    // Reusable Particle Pool (max 70 particles)
+    const PARTICLE_POOL_SIZE = 70;
+    const particlePool = [];
+    const activeParticles = [];
+
+    function initParticlePool() {
+      for (let i = 0; i < PARTICLE_POOL_SIZE; i++) {
+        const m = new THREE.Mesh(SHARED_GEOS.particle, getToonMaterial(0xfacc15));
+        m.visible = false;
+        worldEntitiesGroup.add(m);
+        particlePool.push({
+          mesh: m,
+          vel: new THREE.Vector3(),
+          life: 0,
+          maxLife: 0.7,
+          inUse: false
+        });
+      }
+    }
+
+    function spawnCartoonBurst(pos, colorHex = 0xfacc15, count = 8, scale = 0.25) {
+      let spawned = 0;
+      const mat = getToonMaterial(colorHex);
+      for (let i = 0; i < particlePool.length && spawned < count; i++) {
+        const pt = particlePool[i];
+        if (!pt.inUse) {
+          pt.inUse = true;
+          pt.mesh.visible = true;
+          pt.mesh.material = mat;
+          pt.mesh.position.copy(pos);
+          pt.mesh.scale.setScalar(scale * 3.5);
+          pt.vel.set(
+            (Math.random() - 0.5) * 8.5,
+            2.2 + Math.random() * 5.5,
+            (Math.random() - 0.5) * 8.5
+          );
+          pt.life = 0.5 + Math.random() * 0.2;
+          pt.maxLife = pt.life;
+          activeParticles.push(pt);
+          spawned++;
+        }
+      }
+    }
+
+    // Reusable Pie Projectile Pool
+    const piePool = [];
+    const activeProjectiles = [];
+
+    function spawnPieProjectile(ownerRacer) {
+      let entry = piePool.find(p => !p.inUse);
+      if (!entry) {
+        const m = new THREE.Mesh(SHARED_GEOS.pie, getToonMaterial(0xf59e0b));
+        addOutline(m, 1.09);
+        worldEntitiesGroup.add(m);
+        entry = { mesh: m, owner: null, speed: 44, life: 0, inUse: false };
+        piePool.push(entry);
+      }
+      entry.inUse = true;
+      entry.owner = ownerRacer;
+      entry.speed = 44;
+      entry.life = 3.0;
+      entry.mesh.visible = true;
+      entry.mesh.position.set(ownerRacer.pos.x, ownerRacer.pos.y + 1.35, ownerRacer.pos.z - 1.2);
+      activeProjectiles.push(entry);
+    }
+
+    // =========================================================================
+    // 7. RENDERER, CAMERA & SCENE SETUP
+    // =========================================================================
+    const canvas = document.getElementById('game-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+
+    const scene = new THREE.Scene();
+    scene.add(worldEntitiesGroup);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.2, 220);
+
+    const skyGeo = new THREE.SphereGeometry(170, 18, 12);
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 16;
+    skyCanvas.height = 128;
+    const skyCtx = skyCanvas.getContext('2d');
+    const skyTexture = new THREE.CanvasTexture(skyCanvas);
+    const skyMat = new THREE.MeshBasicMaterial({ map: skyTexture, side: THREE.BackSide, fog: false });
+    const skyDome = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(skyDome);
+
+    const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x65a30d, 1.05);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfffbeb, 1.5);
+    dirLight.position.set(16, 28, 18);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 2;
+    dirLight.shadow.camera.far = 85;
+    const shadowBound = 22;
+    dirLight.shadow.camera.left = -shadowBound;
+    dirLight.shadow.camera.right = shadowBound;
+    dirLight.shadow.camera.top = shadowBound;
+    dirLight.shadow.camera.bottom = -shadowBound;
+    scene.add(dirLight);
+    scene.add(dirLight.target);
+
+    function applyThemeVisuals(theme) {
+      const grad = skyCtx.createLinearGradient(0, 0, 0, 128);
+      grad.addColorStop(0, theme.skyTop);
+      grad.addColorStop(1, theme.skyBottom);
+      skyCtx.fillStyle = grad;
+      skyCtx.fillRect(0, 0, 16, 128);
+      skyTexture.needsUpdate = true;
+
+      scene.fog = new THREE.FogExp2(theme.fogColor, 0.0085);
+      hemiLight.color.setHex(theme.hemiSky);
+      hemiLight.groundColor.setHex(theme.hemiGround);
+      dirLight.color.setHex(theme.sunColor);
+
+      if (trackMesh) trackMesh.material.color.setHex(theme.trackColor);
+      if (groundMesh) groundMesh.material.color.setHex(theme.sideColor);
+    }
+
+    const groundMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(150, TRACK_LENGTH + 110),
+      getToonMaterial(0x65a30d)
+    );
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.set(0, -0.05, -(TRACK_LENGTH / 2) + 20);
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    const trackMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(LANE_WIDTH * 3 + 1.4, 0.2, TRACK_LENGTH + 30),
+      getToonMaterial(0xd6a87c)
+    );
+    trackMesh.position.set(0, -0.08, -(TRACK_LENGTH / 2) + 15);
+    trackMesh.receiveShadow = true;
+    scene.add(trackMesh);
+
+    const finishGroup = new THREE.Group();
+    finishGroup.position.set(0, 0, -TRACK_LENGTH);
+    const pillarGeo = new THREE.CylinderGeometry(0.45, 0.55, 6.2, 10);
+    const pillarMat = getToonMaterial(0xfacc15);
+    const pLeft = new THREE.Mesh(pillarGeo, pillarMat);
+    pLeft.position.set(-5.8, 3.1, 0);
+    const pRight = new THREE.Mesh(pillarGeo, pillarMat);
+    pRight.position.set(5.8, 3.1, 0);
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(12.6, 1.25, 0.5), getToonMaterial(0xef4444));
+    banner.position.set(0, 5.8, 0);
+    addOutline(banner, 1.05);
+    finishGroup.add(pLeft, pRight, banner);
+    scene.add(finishGroup);
+
+    // Garage Pedestal
+    const garagePedestalGroup = new THREE.Group();
+    garagePedestalGroup.visible = false;
+    const pedBase = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.9, 0.55, 20), getToonMaterial(0xf59e0b));
+    pedBase.position.y = 0.27;
+    addOutline(pedBase, 1.05);
+    const pedTop = new THREE.Mesh(new THREE.CylinderGeometry(2.45, 2.45, 0.14, 20), getToonMaterial(0x4ade80));
+    pedTop.position.y = 0.58;
+    garagePedestalGroup.add(pedBase, pedTop);
+    scene.add(garagePedestalGroup);
+
+    let garagePreviewRig = null;
+    let garageYaw = 0.4;
+    let garageAuto = true;
+    let isDraggingGarage = false;
+    let lastPointerX = 0;
+
+    function rebuildGaragePreview() {
+      if (garagePreviewRig) {
+        garagePedestalGroup.remove(garagePreviewRig.root);
+      }
+      garagePreviewRig = buildPigJockeyRacer(saveData.equipped, { withOutlines: true });
+      garagePreviewRig.root.position.set(0, 0.65, 0);
+      garagePreviewRig.root.rotation.y = garageYaw;
+      garagePedestalGroup.add(garagePreviewRig.root);
+    }
+
+    initParticlePool();
+
+    // =========================================================================
+    // 8. ESTADO DA CORRIDA & IA (1 JOGADOR + 5 Oponentes IA)
+    // =========================================================================
+    let gameMode = 'menu'; // 'menu' | 'countdown' | 'racing' | 'garage' | 'results'
+    let currentTheme = getThemeForLevel(saveData.level);
+    let activeTrackItems = [];
+    let racers = [];
+    let playerRacer = null;
+    let simTime = 0;
+    let countdownTimer = 0;
+    let lastCountdownInt = 4;
+    let raceElapsed = 0;
+    let hudSyncTimer = 0;
+
+    // Reusable scratch vector for camera updates (zero per-frame allocation)
+    const scratchCamPos = new THREE.Vector3();
+    const scratchLookAt = new THREE.Vector3();
+
+    function releasePooledEntities() {
+      for (let i = 0; i < sceneryPool.length; i++) {
+        sceneryPool[i].inUse = false;
+        sceneryPool[i].group.visible = false;
+      }
+      for (let i = 0; i < itemPool.length; i++) {
+        itemPool[i].inUse = false;
+        itemPool[i].collected = false;
+        itemPool[i].mesh.visible = false;
+      }
+      for (let i = 0; i < activeParticles.length; i++) {
+        activeParticles[i].inUse = false;
+        activeParticles[i].mesh.visible = false;
+      }
+      activeParticles.length = 0;
+
+      for (let i = 0; i < activeProjectiles.length; i++) {
+        activeProjectiles[i].inUse = false;
+        activeProjectiles[i].mesh.visible = false;
+      }
+      activeProjectiles.length = 0;
+
+      for (let i = 0; i < racers.length; i++) {
+        worldEntitiesGroup.remove(racers[i].rig.root);
+      }
+      racers = [];
+      playerRacer = null;
+      activeTrackItems = [];
+    }
+
+    function populateTrack(level, theme) {
+      for (let z = -12; z > -TRACK_LENGTH; z -= 15) {
+        const leftProp = getPooledSceneryProp(theme.propType, -1);
+        leftProp.group.position.z = z + (Math.random() - 0.5) * 4;
+
+        const rightProp = getPooledSceneryProp(theme.propType, 1);
+        rightProp.group.position.z = z + (Math.random() - 0.5) * 4;
+      }
+
+      const obstacleTypes = ['fence', 'barrel', 'hay', 'mud'];
+      const diffScale = Math.min(1.6, 1 + (level - 1) * 0.08);
+
+      for (let z = -26; z > -TRACK_LENGTH + 18; z -= 12) {
+        const stepIdx = Math.abs(Math.round(z / 12));
+        if (stepIdx % 3 === 0) {
+          const boxLane = Math.floor(Math.random() * 3);
+          activeTrackItems.push(acquireTrackItem('box', LANES[boxLane], z));
+        }
+
+        const obsLane = Math.floor(Math.random() * 3);
+        const obsType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+        activeTrackItems.push(acquireTrackItem(obsType, LANES[obsLane], z - 3.5));
+
+        const safeLanes = [0, 1, 2].filter(l => l !== obsLane);
+        const itemLane = safeLanes[Math.floor(Math.random() * safeLanes.length)];
+
+        if (Math.random() < 0.28) {
+          activeTrackItems.push(acquireTrackItem('apple', LANES[itemLane], z + 2));
+        } else {
+          for (let c = 0; c < 3; c++) {
+            activeTrackItems.push(acquireTrackItem('coin', LANES[itemLane], z + 3 - c * 2.2));
+          }
+        }
+
+        if (diffScale > 1.15 && Math.random() < 0.35) {
+          const extraLane = safeLanes[0];
+          const extraType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+          activeTrackItems.push(acquireTrackItem(extraType, LANES[extraLane], z - 5.5));
+        }
+      }
+    }
+
+    const AI_PRESETS = [
+      { name: 'Zé Toucinho', skin: 'spotted', saddle: 'cowboy_saddle', pigAcc: 'none', hat: 'cowboy_hat', face: 'mustache', outfit: 'plaid', boots: 'cowboy_boots' },
+      { name: 'Dona Porquinha', skin: 'boar', saddle: 'royal_saddle', pigAcc: 'crown', hat: 'king_crown', face: 'clean', outfit: 'cape', boots: 'riding' },
+      { name: 'Capitão Bacon', skin: 'robot', saddle: 'space_saddle', pigAcc: 'sunglasses', hat: 'jockey_cap', face: 'aviator', outfit: 'knight', boots: 'neon_sneakers' },
+      { name: 'Chico Lama', skin: 'gold', saddle: 'leather', pigAcc: 'viking', hat: 'sombrero', face: 'beard', outfit: 'overalls', boots: 'cowboy_boots' },
+      { name: 'Turbo Azul', skin: 'electric', saddle: 'cowboy_saddle', pigAcc: 'bat_wings', hat: 'cap', face: 'eyepatch', outfit: 'leather_jacket', boots: 'neon_sneakers' }
+    ];
+
+    function createRacers(level) {
+      const baseSpeed = 20.5 + Math.min(9.5, (level - 1) * 0.85);
+      const laneOrder = [1, 0, 2, 1, 0, 2];
+
+      const pRig = buildPigJockeyRacer(saveData.equipped, { withOutlines: true });
+      const pLane = laneOrder[0];
+      pRig.root.position.set(LANES[pLane], 0, 0);
+      worldEntitiesGroup.add(pRig.root);
+
+      playerRacer = {
+        id: 'player',
+        name: 'Você',
+        isPlayer: true,
+        rig: pRig,
+        lane: pLane,
+        pos: pRig.root.position,
+        vy: 0,
+        grounded: true,
+        speed: 0,
+        baseSpeed,
+        turbo: 35,
+        power: null,
+        powerTimer: 0,
+        activeEffect: null,
+        effectTimer: 0,
+        dizzyTimer: 0,
+        mudTimer: 0,
+        finished: false,
+        finishTime: 0,
+        coinsEarned: 0,
+        aiDecisionTimer: 0
+      };
+      racers.push(playerRacer);
+
+      for (let i = 0; i < AI_PRESETS.length; i++) {
+        const preset = AI_PRESETS[i];
+        const aiRig = buildPigJockeyRacer(preset, { withOutlines: true });
+        const lane = laneOrder[i + 1];
+        const startZ = -1.5 - i * 1.4;
+        aiRig.root.position.set(LANES[lane], 0, startZ);
+        worldEntitiesGroup.add(aiRig.root);
+
+        racers.push({
+          id: `ai_${i}`,
+          name: preset.name,
+          isPlayer: false,
+          rig: aiRig,
+          lane,
+          pos: aiRig.root.position,
+          vy: 0,
+          grounded: true,
+          speed: 0,
+          baseSpeed: baseSpeed * (0.94 + Math.random() * 0.11),
+          turbo: 0,
+          power: null,
+          powerTimer: 0,
+          activeEffect: null,
+          effectTimer: 0,
+          dizzyTimer: 0,
+          mudTimer: 0,
+          finished: false,
+          finishTime: 0,
+          coinsEarned: 0,
+          aiDecisionTimer: 0.3 + Math.random() * 0.4
+        });
+      }
+    }
+
+    function setupRaceScene(autoStartCountdown = true) {
+      releasePooledEntities();
+      currentTheme = getThemeForLevel(saveData.level);
+      applyThemeVisuals(currentTheme);
+      populateTrack(saveData.level, currentTheme);
+      createRacers(saveData.level);
+
+      garagePedestalGroup.visible = false;
+      raceElapsed = 0;
+      hudSyncTimer = 0;
+
+      if (autoStartCountdown) {
+        gameMode = 'countdown';
+        countdownTimer = 3.2;
+        lastCountdownInt = 4;
+        setScreen('hud');
+        updateHudStaticInfo();
+        updatePowerSlotUI();
+        updateHudDynamic();
+        showBanner('3', 'Prepare seu porco!');
+      } else {
+        gameMode = 'menu';
+        setScreen('menu');
+      }
+    }
+
+    // =========================================================================
+    // 9. CONTROLES, FISICA & PODERES ESPECIAIS
+    // =========================================================================
+    const keysDown = new Set();
+
+    function changePlayerLane(delta) {
+      if (gameMode !== 'racing' || !playerRacer || playerRacer.dizzyTimer > 0) return;
+      const nextLane = Math.max(0, Math.min(2, playerRacer.lane + delta));
+      if (nextLane !== playerRacer.lane) {
+        playerRacer.lane = nextLane;
+        audio.playClick();
+      }
+    }
+
+    function triggerJump(racer) {
+      if (!racer || !racer.grounded || racer.dizzyTimer > 0) return;
+      racer.vy = 11.2;
+      racer.grounded = false;
+      if (racer.isPlayer) audio.playJump();
+    }
+
+    function activateManualTurbo(racer) {
+      if (!racer || racer.dizzyTimer > 0) return;
+      if (racer.turbo >= 25 && racer.activeEffect !== 'chili') {
+        racer.turbo = Math.max(0, racer.turbo - 35);
+        racer.activeEffect = 'chili';
+        racer.effectTimer = 1.6;
+        if (racer.isPlayer) {
+          audio.playTurbo();
+          showToast('⚡ TURBO ATIVADO!');
+        }
+        spawnCartoonBurst(racer.pos, 0xf97316, 8, 0.22);
+      }
+    }
+
+    function assignPowerUp(racer) {
+      const chosen = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+      racer.power = chosen;
+
+      if (racer.isPlayer) {
+        audio.playBoxPickup();
+        updatePowerSlotUI();
+        showToast(`🎁 Sorteou: ${chosen.icon} ${chosen.name}`);
+      } else {
+        racer.powerTimer = 0.8 + Math.random() * 1.4;
+      }
+    }
+
+    function useSpecialPower(racer) {
+      if (!racer || !racer.power || racer.dizzyTimer > 0) return;
+      const p = racer.power;
+      racer.power = null;
+
+      if (p.id === 'chili') {
+        racer.activeEffect = 'chili';
+        racer.effectTimer = 4.0;
+        racer.turbo = 100;
+        if (racer.isPlayer) {
+          audio.playTurbo();
+          audio.playOink();
+        }
+        spawnCartoonBurst(racer.pos, 0xef4444, 10, 0.25);
+      } else if (p.id === 'pie') {
+        spawnPieProjectile(racer);
+        if (racer.isPlayer) audio.playClick();
+      } else if (p.id === 'bubble') {
+        racer.activeEffect = 'bubble';
+        racer.effectTimer = 6.0;
+        racer.rig.bubbleMesh.visible = true;
+        if (racer.isPlayer) audio.playJump();
+        spawnCartoonBurst(racer.pos, 0x38bdf8, 8, 0.22);
+      } else if (p.id === 'giant') {
+        racer.activeEffect = 'giant';
+        racer.effectTimer = 6.0;
+        if (racer.isPlayer) {
+          audio.playOink();
+          audio.playTurbo();
+        }
+        spawnCartoonBurst(racer.pos, 0x22c55e, 10, 0.26);
+      } else if (p.id === 'magnet') {
+        racer.activeEffect = 'magnet';
+        racer.effectTimer = 7.0;
+        if (racer.isPlayer) audio.playBoxPickup();
+        spawnCartoonBurst(racer.pos, 0xa855f7, 9, 0.24);
+      }
+
+      if (racer.isPlayer) {
+        updatePowerSlotUI();
+      }
+    }
+
+    function applyHitToRacer(racer, sourceLabel = 'Obstáculo') {
+      if (!racer) return;
+      if (racer.activeEffect === 'bubble' || racer.activeEffect === 'chili') {
+        if (racer.activeEffect === 'bubble') {
+          racer.activeEffect = null;
+          racer.effectTimer = 0;
+          racer.rig.bubbleMesh.visible = false;
+          spawnCartoonBurst(racer.pos, 0x38bdf8, 8, 0.24);
+          if (racer.isPlayer) showToast('🫧 Escudo de Bolha bloqueou!');
+        }
+        return;
+      }
+
+      racer.speed *= 0.42;
+      racer.dizzyTimer = 1.45;
+      racer.rig.dizzyGroup.visible = true;
+      spawnCartoonBurst(racer.pos, 0xfacc15, 8, 0.22);
+
+      if (racer.isPlayer) {
+        audio.playSplatOrHit();
+        audio.playOink();
+        showToast(`💫 ${sourceLabel}! Tonto por 1.4s!`);
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      const code = e.code;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+        e.preventDefault();
+      }
+      if (keysDown.has(code)) return;
+      keysDown.add(code);
+
+      if (gameMode === 'racing' && playerRacer) {
+        if (code === 'ArrowLeft' || code === 'KeyA') changePlayerLane(-1);
+        else if (code === 'ArrowRight' || code === 'KeyD') changePlayerLane(1);
+        else if (code === 'Space' || code === 'KeyW' || code === 'ArrowUp') triggerJump(playerRacer);
+        else if (code === 'ShiftLeft' || code === 'ShiftRight') activateManualTurbo(playerRacer);
+        else if (code === 'KeyE' || code === 'Enter') useSpecialPower(playerRacer);
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keysDown.delete(e.code);
+    });
+
+    let touchStartY = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 0) return;
+      const t = e.touches[0];
+      touchStartY = t.clientY;
+
+      if (gameMode === 'garage') {
+        isDraggingGarage = true;
+        lastPointerX = t.clientX;
+      } else if (gameMode === 'racing' && playerRacer) {
+        const half = window.innerWidth / 2;
+        if (t.clientX < half) changePlayerLane(-1);
+        else changePlayerLane(1);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 0) return;
+      const t = e.touches[0];
+      if (gameMode === 'garage' && isDraggingGarage) {
+        const dx = t.clientX - lastPointerX;
+        lastPointerX = t.clientX;
+        garageYaw += dx * 0.012;
+        if (garagePreviewRig) garagePreviewRig.root.rotation.y = garageYaw;
+      } else if (gameMode === 'racing' && playerRacer) {
+        const dy = t.clientY - touchStartY;
+        if (dy < -45) {
+          triggerJump(playerRacer);
+          touchStartY = t.clientY;
+        }
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      isDraggingGarage = false;
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (gameMode === 'garage') {
+        isDraggingGarage = true;
+        lastPointerX = e.clientX;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (gameMode === 'garage' && isDraggingGarage) {
+        const dx = e.clientX - lastPointerX;
+        lastPointerX = e.clientX;
+        garageYaw += dx * 0.012;
+        if (garagePreviewRig) garagePreviewRig.root.rotation.y = garageYaw;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDraggingGarage = false;
+    });
+
+    // =========================================================================
+    // 10. SIMULACAO OTIMIZADA (IA, COLISOES, PARTICULAS & PROJETEIS)
+    // =========================================================================
+    function updateRacers(dt) {
+      for (let i = 0; i < racers.length; i++) {
+        const r = racers[i];
+
+        if (r.effectTimer > 0) {
+          r.effectTimer -= dt;
+          if (r.effectTimer <= 0) {
+            r.effectTimer = 0;
+            if (r.activeEffect === 'bubble') r.rig.bubbleMesh.visible = false;
+            r.activeEffect = null;
+          }
+        }
+
+        if (r.dizzyTimer > 0) {
+          r.dizzyTimer -= dt;
+          if (r.dizzyTimer <= 0) {
+            r.dizzyTimer = 0;
+            r.rig.dizzyGroup.visible = false;
+          }
+        }
+
+        if (r.mudTimer > 0) {
+          r.mudTimer -= dt;
+        }
+
+        const targetScale = r.activeEffect === 'giant' ? 2.0 : 1.0;
+        const curScale = r.rig.root.scale.x;
+        if (Math.abs(curScale - targetScale) > 0.002) {
+          r.rig.root.scale.setScalar(THREE.MathUtils.lerp(curScale, targetScale, Math.min(1, dt * 10)));
+        }
+
+        if (!r.isPlayer && gameMode === 'racing' && !r.finished) {
+          if (r.power && r.powerTimer > 0) {
+            r.powerTimer -= dt;
+            if (r.powerTimer <= 0) useSpecialPower(r);
+          }
+
+          r.aiDecisionTimer -= dt;
+          if (r.aiDecisionTimer <= 0) {
+            r.aiDecisionTimer = 0.25 + Math.random() * 0.35;
+            const laneX = LANES[r.lane];
+            let dangerAhead = false;
+            for (let k = 0; k < activeTrackItems.length; k++) {
+              const it = activeTrackItems[k];
+              if (!it.collected && (it.kind === 'fence' || it.kind === 'barrel' || it.kind === 'hay')) {
+                if (Math.abs(it.pos.x - laneX) < 1.2 && it.pos.z < r.pos.z && it.pos.z > r.pos.z - 12) {
+                  dangerAhead = true;
+                  break;
+                }
+              }
+            }
+            if (dangerAhead) {
+              if (Math.random() < 0.45 && r.grounded) {
+                triggerJump(r);
+              } else {
+                const options = [0, 1, 2].filter(l => l !== r.lane);
+                r.lane = options[Math.floor(Math.random() * options.length)];
+              }
+            } else if (Math.random() < 0.22) {
+              r.lane = Math.floor(Math.random() * 3);
+            }
+          }
+        }
+
+        let desiredSpeed = r.baseSpeed;
+        if (r.dizzyTimer > 0) {
+          desiredSpeed *= 0.35;
+        } else if (r.mudTimer > 0 && r.activeEffect !== 'giant' && r.activeEffect !== 'chili') {
+          desiredSpeed *= 0.62;
+        }
+        if (r.activeEffect === 'chili') {
+          desiredSpeed *= 1.42;
+          if (Math.random() < 0.4) {
+            spawnCartoonBurst(r.pos, 0xf97316, 1, 0.2);
+          }
+        }
+        if (r.finished) {
+          desiredSpeed *= 0.45;
+        }
+
+        r.speed = THREE.MathUtils.lerp(r.speed, desiredSpeed, Math.min(1, dt * 6));
+        r.pos.z -= r.speed * dt;
+
+        const targetX = LANES[r.lane];
+        const prevX = r.pos.x;
+        r.pos.x = THREE.MathUtils.lerp(r.pos.x, targetX, Math.min(1, dt * 11));
+        const lateralVel = (r.pos.x - prevX) / Math.max(0.001, dt);
+        r.rig.root.rotation.z = THREE.MathUtils.clamp(-lateralVel * 0.04, -0.25, 0.25);
+        r.rig.root.rotation.y = THREE.MathUtils.clamp(-lateralVel * 0.03, -0.2, 0.2);
+
+        if (!r.grounded || r.pos.y > 0) {
+          r.vy -= 29.5 * dt;
+          r.pos.y += r.vy * dt;
+          if (r.pos.y <= 0) {
+            r.pos.y = 0;
+            r.vy = 0;
+            r.grounded = true;
+          }
+        }
+
+        for (let j = 0; j < racers.length; j++) {
+          if (i === j) continue;
+          const other = racers[j];
+          const dz = Math.abs(r.pos.z - other.pos.z);
+          const dx = r.pos.x - other.pos.x;
+          const minDistX = r.activeEffect === 'giant' ? 2.1 : 1.35;
+          if (dz < 1.35 && Math.abs(dx) < minDistX) {
+            const pushDir = dx >= 0 ? 1 : -1;
+            r.pos.x += pushDir * (r.activeEffect === 'giant' ? 0.35 : 0.14);
+            if (r.activeEffect === 'giant' && other.activeEffect !== 'bubble') {
+              other.speed *= 0.72;
+            }
+          }
+        }
+
+        if (!r.finished && r.pos.z <= -TRACK_LENGTH) {
+          r.finished = true;
+          r.finishTime = raceElapsed;
+          if (r.isPlayer && gameMode === 'racing') {
+            finishRaceForPlayer();
+          }
+        }
+
+        const speedRatio = r.speed / Math.max(1, r.baseSpeed);
+        animatePigJockey(r.rig, simTime, speedRatio, !r.grounded, r.dizzyTimer > 0);
+      }
+
+      if (gameMode === 'racing') {
+        for (let i = 0; i < racers.length; i++) {
+          const r = racers[i];
+          if (r.finished) continue;
+          const isGiant = r.activeEffect === 'giant';
+          const hasMagnet = r.activeEffect === 'magnet';
+
+          for (let k = 0; k < activeTrackItems.length; k++) {
+            const it = activeTrackItems[k];
+            if (it.collected) continue;
+            const dz = Math.abs(it.pos.z - r.pos.z);
+            if (dz > 12) continue;
+
+            if (hasMagnet && it.kind === 'coin' && dz < 10 && it.pos.z <= r.pos.z + 2) {
+              it.pos.x = THREE.MathUtils.lerp(it.pos.x, r.pos.x, Math.min(1, dt * 10));
+              it.pos.y = THREE.MathUtils.lerp(it.pos.y, r.pos.y + 0.5, Math.min(1, dt * 8));
+            }
+
+            const dx = Math.abs(it.pos.x - r.pos.x);
+            const hitRadius = it.radius + (isGiant ? 0.75 : 0.25);
+
+            if (dz < hitRadius && dx < hitRadius) {
+              if (it.kind === 'coin') {
+                it.collected = true;
+                it.mesh.visible = false;
+                r.coinsEarned += 10;
+                if (r.isPlayer) {
+                  saveData.coins += 10;
+                  persistSave();
+                  audio.playCoin();
+                }
+                spawnCartoonBurst(it.pos, 0xfacc15, 5, 0.18);
+              } else if (it.kind === 'apple') {
+                it.collected = true;
+                it.mesh.visible = false;
+                r.turbo = Math.min(100, r.turbo + 30);
+                if (r.isPlayer) {
+                  audio.playApple();
+                  showToast('🍎 +30% de Turbo!');
+                }
+                spawnCartoonBurst(it.pos, 0xef4444, 6, 0.2);
+              } else if (it.kind === 'box') {
+                it.collected = true;
+                it.mesh.visible = false;
+                assignPowerUp(r);
+                spawnCartoonBurst(it.pos, 0xf59e0b, 8, 0.22);
+              } else if (it.kind === 'mud') {
+                if (r.grounded && r.activeEffect !== 'bubble' && r.activeEffect !== 'chili' && !isGiant) {
+                  it.collected = true;
+                  r.mudTimer = 1.3;
+                  spawnCartoonBurst(it.pos, 0x5c341d, 6, 0.2);
+                  if (r.isPlayer) {
+                    audio.playSplatOrHit();
+                    showToast('💩 Poça de Lama! Velocidade reduzida!');
+                  }
+                }
+              } else if (it.kind === 'fence' || it.kind === 'barrel' || it.kind === 'hay') {
+                if (r.pos.y > 0.85) continue;
+                if (isGiant || r.activeEffect === 'chili') {
+                  it.collected = true;
+                  it.mesh.visible = false;
+                  spawnCartoonBurst(it.pos, 0xeab308, 8, 0.24);
+                  if (r.isPlayer) {
+                    audio.playSplatOrHit();
+                    showToast('💥 Atropelou!');
+                  }
+                } else {
+                  it.collected = true;
+                  it.mesh.visible = false;
+                  applyHitToRacer(r, 'Obstáculo');
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Spin only pickups near the player for better cache locality
+      const refZ = playerRacer ? playerRacer.pos.z : 0;
+      for (let k = 0; k < activeTrackItems.length; k++) {
+        const it = activeTrackItems[k];
+        if (it.collected) continue;
+        if (Math.abs(it.pos.z - refZ) > 55) continue;
+        if (it.kind === 'coin' || it.kind === 'apple' || it.kind === 'box') {
+          it.mesh.rotation.y += dt * 2.8;
+          it.mesh.position.y = Math.sin(simTime * 4 + it.pos.z * 0.2) * 0.14;
+        }
+      }
+    }
+
+    function updateProjectilesAndParticles(dt) {
+      for (let i = activeProjectiles.length - 1; i >= 0; i--) {
+        const p = activeProjectiles[i];
+        p.life -= dt;
+        p.mesh.position.z -= p.speed * dt;
+        p.mesh.rotation.z += dt * 12;
+
+        let hitSomething = false;
+        for (let rIdx = 0; rIdx < racers.length; rIdx++) {
+          const r = racers[rIdx];
+          if (r === p.owner || r.finished) continue;
+          const dz = Math.abs(r.pos.z - p.mesh.position.z);
+          const dx = Math.abs(r.pos.x - p.mesh.position.x);
+          if (dz < 1.6 && dx < 1.35) {
+            applyHitToRacer(r, 'Torta na Cara');
+            spawnCartoonBurst(p.mesh.position, 0xfbbf24, 8, 0.24);
+            hitSomething = true;
+            break;
+          }
+        }
+
+        if (hitSomething || p.life <= 0) {
+          p.inUse = false;
+          p.mesh.visible = false;
+          activeProjectiles.splice(i, 1);
+        }
+      }
+
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const pt = activeParticles[i];
+        pt.life -= dt;
+        pt.vel.y -= 18 * dt;
+        pt.mesh.position.addScaledVector(pt.vel, dt);
+        pt.mesh.rotation.x += dt * 8;
+        pt.mesh.rotation.y += dt * 8;
+        const s = Math.max(0.01, pt.life / pt.maxLife);
+        pt.mesh.scale.setScalar(s);
+
+        if (pt.life <= 0) {
+          pt.inUse = false;
+          pt.mesh.visible = false;
+          activeParticles.splice(i, 1);
+        }
+      }
+    }
+
+    function getStandings() {
+      return [...racers].sort((a, b) => {
+        if (a.finished && b.finished) return a.finishTime - b.finishTime;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        return a.pos.z - b.pos.z;
+      });
+    }
+
+    // =========================================================================
+    // 11. UI, HUD, GARAGEM & RESULTADOS
+    // =========================================================================
+    const screens = {
+      menu: document.getElementById('screen-menu'),
+      hud: document.getElementById('screen-hud'),
+      garage: document.getElementById('screen-garage'),
+      results: document.getElementById('screen-results')
+    };
+
+    function setScreen(name) {
+      Object.entries(screens).forEach(([key, el]) => {
+        el.classList.toggle('hidden', key !== name);
+      });
+    }
+
+    let toastTimeout = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast-msg');
+      el.textContent = msg;
+      el.classList.remove('opacity-0', '-translate-y-2');
+      el.classList.add('opacity-100', 'translate-y-0');
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        el.classList.remove('opacity-100', 'translate-y-0');
+        el.classList.add('opacity-0', '-translate-y-2');
+      }, 1900);
+    }
+
+    function showBanner(mainText, subText = '') {
+      const banner = document.getElementById('hud-banner');
+      const mainEl = document.getElementById('hud-banner-text');
+      const subEl = document.getElementById('hud-banner-sub');
+      mainEl.textContent = mainText;
+      if (subText) {
+        subEl.textContent = subText;
+        subEl.classList.remove('hidden');
+      } else {
+        subEl.classList.add('hidden');
+      }
+      banner.classList.remove('opacity-0');
+      banner.classList.add('opacity-100');
+    }
+
+    function hideBanner() {
+      const banner = document.getElementById('hud-banner');
+      banner.classList.remove('opacity-100');
+      banner.classList.add('opacity-0');
+    }
+
+    function updateMuteIcons() {
+      const icon = audio.muted ? '🔇' : '🔊';
+      document.getElementById('btn-mute-menu').textContent = icon;
+      document.getElementById('btn-mute-hud').textContent = icon;
+    }
+
+    function refreshMenuUI() {
+      const th = getThemeForLevel(saveData.level);
+      document.getElementById('menu-coins').textContent = saveData.coins;
+      document.getElementById('menu-champ-badge').textContent = `Nível ${saveData.level} • ${th.name}`;
+      document.getElementById('menu-theme-info').innerHTML = `<span>${th.icon}</span><span>Fase Atual: Nível ${saveData.level} — ${th.name}</span>`;
+      updateMuteIcons();
+    }
+
+    function updateHudStaticInfo() {
+      const th = getThemeForLevel(saveData.level);
+      document.getElementById('hud-champ-title').textContent = `Nível ${saveData.level} • ${th.name}`;
+      document.getElementById('hud-coins').textContent = saveData.coins;
+    }
+
+    function updatePowerSlotUI() {
+      const iconEl = document.getElementById('power-slot-icon');
+      const nameEl = document.getElementById('power-slot-name');
+      const btnEl = document.getElementById('btn-power-action');
+      const mobileBtn = document.getElementById('btn-touch-power');
+
+      if (playerRacer && playerRacer.power) {
+        iconEl.textContent = playerRacer.power.icon;
+        nameEl.textContent = playerRacer.power.name;
+        btnEl.disabled = false;
+        mobileBtn.textContent = `${playerRacer.power.icon} USAR!`;
+      } else {
+        iconEl.textContent = '?';
+        nameEl.textContent = 'Vazio';
+        btnEl.disabled = true;
+        mobileBtn.textContent = '✨ PODER [E]';
+      }
+    }
+
+    function updateHudDynamic() {
+      if (!playerRacer) return;
+      const standings = getStandings();
+      const posIndex = standings.findIndex(r => r.isPlayer);
+      const posNum = posIndex >= 0 ? posIndex + 1 : 6;
+      document.getElementById('hud-pos').textContent = `${posNum}º`;
+      document.getElementById('hud-coins').textContent = saveData.coins;
+
+      const pct = Math.max(0, Math.min(100, Math.round((Math.abs(playerRacer.pos.z) / TRACK_LENGTH) * 100)));
+      document.getElementById('hud-progress-pct').textContent = `${pct}%`;
+      document.getElementById('hud-progress-bar').style.width = `${pct}%`;
+      document.getElementById('hud-progress-bar-mobile').style.width = `${pct}%`;
+
+      const turboRounded = Math.round(playerRacer.turbo);
+      document.getElementById('hud-turbo-pct').textContent = `${turboRounded}%`;
+      document.getElementById('hud-turbo-bar').style.width = `${turboRounded}%`;
+
+      document.getElementById('speed-lines').classList.toggle('active', playerRacer.activeEffect === 'chili');
+    }
+
+    function finishRaceForPlayer() {
+      gameMode = 'results';
+      document.getElementById('speed-lines').classList.remove('active');
+      const standings = getStandings();
+      const rank = standings.findIndex(r => r.isPlayer) + 1;
+      const qualified = rank <= 3;
+
+      const prize = rank === 1 ? 180 : rank === 2 ? 120 : rank === 3 ? 80 : 30;
+      saveData.coins += prize;
+
+      const badgeEl = document.getElementById('result-badge');
+      const titleEl = document.getElementById('result-title');
+      const subEl = document.getElementById('result-subtitle');
+      const nextBtn = document.getElementById('btn-next-stage');
+
+      if (qualified) {
+        badgeEl.textContent = '🏆 CLASSIFICADO NO TOP 3!';
+        badgeEl.className = 'inline-block bg-lime-400 text-slate-950 font-cartoon text-xs sm:text-sm font-bold uppercase px-4 py-1 rounded-full border-3 border-slate-950 mb-2';
+        titleEl.textContent = `${rank}º LUGAR! MANDOU BEM!`;
+        subEl.textContent = `Você avançou para o Nível ${saveData.level + 1} do campeonato!`;
+        nextBtn.textContent = 'PRÓXIMA FASE ➡️';
+        saveData.level += 1;
+      } else {
+        badgeEl.textContent = '😅 QUASE LÁ!';
+        badgeEl.className = 'inline-block bg-amber-300 text-slate-950 font-cartoon text-xs sm:text-sm font-bold uppercase px-4 py-1 rounded-full border-3 border-slate-950 mb-2';
+        titleEl.textContent = `${rank}º LUGAR`;
+        subEl.textContent = 'Chegue entre os 3 primeiros para avançar de fase!';
+        nextBtn.textContent = 'TENTAR NOVAMENTE 🔄';
+      }
+
+      persistSave();
+      document.getElementById('result-reward').textContent = `+${prize} 🪙 (Total: ${saveData.coins} 🪙)`;
+
+      const listEl = document.getElementById('result-standings');
+      listEl.innerHTML = '';
+      standings.forEach((r, idx) => {
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between px-3 py-2 rounded-xl border-2 border-slate-950 font-extrabold text-sm ${
+          r.isPlayer ? 'bg-amber-200' : 'bg-white'
+        }`;
+        const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+        row.innerHTML = `
+          <span>${medal} ${r.name}</span>
+          <span class="text-xs text-amber-800">+${r.coinsEarned} 🪙</span>
+        `;
+        listEl.appendChild(row);
+      });
+
+      setScreen('results');
+    }
+
+    // Garage UI
+    let activeGarageCategory = 'skin';
+
+    function renderGarageUI() {
+      document.getElementById('garage-coins').textContent = saveData.coins;
+      const tabsEl = document.getElementById('garage-tabs');
+      const gridEl = document.getElementById('garage-items-grid');
+      const summaryEl = document.getElementById('garage-equipped-summary');
+
+      tabsEl.innerHTML = '';
+      Object.entries(CUSTOMIZATION_CATALOG).forEach(([catKey, catData]) => {
+        const btn = document.createElement('button');
+        const isActive = catKey === activeGarageCategory;
+        btn.className = `cartoon-btn px-3 py-1.5 text-xs sm:text-sm shrink-0 ${
+          isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-100 text-slate-700'
+        }`;
+        btn.textContent = `${catData.icon} ${catData.label}`;
+        btn.addEventListener('click', () => {
+          audio.playClick();
+          activeGarageCategory = catKey;
+          renderGarageUI();
+        });
+        tabsEl.appendChild(btn);
+      });
+
+      const currentCat = CUSTOMIZATION_CATALOG[activeGarageCategory];
+      const equippedId = saveData.equipped[activeGarageCategory];
+      gridEl.innerHTML = '';
+
+      currentCat.items.forEach(item => {
+        const isUnlocked = saveData.unlocked.includes(item.id) || item.price === 0;
+        const multi = !!MULTI[activeGarageCategory];
+        const isNone = item.type === 'none' || item.type === 'clean';
+        const eqIds = idsOf(equippedId);
+        const isEquipped = multi ? (isNone ? eqIds.length === 0 : eqIds.includes(item.id)) : equippedId === item.id;
+        const canAfford = saveData.coins >= item.price;
+
+        const card = document.createElement('div');
+        card.className = `cartoon-card p-3 flex items-center justify-between gap-2 ${
+          isEquipped ? 'bg-lime-100' : 'bg-white'
+        }`;
+
+        const colorSwatch = item.bodyColor || item.color
+          ? `<span class="w-6 h-6 rounded-full border-2 border-slate-950 shrink-0 inline-block" style="background:${
+              '#' + (item.bodyColor || item.color).toString(16).padStart(6, '0')
+            }"></span>`
+          : `<span class="text-xl shrink-0">${currentCat.icon}</span>`;
+
+        const actionBtn = document.createElement('button');
+        if (isEquipped && multi && !isNone) {
+          actionBtn.className = 'cartoon-btn bg-rose-300 text-slate-950 px-3 py-1.5 text-xs shrink-0';
+          actionBtn.textContent = 'RETIRAR';
+          actionBtn.addEventListener('click', () => {
+            audio.playClick();
+            equipItem(activeGarageCategory, item);
+            persistSave();
+            rebuildGaragePreview();
+            renderGarageUI();
+          });
+        } else if (isEquipped) {
+          actionBtn.className = 'cartoon-btn bg-lime-400 text-slate-950 px-3 py-1.5 text-xs shrink-0';
+          actionBtn.textContent = 'EQUIPADO';
+          actionBtn.disabled = true;
+        } else if (isUnlocked) {
+          actionBtn.className = 'cartoon-btn bg-sky-300 text-slate-950 px-3 py-1.5 text-xs shrink-0';
+          actionBtn.textContent = 'EQUIPAR';
+          actionBtn.addEventListener('click', () => {
+            audio.playClick();
+            equipItem(activeGarageCategory, item);
+            persistSave();
+            rebuildGaragePreview();
+            renderGarageUI();
+          });
+        } else {
+          actionBtn.className = `cartoon-btn px-3 py-1.5 text-xs shrink-0 ${
+            canAfford ? 'bg-amber-300 text-slate-950' : 'bg-slate-200 text-slate-500'
+          }`;
+          actionBtn.textContent = `🪙 ${item.price}`;
+          actionBtn.disabled = !canAfford;
+          actionBtn.addEventListener('click', () => {
+            if (saveData.coins < item.price) return;
+            saveData.coins -= item.price;
+            saveData.unlocked.push(item.id);
+            equipItem(activeGarageCategory, item);
+            persistSave();
+            audio.playBoxPickup();
+            showToast(`🎉 Comprou e equipou: ${item.name}!`);
+            rebuildGaragePreview();
+            renderGarageUI();
+          });
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${colorSwatch}
+            <div class="truncate">
+              <div class="font-cartoon font-bold text-sm text-slate-950 truncate">${item.name}</div>
+              <div class="text-[11px] font-extrabold text-slate-500">${isEquipped ? 'Em uso' : isUnlocked ? 'Desbloqueado' : `Preço: ${item.price} moedas`}</div>
+            </div>
+          </div>
+        `;
+        card.appendChild(actionBtn);
+        gridEl.appendChild(card);
+      });
+
+      const eq = saveData.equipped;
+      summaryEl.innerHTML = `
+        <div class="font-cartoon text-sm font-bold text-slate-950 mb-1">Visual Atual:</div>
+        <div>🐷 Pele: <b>${eq.skin}</b> • Sela: <b>${eq.saddle}</b> • Extra: <b>${idsOf(eq.pigAcc).join(', ') || 'nenhum'}</b></div>
+        <div>🏇 Chapéu: <b>${eq.hat}</b> • Rosto: <b>${idsOf(eq.face).join(', ') || 'nenhum'}</b> • Roupa: <b>${eq.outfit}</b> • Botas: <b>${eq.boots}</b></div>
+      `;
+    }
+
+    function openGarage() {
+      audio.playClick();
+      gameMode = 'garage';
+      worldEntitiesGroup.visible = false;
+      garagePedestalGroup.visible = true;
+      rebuildGaragePreview();
+      renderGarageUI();
+      setScreen('garage');
+    }
+
+    function closeGarage() {
+      audio.playClick();
+      garagePedestalGroup.visible = false;
+      worldEntitiesGroup.visible = true;
+      refreshMenuUI();
+      setupRaceScene(false);
+    }
+
+    // Garagem: girar 360° por botões e ligar/desligar giro automático
+    document.getElementById('garage-rot-left').addEventListener('click', () => { audio.playClick(); garageYaw -= Math.PI / 4; });
+    document.getElementById('garage-rot-right').addEventListener('click', () => { audio.playClick(); garageYaw += Math.PI / 4; });
+    document.getElementById('garage-rot-auto').addEventListener('click', (e) => {
+      audio.playClick();
+      garageAuto = !garageAuto;
+      e.currentTarget.textContent = garageAuto ? '⏸ AUTO' : '▶ AUTO';
+    });
+
+    // Button listeners
+    document.getElementById('btn-start-race').addEventListener('click', () => {
+      audio.playClick();
+      audio.startBgm();
+      setupRaceScene(true);
+    });
+
+    document.getElementById('btn-open-garage').addEventListener('click', openGarage);
+    document.getElementById('btn-close-garage').addEventListener('click', closeGarage);
+
+    document.getElementById('btn-mute-menu').addEventListener('click', () => {
+      audio.toggleMute();
+      updateMuteIcons();
+    });
+
+    document.getElementById('btn-mute-hud').addEventListener('click', () => {
+      audio.toggleMute();
+      updateMuteIcons();
+    });
+
+    document.getElementById('btn-quit-race').addEventListener('click', () => {
+      audio.playClick();
+      document.getElementById('speed-lines').classList.remove('active');
+      refreshMenuUI();
+      setupRaceScene(false);
+    });
+
+    document.getElementById('btn-turbo-action').addEventListener('click', () => {
+      if (gameMode === 'racing' && playerRacer) activateManualTurbo(playerRacer);
+    });
+
+    document.getElementById('btn-power-action').addEventListener('click', () => {
+      if (gameMode === 'racing' && playerRacer) useSpecialPower(playerRacer);
+    });
+
+    document.getElementById('btn-touch-jump').addEventListener('click', () => {
+      if (gameMode === 'racing' && playerRacer) triggerJump(playerRacer);
+    });
+
+    document.getElementById('btn-touch-power').addEventListener('click', () => {
+      if (gameMode === 'racing' && playerRacer) useSpecialPower(playerRacer);
+    });
+
+    document.getElementById('btn-next-stage').addEventListener('click', () => {
+      audio.playClick();
+      audio.startBgm();
+      setupRaceScene(true);
+    });
+
+    document.getElementById('btn-result-garage').addEventListener('click', openGarage);
+
+    document.getElementById('btn-result-menu').addEventListener('click', () => {
+      audio.playClick();
+      refreshMenuUI();
+      setupRaceScene(false);
+    });
+
+    // =========================================================================
+    // 12. LOOP PRINCIPAL COM DELTA CLAMPING & HUD THROTTLING
+    // =========================================================================
+    let lastFrameTime = performance.now();
+
+    function updateCamera(dt) {
+      if (camera.view && camera.view.enabled && gameMode !== 'garage') camera.clearViewOffset();
+      if (gameMode === 'garage') {
+        const W = window.innerWidth, H = window.innerHeight;
+        const pr = document.getElementById('garage-panel').getBoundingClientRect();
+        const hr = document.getElementById('garage-header').getBoundingClientRect();
+        const side = pr.left > W * 0.3; // lado a lado; em celular em pé empilha
+        const availW = side ? pr.left - 12 : W;
+        const availH = side ? H - hr.bottom : pr.top - hr.bottom;
+        const cx = side ? availW / 2 : W / 2;
+        const cy = side ? (hr.bottom + H) / 2 : (hr.bottom + pr.top) / 2;
+        const tanF = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+        const dist = THREE.MathUtils.clamp(Math.max(6.2, 3.6 * H / (tanF * Math.max(availW, 80)), 3.1 * H / (tanF * Math.max(availH, 80))), 6.2, 24);
+        scratchCamPos.set(0, 2.3 + dist * 0.2, dist);
+        camera.position.lerp(scratchCamPos, Math.min(1, dt * 6));
+        scratchLookAt.set(0, 2.3, 0);
+        camera.lookAt(scratchLookAt);
+        camera.setViewOffset(W, H, W / 2 - cx, H / 2 - cy, W, H);
+        garagePedestalGroup.position.set(0, 0, 0);
+        return;
+      }
+
+      if (!playerRacer) return;
+
+      if (gameMode === 'menu') {
+        const angle = Math.sin(simTime * 0.45) * 0.35;
+        scratchCamPos.set(
+          playerRacer.pos.x * 0.6 + Math.sin(angle) * 6.5,
+          4.6,
+          playerRacer.pos.z + 8.5
+        );
+        camera.position.lerp(scratchCamPos, Math.min(1, dt * 4));
+        scratchLookAt.set(playerRacer.pos.x * 0.5, 1.5, playerRacer.pos.z - 8);
+        camera.lookAt(scratchLookAt);
+      } else {
+        scratchCamPos.set(
+          playerRacer.pos.x * 0.72,
+          4.5 + (playerRacer.activeEffect === 'giant' ? 1.4 : 0),
+          playerRacer.pos.z + 8.2
+        );
+        camera.position.lerp(scratchCamPos, Math.min(1, dt * 8));
+        scratchLookAt.set(playerRacer.pos.x * 0.65, 1.45, playerRacer.pos.z - 9.5);
+        camera.lookAt(scratchLookAt);
+      }
+
+      dirLight.position.set(playerRacer.pos.x + 14, 24, playerRacer.pos.z + 14);
+      dirLight.target.position.set(playerRacer.pos.x, 0, playerRacer.pos.z - 8);
+      skyDome.position.set(playerRacer.pos.x, 0, playerRacer.pos.z);
+    }
+
+    function animateLoop(now) {
+      requestAnimationFrame(animateLoop);
+      const rawDt = (now - lastFrameTime) / 1000;
+      lastFrameTime = now;
+      const dt = Math.min(Math.max(rawDt, 0.001), 0.05);
+      simTime += dt;
+
+      if (gameMode === 'garage') {
+        if (garagePreviewRig) {
+          if (!isDraggingGarage) {
+            if (garageAuto) garageYaw += dt * 0.55;
+            garagePreviewRig.root.rotation.y = garageYaw;
+          }
+          animatePigJockey(garagePreviewRig, simTime, 0.7, false, false);
+        }
+      } else if (gameMode === 'menu') {
+        for (let i = 0; i < racers.length; i++) {
+          const r = racers[i];
+          r.pos.z -= r.baseSpeed * 0.65 * dt;
+          if (r.pos.z < -TRACK_LENGTH + 40) {
+            r.pos.z = 0;
+          }
+          animatePigJockey(r.rig, simTime, 0.85, false, false);
+        }
+      } else if (gameMode === 'countdown') {
+        countdownTimer -= dt;
+        const ceilNum = Math.ceil(countdownTimer);
+        if (ceilNum < lastCountdownInt && ceilNum >= 1) {
+          lastCountdownInt = ceilNum;
+          audio.playCountdownBeep(false);
+          showBanner(`${ceilNum}`, 'Acelerando...');
+        }
+        for (let i = 0; i < racers.length; i++) {
+          animatePigJockey(racers[i].rig, simTime, 0.25, false, false);
+        }
+        if (countdownTimer <= 0) {
+          gameMode = 'racing';
+          audio.playCountdownBeep(true);
+          showBanner('VAI! 🏁', 'Chegue no Top 3!');
+          setTimeout(() => hideBanner(), 950);
+        }
+      } else if (gameMode === 'racing' || gameMode === 'results') {
+        if (gameMode === 'racing') raceElapsed += dt;
+        updateRacers(dt);
+        updateProjectilesAndParticles(dt);
+
+        hudSyncTimer += dt;
+        if (hudSyncTimer >= 0.08) {
+          hudSyncTimer = 0;
+          updateHudDynamic();
+        }
+      }
+
+      updateCamera(dt);
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    refreshMenuUI();
+    setupRaceScene(false);
+    requestAnimationFrame(animateLoop);
+  </script>
+</body>
+</html>
