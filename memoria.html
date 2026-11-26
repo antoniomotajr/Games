@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo da Memória - Temas, Efeitos e Som</title>
+  <style>
+    /* ==========================================================================
+       1. VARIÁVEIS E LAYOUT COMPACTO (CABE EM 100dvh SEM ROLAGEM)
+       ========================================================================== */
+    :root {
+      --bg-color: #0f172a;
+      --panel-bg: #1e293b;
+      --card-back: #3b82f6;
+      --card-back-hover: #2563eb;
+      --card-front: #f8fafc;
+      --card-matched: #10b981;
+      --card-error: #ef4444;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: clamp(0.45rem, 1.8vh, 0.9rem);
+      gap: clamp(0.4rem, 1.2vh, 0.75rem);
+    }
+
+    /* ==========================================================================
+       2. CABEÇALHO COMPACTO E SELETOR DE TEMAS
+       ========================================================================== */
+    header {
+      width: 100%;
+      max-width: min(460px, 94vw);
+      flex-shrink: 0;
+    }
+
+    .topo {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.45rem;
+    }
+
+    h1 {
+      font-size: clamp(1.05rem, 2.8vh, 1.4rem);
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .acoes-topo {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    select, button {
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s, opacity 0.2s;
+      color: #fff;
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    /* Seletor de Temas integrado ao cabeçalho */
+    .seletor-tema {
+      background-color: var(--panel-bg);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.38rem 0.5rem;
+      outline: none;
+    }
+
+    .seletor-tema:hover,
+    .seletor-tema:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-som {
+      background-color: var(--panel-bg);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 0.38rem 0.55rem;
+    }
+
+    .btn-som.mudo {
+      opacity: 0.55;
+    }
+
+    .btn-primario {
+      background-color: var(--card-back);
+      padding: 0.4rem 0.75rem;
+    }
+
+    .btn-primario:hover {
+      background-color: var(--card-back-hover);
+    }
+
+    .painel-status {
+      background-color: var(--panel-bg);
+      padding: 0.5rem 0.9rem;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+    }
+
+    .metrica {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+    }
+
+    .metrica span.label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .metrica span.valor {
+      font-size: clamp(0.95rem, 2.5vh, 1.15rem);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================================================
+       3. TABULEIRO DIMENSIONADO PELA ALTURA E LARGURA DISPONÍVEIS
+       ========================================================================== */
+    .area-tabuleiro {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tabuleiro {
+      --tamanho-grade: min(92vw, calc(100dvh - 118px), 460px);
+      width: var(--tamanho-grade);
+      height: var(--tamanho-grade);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: clamp(6px, 1.3vmin, 12px);
+      perspective: 900px;
+    }
+
+    /* ==========================================================================
+       4. ANIMAÇÃO 3D E EFEITOS VISUAIS DE ACERTO / ERRO
+       ========================================================================== */
+    .carta {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .carta.virada,
+    .carta.combinada {
+      transform: rotateY(180deg);
+      cursor: default;
+    }
+
+    .carta.erro {
+      animation: tremerErro 0.38s ease-in-out;
+    }
+
+    @keyframes tremerErro {
+      0%, 100% { transform: rotateY(180deg) translateX(0); }
+      25% { transform: rotateY(180deg) translateX(-6px); }
+      75% { transform: rotateY(180deg) translateX(6px); }
+    }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      border-radius: clamp(8px, 1.8vmin, 12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+    }
+
+    .face-verso {
+      background: linear-gradient(135deg, var(--card-back), #1d4ed8);
+      color: rgba(255, 255, 255, 0.3);
+      font-size: clamp(1.1rem, 3vmin, 1.5rem);
+      font-weight: 700;
+    }
+
+    .carta:not(.virada):not(.combinada):hover .face-verso {
+      background: linear-gradient(135deg, var(--card-back-hover), #1e40af);
+    }
+
+    .face-frente {
+      background-color: var(--card-front);
+      color: #0f172a;
+      font-weight: 800;
+      transform: rotateY(180deg);
+      font-size: clamp(1.5rem, 5.5vmin, 2.75rem);
+      border: 3px solid transparent;
+      transition: border-color 0.25s, background-color 0.25s, box-shadow 0.25s;
+    }
+
+    /* Estilo específico quando o tema é Números (tipografia forte e centralizada) */
+    .tabuleiro.tema-numeros .face-frente {
+      font-size: clamp(1.6rem, 6vmin, 2.9rem);
+      color: #1e293b;
+      letter-spacing: -0.03em;
+    }
+
+    .carta.erro .face-frente {
+      border-color: var(--card-error);
+      background-color: #fef2f2;
+    }
+
+    .carta.combinada .face-frente {
+      border-color: var(--card-matched);
+      background-color: #ecfdf5;
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+      animation: pulsoAcerto 0.45s ease-out;
+    }
+
+    @keyframes pulsoAcerto {
+      0% { transform: rotateY(180deg) scale(1); }
+      50% { transform: rotateY(180deg) scale(1.09); }
+      100% { transform: rotateY(180deg) scale(1); }
+    }
+
+    .particula {
+      position: fixed;
+      top: -12px;
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 150;
+      animation: cairParticula linear forwards;
+    }
+
+    @keyframes cairParticula {
+      to {
+        transform: translateY(105dvh) rotate(540deg);
+        opacity: 0;
+      }
+    }
+
+    /* ==========================================================================
+       5. MODAL DE VITÓRIA
+       ========================================================================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 100;
+    }
+
+    .modal-overlay.ativo {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-conteudo {
+      background-color: var(--panel-bg);
+      padding: 1.5rem;
+      border-radius: 16px;
+      text-align: center;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: 0 20px 25px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-conteudo h2 {
+      font-size: 1.5rem;
+      color: var(--card-matched);
+      margin-bottom: 0.35rem;
+    }
+
+    .modal-conteudo p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+
+    .resumo-estatisticas {
+      background-color: var(--bg-color);
+      padding: 0.85rem;
+      border-radius: 10px;
+      margin-bottom: 1.15rem;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .resumo-estatisticas div strong {
+      display: block;
+      font-size: 1.15rem;
+    }
+
+    .resumo-estatisticas div span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CABEÇALHO COMPACTO COM SELETOR DE TEMAS -->
+  <header>
+    <div class="topo">
+      <h1 id="titulo-jogo">Memória: Espaço 🚀</h1>
+      <div class="acoes-topo">
+        <select id="seletor-tema" class="seletor-tema" aria-label="Escolher tema das cartas">
+          <option value="espaco">🚀 Espaço</option>
+          <option value="animais">🦁 Animais</option>
+          <option value="numeros">🔢 Números</option>
+          <option value="frutas">🍓 Frutas</option>
+          <option value="tecnologia">💻 Tech</option>
+          <option value="esportes">⚽ Esportes</option>
+        </select>
+        <button class="btn-som" id="btn-som" aria-label="Alternar som" title="Ativar/Desativar som">🔊</button>
+        <button class="btn-primario" id="btn-reiniciar">Reiniciar</button>
+      </div>
+    </div>
+    <div class="painel-status">
+      <div class="metrica">
+        <span class="label">Tentativas</span>
+        <span class="valor" id="contador-tentativas">0</span>
+      </div>
+      <div class="metrica">
+        <span class="label">Tempo</span>
+        <span class="valor" id="cronometro">00:00</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ÁREA DO TABULEIRO 4x4 -->
+  <main class="area-tabuleiro">
+    <div class="tabuleiro" id="tabuleiro" aria-label="Tabuleiro do Jogo da Memória"></div>
+  </main>
+
+  <!-- MODAL DE VITÓRIA -->
+  <div class="modal-overlay" id="modal-vitoria" role="dialog" aria-modal="true">
+    <div class="modal-conteudo">
+      <h2>Parabéns! 🎉</h2>
+      <p id="mensagem-vitoria">Você completou o tema Espaço.</p>
+      <div class="resumo-estatisticas">
+        <div>
+          <strong id="final-tentativas">0</strong>
+          <span>Tentativas</span>
+        </div>
+        <div>
+          <strong id="final-tempo">00:00</strong>
+          <span>Tempo Total</span>
+        </div>
+      </div>
+      <button class="btn-primario" id="btn-jogar-novamente" style="width: 100%; padding: 0.65rem;">
+        Jogar Novamente
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. DICIONÁRIO DE TEMAS E REFERÊNCIAS DO DOM
+       ========================================================================== */
+    // Cada tema contém seu título, ícone de destaque e um array com 8 pares
+    const TEMAS = {
+      espaco: {
+        nome: 'Espaço',
+        icone: '🚀',
+        simbolos: ['🚀', '🪐', '👽', '🛸', '☄️', '👨‍🚀', '🌙', '🛰️']
+      },
+      animais: {
+        nome: 'Animais',
+        icone: '🦁',
+        simbolos: ['🦁', '🐼', '🦊', '🐸', '🐙', '🦋', '🐢', '🦉']
+      },
+      numeros: {
+        nome: 'Números',
+        icone: '🔢',
+        simbolos: ['1', '2', '3', '4', '5', '6', '7', '8']
+      },
+      frutas: {
+        nome: 'Frutas',
+        icone: '🍓',
+        simbolos: ['🍓', '🍉', '🍍', '🍌', '🍇', '🥝', '🍒', '🍑']
+      },
+      tecnologia: {
+        nome: 'Tecnologia',
+        icone: '💻',
+        simbolos: ['💻', '🤖', '🎮', '📱', '🎧', '🔋', '💾', '📡']
+      },
+      esportes: {
+        nome: 'Esportes',
+        icone: '⚽',
+        simbolos: ['⚽', '🏀', '🎾', '🏐', '🏈', '🎱', '🏓', '🏆']
+      }
+    };
+
+    const tituloJogoEl = document.getElementById('titulo-jogo');
+    const seletorTemaEl = document.getElementById('seletor-tema');
+    const tabuleiroEl = document.getElementById('tabuleiro');
+    const tentativasEl = document.getElementById('contador-tentativas');
+    const cronometroEl = document.getElementById('cronometro');
+    const btnReiniciar = document.getElementById('btn-reiniciar');
+    const btnSom = document.getElementById('btn-som');
+    const modalVitoriaEl = document.getElementById('modal-vitoria');
+    const mensagemVitoriaEl = document.getElementById('mensagem-vitoria');
+    const finalTentativasEl = document.getElementById('final-tentativas');
+    const finalTempoEl = document.getElementById('final-tempo');
+    const btnJogarNovamente = document.getElementById('btn-jogar-novamente');
+
+    /* ==========================================================================
+       2. SÍNTESE DE ÁUDIO COM WEB AUDIO API
+       ========================================================================== */
+    let audioCtx = null;
+    let somAtivado = true;
+
+    function obterContextoAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function tocarTom(freqInicial, freqFinal, duracao, tipo = 'sine', volume = 0.12, atraso = 0) {
+      if (!somAtivado) return;
+      const ctx = obterContextoAudio();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime + atraso;
+      const osc = ctx.createOscillator();
+      const ganho = ctx.createGain();
+
+      osc.type = tipo;
+      osc.frequency.setValueAtTime(freqInicial, agora);
+      if (freqFinal !== freqInicial) {
+        osc.frequency.exponentialRampToValueAtTime(freqFinal, agora + duracao);
+      }
+
+      ganho.gain.setValueAtTime(volume, agora);
+      ganho.gain.exponentialRampToValueAtTime(0.001, agora + duracao);
+
+      osc.connect(ganho);
+      ganho.connect(ctx.destination);
+
+      osc.start(agora);
+      osc.stop(agora + duracao);
+    }
+
+    function somVirar() { tocarTom(420, 620, 0.08, 'triangle', 0.1); }
+    function somAcerto() {
+      tocarTom(523.25, 659.25, 0.12, 'sine', 0.13, 0);
+      tocarTom(659.25, 783.99, 0.16, 'sine', 0.13, 0.09);
+    }
+    function somErro() { tocarTom(240, 150, 0.22, 'sawtooth', 0.08, 0); }
+    function somVitoria() {
+      [523.25, 659.25, 783.99, 1046.5].forEach((nota, i) => {
+        tocarTom(nota, nota * 1.02, 0.18, 'triangle', 0.13, i * 0.11);
+      });
+    }
+
+    btnSom.addEventListener('click', () => {
+      somAtivado = !somAtivado;
+      btnSom.textContent = somAtivado ? '🔊' : '🔇';
+      btnSom.classList.toggle('mudo', !somAtivado);
+      if (somAtivado) somVirar();
+    });
+
+    /* ==========================================================================
+       3. CONTROLE DE ESTADO DO JOGO
+       ========================================================================== */
+    let temaAtualKey = 'espaco';
+    let cartasViradas = [];
+    let bloqueioTabuleiro = false;
+    let paresEncontrados = 0;
+    let tentativas = 0;
+
+    let segundosDecorridos = 0;
+    let intervaloCronometro = null;
+    let jogoIniciado = false;
+
+    /* ==========================================================================
+       4. MANIPULAÇÃO DE ARRAYS (FISHER-YATES)
+       ========================================================================== */
+    function embaralharFisherYates(array) {
+      const copia = [...array];
+      for (let i = copia.length - 1; i > 0; i--) {
+        const indiceAleatorio = Math.floor(Math.random() * (i + 1));
+        [copia[i], copia[indiceAleatorio]] = [copia[indiceAleatorio], copia[i]];
+      }
+      return copia;
+    }
+
+    /* ==========================================================================
+       5. CRONÔMETRO, EFEITOS VISUAIS E CONSTRUÇÃO DO TABULEIRO
+       ========================================================================== */
+    function formatarTempo(segundosTotais) {
+      const minutos = Math.floor(segundosTotais / 60).toString().padStart(2, '0');
+      const segundos = (segundosTotais % 60).toString().padStart(2, '0');
+      return `${minutos}:${segundos}`;
+    }
+
+    function iniciarCronometro() {
+      if (jogoIniciado) return;
+      jogoIniciado = true;
+      intervaloCronometro = setInterval(() => {
+        segundosDecorridos++;
+        cronometroEl.textContent = formatarTempo(segundosDecorridos);
+      }, 1000);
+    }
+
+    function pararCronometro() {
+      clearInterval(intervaloCronometro);
+      intervaloCronometro = null;
+    }
+
+    function soltarConfetes() {
+      const cores = ['#38bdf8', '#10b981', '#f59e0b', '#f472b6', '#a78bfa'];
+      for (let i = 0; i < 36; i++) {
+        const p = document.createElement('div');
+        p.classList.add('particula');
+        p.style.left = `${Math.random() * 100}vw`;
+        p.style.backgroundColor = cores[i % cores.length];
+        p.style.width = `${6 + Math.random() * 6}px`;
+        p.style.height = `${10 + Math.random() * 8}px`;
+        p.style.animationDuration = `${1.4 + Math.random() * 1.2}s`;
+        p.style.animationDelay = `${Math.random() * 0.35}s`;
+        document.body.appendChild(p);
+        p.addEventListener('animationend', () => p.remove());
+      }
+    }
+
+    function construirTabuleiro() {
+      const tema = TEMAS[temaAtualKey];
+      tituloJogoEl.textContent = `Memória: ${tema.nome} ${tema.icone}`;
+
+      // Aplica classe auxiliar caso seja tema numérico para ajustar estilo tipográfico
+      tabuleiroEl.className = `tabuleiro tema-${temaAtualKey}`;
+      tabuleiroEl.innerHTML = '';
+
+      const baralho = embaralharFisherYates([...tema.simbolos, ...tema.simbolos]);
+      const fragmento = document.createDocumentFragment();
+
+      baralho.forEach((simbolo) => {
+        const cartaEl = document.createElement('div');
+        cartaEl.classList.add('carta');
+        cartaEl.dataset.valor = simbolo;
+        cartaEl.innerHTML = `
+          <div class="face face-verso">?</div>
+          <div class="face face-frente">${simbolo}</div>
+        `;
+        cartaEl.addEventListener('click', () => lidarComCliqueCarta(cartaEl));
+        fragmento.appendChild(cartaEl);
+      });
+
+      tabuleiroEl.appendChild(fragmento);
+    }
+
+    /* ==========================================================================
+       6. LÓGICA DE JOGADA, ACERTO, ERRO E TROCA DE TEMA
+       ========================================================================== */
+    function lidarComCliqueCarta(cartaClicada) {
+      if (bloqueioTabuleiro) return;
+      if (cartaClicada.classList.contains('virada')) return;
+      if (cartaClicada.classList.contains('combinada')) return;
+
+      if (!jogoIniciado) iniciarCronometro();
+
+      cartaClicada.classList.add('virada');
+      cartasViradas.push(cartaClicada);
+      somVirar();
+
+      if (cartasViradas.length < 2) return;
+
+      tentativas++;
+      tentativasEl.textContent = tentativas;
+      verificarPar();
+    }
+
+    function verificarPar() {
+      const [primeiraCarta, segundaCarta] = cartasViradas;
+      if (primeiraCarta.dataset.valor === segundaCarta.dataset.valor) {
+        processarAcerto(primeiraCarta, segundaCarta);
+      } else {
+        processarErro(primeiraCarta, segundaCarta);
+      }
+    }
+
+    function processarAcerto(carta1, carta2) {
+      carta1.classList.add('combinada');
+      carta2.classList.add('combinada');
+      cartasViradas = [];
+      paresEncontrados++;
+      somAcerto();
+
+      const totalPares = TEMAS[temaAtualKey].simbolos.length;
+      if (paresEncontrados === totalPares) {
+        finalizarJogo();
+      }
+    }
+
+    function processarErro(carta1, carta2) {
+      bloqueioTabuleiro = true;
+      carta1.classList.add('erro');
+      carta2.classList.add('erro');
+      somErro();
+
+      setTimeout(() => {
+        carta1.classList.remove('virada', 'erro');
+        carta2.classList.remove('virada', 'erro');
+        cartasViradas = [];
+        bloqueioTabuleiro = false;
+      }, 800);
+    }
+
+    function finalizarJogo() {
+      pararCronometro();
+      const tema = TEMAS[temaAtualKey];
+      mensagemVitoriaEl.textContent = `Você completou o tema ${tema.nome} ${tema.icone}`;
+      finalTentativasEl.textContent = tentativas;
+      finalTempoEl.textContent = formatarTempo(segundosDecorridos);
+      somVitoria();
+      soltarConfetes();
+
+      setTimeout(() => {
+        modalVitoriaEl.classList.add('ativo');
+      }, 450);
+    }
+
+    function reiniciarJogo() {
+      pararCronometro();
+      cartasViradas = [];
+      bloqueioTabuleiro = false;
+      paresEncontrados = 0;
+      tentativas = 0;
+      segundosDecorridos = 0;
+      jogoIniciado = false;
+
+      tentativasEl.textContent = '0';
+      cronometroEl.textContent = '00:00';
+      modalVitoriaEl.classList.remove('ativo');
+      construirTabuleiro();
+    }
+
+    // Troca o tema e reinicia a partida imediatamente
+    seletorTemaEl.addEventListener('change', (evento) => {
+      temaAtualKey = evento.target.value;
+      somVirar();
+      reiniciarJogo();
+    });
+
+    btnReiniciar.addEventListener('click', reiniciarJogo);
+    btnJogarNovamente.addEventListener('click', reiniciarJogo);
+
+    construirTabuleiro();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Laser Lab — Óptica & Reflexão</title>
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --bg-panel: #111827;
+      --border-subtle: #1f2937;
+      --accent-cyan: #00f0ff;
+      --accent-laser: #ff2a5f;
+      --accent-crystal: #a855f7;
+      --accent-target: #10b981;
+      --accent-gold: #fbbf24;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image:
+        radial-gradient(circle at 50% 0%, #162238 0%, transparent 65%),
+        linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+      color: var(--text-main);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 640px;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stage {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    h1 {
+      font-size: 1.2rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    }
+
+    .ctrl-group { display: flex; gap: 6px; }
+
+    .icon-btn {
+      background: #1f2937;
+      color: var(--text-main);
+      border: 1px solid #374151;
+      border-radius: 8px;
+      min-width: 36px;
+      height: 34px;
+      padding: 0 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .icon-btn:hover:not(:disabled) {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+    }
+    .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .nivel-info {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+    #uiNome { font-weight: 600; }
+    #uiDica {
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      margin-top: 2px;
+      line-height: 1.25;
+    }
+    #uiDica:empty { display: none; }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .stat-group { display: flex; gap: 14px; flex-wrap: wrap; }
+    .stat-item span { color: var(--text-muted); }
+    .stat-item strong { color: var(--text-main); font-variant-numeric: tabular-nums; transition: color .25s; }
+
+    .acoes { display: flex; gap: 6px; }
+    .btn-acao {
+      background: rgba(0, 240, 255, 0.08);
+      color: #7dd3fc;
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-acao:hover:not(:disabled) { background: rgba(0, 240, 255, 0.2); color: #fff; }
+    .btn-acao:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-acao.dica { background: rgba(251,191,36,0.1); color: #fcd34d; border-color: rgba(251,191,36,0.4); }
+    .btn-acao.dica:hover:not(:disabled) { background: rgba(251,191,36,0.25); }
+    .btn-acao.reset { background: rgba(255, 42, 95, 0.12); color: #ff6b8b; border-color: rgba(255, 42, 95, 0.4); }
+    .btn-acao.reset:hover:not(:disabled) { background: rgba(255, 42, 95, 0.25); }
+
+    .canvas-wrapper {
+      position: relative;
+      flex: none;
+      width: 280px;
+      height: 280px;
+      background: #0d131f;
+      border: 2px solid #1e293b;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .legend {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 2px 10px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 5px 10px;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .atalhos { display: none; }
+    kbd {
+      background: #1f2937; border: 1px solid #374151; border-radius: 4px;
+      padding: 0 5px; font-family: inherit; color: #9ca3af;
+    }
+
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 14, 23, 0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      padding: 14px;
+      z-index: 5;
+    }
+    .modal-overlay.visible { opacity: 1; pointer-events: auto; }
+
+    .modal-card {
+      background: #131b2e;
+      border: 1px solid var(--accent-target);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.25);
+      border-radius: 14px;
+      padding: 24px 22px;
+      text-align: center;
+      max-width: 340px;
+      width: 100%;
+      transform: translateY(15px) scale(.97);
+      transition: transform 0.35s cubic-bezier(.2,1.4,.4,1);
+    }
+    .modal-overlay.visible .modal-card { transform: translateY(0) scale(1); }
+    .modal-card h2 { color: var(--accent-target); font-size: 1.5rem; margin-bottom: 6px; }
+    .modal-card p { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 14px; line-height: 1.4; }
+
+    .estrelas { font-size: 2.4rem; letter-spacing: 6px; margin-bottom: 8px; display: flex; justify-content: center; gap: 4px; }
+    .estrelas span { color: #374151; display: inline-block; transform: scale(.4); opacity: 0; }
+    .modal-overlay.visible .estrelas span { animation: estrelaPop .5s cubic-bezier(.2,1.6,.4,1) forwards; }
+    .modal-overlay.visible .estrelas span.on { color: var(--accent-gold); text-shadow: 0 0 14px rgba(251,191,36,.7); }
+    .estrelas span:nth-child(1) { animation-delay: .25s !important; }
+    .estrelas span:nth-child(2) { animation-delay: .45s !important; }
+    .estrelas span:nth-child(3) { animation-delay: .65s !important; }
+    @keyframes estrelaPop { to { transform: scale(1); opacity: 1; } }
+
+    .botoes-modal { display: flex; gap: 8px; }
+    .btn-next, .btn-sec {
+      border: none; border-radius: 8px; padding: 12px 18px; font-size: 1rem;
+      font-weight: 700; cursor: pointer; transition: transform 0.15s, filter 0.15s;
+    }
+    .btn-next { background: var(--accent-target); color: #052e16; flex: 1; }
+    .btn-sec { background: #1f2937; color: var(--text-main); border: 1px solid #374151; }
+    .btn-next:hover, .btn-sec:hover { filter: brightness(1.12); transform: scale(1.03); }
+
+    .menu-card {
+      background: #131b2e;
+      border: 1px solid #1e3a5f;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.12);
+      border-radius: 14px;
+      padding: 14px;
+      max-width: 400px;
+      width: 100%;
+    }
+    .menu-topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .menu-topo h3 { color: var(--accent-cyan); font-size: 1rem; }
+    .grade-fases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .fase-cel {
+      background: #1f2937; border: 1px solid #374151; border-radius: 8px;
+      color: var(--text-main); padding: 6px 0 4px; cursor: pointer;
+      font-weight: 700; font-size: 0.95rem; line-height: 1.1; transition: all .15s;
+    }
+    .fase-cel small { display: block; font-size: 0.6rem; color: var(--accent-gold); height: 0.8rem; letter-spacing: 1px; }
+    .fase-cel:hover:not(:disabled) { border-color: var(--accent-cyan); transform: translateY(-1px); }
+    .fase-cel.atual { border-color: var(--accent-cyan); background: rgba(0,240,255,.15); color: var(--accent-cyan); }
+    .fase-cel:disabled { opacity: .35; cursor: not-allowed; }
+    .menu-pag { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: .8rem; color: var(--text-muted); }
+
+    .modal-card { padding: 16px; }
+    .modal-card h2 { font-size: 1.25rem; }
+    .modal-card p { margin-bottom: 10px; }
+    .estrelas { font-size: 2rem; margin-bottom: 4px; }
+    .menu-card { padding: 10px; }
+    .fase-cel { padding: 3px 0 2px; }
+    .btn-next, .btn-sec { padding: 9px 16px; }
+    .modal-overlay.global { position: fixed; z-index: 50; padding: 12px; }
+    .ajuda-card { max-height: 100%; overflow-y: auto; max-width: 440px; }
+    .ajuda-lista { list-style: none; display: flex; flex-direction: column; gap: 7px; font-size: 0.82rem; line-height: 1.35; color: #d1d5db; }
+    .ajuda-lista b { color: #fff; }
+    .ajuda-lista code { background: #1f2937; border-radius: 4px; padding: 0 4px; color: #7dd3fc; }
+
+    @media (max-width: 420px) {
+      .btn-acao { padding: 6px 8px; font-size: .78rem; }
+      .atalhos { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <header>
+      <div class="top-row">
+        <h1>⚡ LASER LAB</h1>
+        <div class="ctrl-group">
+          <button class="icon-btn" id="btnPrev" title="Fase anterior">◀</button>
+          <button class="icon-btn" id="btnMenu" title="Escolher fase">☰ Fases</button>
+          <button class="icon-btn" id="btnNext" title="Próxima fase">▶</button>
+          <button class="icon-btn" id="btnSom" title="Som (M)">🔊</button>
+          <button class="icon-btn" id="btnAjuda" title="Como jogar (?)">❓</button>
+        </div>
+      </div>
+
+      <div class="nivel-info">
+        <span class="badge" id="uiBadge">Tutorial</span>
+        <span id="uiNome">—</span>
+      </div>
+      <div id="uiDica"></div>
+
+      <div class="stats-row">
+        <div class="stat-group">
+          <div class="stat-item"><span>Fase:</span> <strong id="uiLevel">1</strong></div>
+          <div class="stat-item"><span>Giros:</span> <strong id="uiMoves">0</strong></div>
+          <div class="stat-item"><span>Cristais:</span> <strong id="uiCrystals">0/0</strong></div>
+        </div>
+        <div class="acoes">
+          <button class="btn-acao" id="btnUndo" title="Desfazer (Z)">↶ Desfazer</button>
+          <button class="btn-acao dica" id="btnHint" title="Dica (H)">💡 Dica</button>
+          <button class="btn-acao reset" id="btnReset" title="Reiniciar fase (R)">↻</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="stage" id="stage">
+    <div class="canvas-wrapper" id="wrapper">
+      <canvas id="gameCanvas"></canvas>
+
+      <div class="modal-overlay" id="winModal">
+        <div class="modal-card">
+          <div class="estrelas" id="modalEstrelas"><span>★</span><span>★</span><span>★</span></div>
+          <h2 id="modalTitle">Circuito Ativado!</h2>
+          <p id="modalDesc"></p>
+          <div class="botoes-modal">
+            <button class="btn-sec" id="btnReplay" title="Repetir fase">↻</button>
+            <button class="btn-next" id="btnNextLevel">Próxima Fase →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay global" id="ajudaModal">
+        <div class="menu-card ajuda-card">
+          <div class="menu-topo">
+            <h3>Como jogar</h3>
+            <button class="icon-btn" id="btnFecharAjuda">✕</button>
+          </div>
+          <ul class="ajuda-lista">
+            <li><b>Objetivo:</b> guie o laser do <span style="color:#ff6b8b">emissor</span> até o <span style="color:#34d399">receptor</span>.</li>
+            <li><b>Toque num espelho azul</b> para girá-lo (ele alterna entre <code>/</code> e <code>\</code>).</li>
+            <li><b>Cristais roxos:</b> todos precisam ser iluminados, senão o receptor não ativa.</li>
+            <li><b>Espelhos dourados</b> e <b>paredes</b> não se movem; paredes bloqueiam o laser.</li>
+            <li><b>Divisor de feixe</b> (verde-água): o laser atravessa e ainda cria um ramo lateral. Gire para escolher o lado.</li>
+            <li><b>Estrelas:</b> ★★★ se terminar no número ideal de giros (par). Usar dica limita a 2★.</li>
+            <li><b>Botões:</b> ↶ desfaz, 💡 mostra um espelho a girar, ↻ reinicia.</li>
+            <li><b>Teclas:</b> <kbd>R</kbd> reiniciar · <kbd>Z</kbd> desfazer · <kbd>H</kbd> dica · <kbd>M</kbd> som · <kbd>Enter</kbd> avançar</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="menuModal">
+        <div class="menu-card">
+          <div class="menu-topo">
+            <h3>Escolher fase</h3>
+            <button class="icon-btn" id="btnFecharMenu">✕</button>
+          </div>
+          <div class="grade-fases" id="gradeFases"></div>
+          <div class="menu-pag">
+            <button class="icon-btn" id="btnPagAnt">◀</button>
+            <span id="menuPagInfo"></span>
+            <button class="icon-btn" id="btnPagProx">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><span class="dot" style="background:#00f0ff; box-shadow:0 0 6px #00f0ff;"></span> Espelho móvel (toque)</div>
+      <div class="legend-item"><span class="dot" style="background:#f59e0b;"></span> Espelho fixo</div>
+      <div class="legend-item"><span class="dot" style="background:#5eead4; box-shadow:0 0 6px #5eead4;"></span> Divisor de feixe</div>
+      <div class="legend-item"><span class="dot" style="background:#a855f7; box-shadow:0 0 6px #a855f7;"></span> Cristal (obrigatório)</div>
+      <div class="legend-item"><span class="dot" style="background:#10b981; box-shadow:0 0 6px #10b981;"></span> Receptor</div>
+    </div>
+    <div class="atalhos"><kbd>R</kbd> reiniciar · <kbd>Z</kbd> desfazer · <kbd>H</kbd> dica · <kbd>M</kbd> som · <kbd>Enter</kbd> avançar</div>
+  </div>
+
+  <script>
+  // ==== NUCLEO ====
+  /*
+   * Direções por índice: 0 = direita, 1 = baixo, 2 = esquerda, 3 = cima.
+   * Espelhos / divisores têm 2 estados lógicos:
+   *   rot 0  -> '/'  (direita<->cima, esquerda<->baixo)
+   *   rot 90 -> '\'  (direita<->baixo, esquerda<->cima)
+   * Divisor: o feixe atravessa em linha reta E gera um ramo refletido.
+   *
+   * Códigos de célula: '.' vazio, '#' parede, 'A' receptor, 'C' cristal,
+   * 'E<ang>' emissor, 'M<rot>' espelho móvel, 'F<rot>' espelho fixo,
+   * 'S<rot>' divisor móvel, 'T<rot>' divisor fixo.
+   */
+  const DX = [1, 0, -1, 0];
+  const DY = [0, 1, 0, -1];
+  const REF = [[3, 2, 1, 0], [1, 0, 3, 2]];
+  const T_VAZIO = 0, T_PAREDE = 1, T_ALVO = 2, T_CRISTAL = 3, T_EMISSOR = 4, T_ESPELHO = 5, T_DIVISOR = 6;
+
+  function criarRNG(semente) {
+    let a = semente >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function popcount(x) {
+    x = x - ((x >> 1) & 0x55555555);
+    x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+    x = (x + (x >> 4)) & 0x0f0f0f0f;
+    return Math.imul(x, 0x01010101) >>> 24;
+  }
+
+  // rotação (0 ou 90) que transforma a direção de entrada na de saída
+  function rotRefletir(dEntrada, dSaida) {
+    if (REF[0][dEntrada] === dSaida) return 0;
+    if (REF[1][dEntrada] === dSaida) return 90;
+    return null;
+  }
+
+  function parsearGrid(grid) {
+    const N = grid.length;
+    const tipo = new Int8Array(N * N);
+    const rot = new Int16Array(N * N);
+    const fixo = new Uint8Array(N * N);
+    const cristais = [], moveis = [];
+    let ei = -1;
+    for (let l = 0; l < N; l++) {
+      for (let c = 0; c < N; c++) {
+        const cod = grid[l][c];
+        const i = l * N + c;
+        const ang = parseInt(cod.slice(1), 10) || 0;
+        const r2 = (ang % 180 === 0) ? 0 : 90;
+        switch (cod[0]) {
+          case '#': tipo[i] = T_PAREDE; fixo[i] = 1; break;
+          case 'A': tipo[i] = T_ALVO; fixo[i] = 1; break;
+          case 'C': tipo[i] = T_CRISTAL; fixo[i] = 1; cristais.push(i); break;
+          case 'E': tipo[i] = T_EMISSOR; rot[i] = ((ang % 360) + 360) % 360; fixo[i] = 1; ei = i; break;
+          case 'M': tipo[i] = T_ESPELHO; rot[i] = r2; moveis.push(i); break;
+          case 'F': tipo[i] = T_ESPELHO; rot[i] = r2; fixo[i] = 1; break;
+          case 'S': tipo[i] = T_DIVISOR; rot[i] = r2; moveis.push(i); break;
+          case 'T': tipo[i] = T_DIVISOR; rot[i] = r2; fixo[i] = 1; break;
+          default: tipo[i] = T_VAZIO; fixo[i] = 1;
+        }
+      }
+    }
+    return { N, tipo, rot, fixo, ei, cristais, moveis };
+  }
+
+  let _vis = new Int32Array(0), _carimbo = 0;
+
+  /*
+   * Traça o feixe (com ramos de divisores). Preenche saida.lit / saida.dist e,
+   * se saida.segs existir, os segmentos para desenho. Detecta ciclos.
+   * Devolve true se o receptor foi atingido.
+   */
+  function tracar(nv, rot, saida) {
+    const N = nv.N, tipo = nv.tipo, NN = N * N;
+    if (_vis.length < NN * 4) _vis = new Int32Array(NN * 4);
+    _carimbo++;
+    const lit = saida.lit, distArr = saida.dist, segs = saida.segs || null;
+    lit.fill(0);
+    if (segs) segs.length = 0;
+    let alvo = false;
+    const pilha = [[(nv.ei / N) | 0, nv.ei % N, rot[nv.ei] / 90, 0]];
+
+    while (pilha.length) {
+      const it = pilha.pop();
+      let l = it[0], c = it[1], d = it[2], dist = it[3];
+      let x0 = c + 0.5, y0 = l + 0.5, d0 = dist;
+      const emitir = (x1, y1, fim) => {
+        if (!segs) return;
+        segs.push({ x0, y0, x1, y1, d0, d1: d0 + Math.abs(x1 - x0) + Math.abs(y1 - y0), fim, antigo: false });
+      };
+      for (;;) {
+        const nl = l + DY[d], nc = c + DX[d];
+        if (nl < 0 || nl >= N || nc < 0 || nc >= N) {
+          emitir(c + 0.5 + DX[d] * 0.5, l + 0.5 + DY[d] * 0.5, 1);
+          break;
+        }
+        const i = nl * N + nc, t = tipo[i];
+        if (t === T_PAREDE || t === T_EMISSOR) {
+          emitir(c + 0.5 + DX[d] * 0.5, l + 0.5 + DY[d] * 0.5, 1);
+          break;
+        }
+        dist += 1; l = nl; c = nc;
+        const chave = i * 4 + d;
+        if (_vis[chave] === _carimbo) { emitir(c + 0.5, l + 0.5, 2); break; }
+        _vis[chave] = _carimbo;
+        if (!lit[i]) { lit[i] = 1; distArr[i] = dist; }
+        else if (dist < distArr[i]) distArr[i] = dist;
+
+        if (t === T_ALVO) { alvo = true; emitir(c + 0.5, l + 0.5, 0); break; }
+        if (t === T_ESPELHO) {
+          emitir(c + 0.5, l + 0.5, 0);
+          d = REF[rot[i] === 90 ? 1 : 0][d];
+          x0 = c + 0.5; y0 = l + 0.5; d0 = dist;
+        } else if (t === T_DIVISOR) {
+          pilha.push([l, c, REF[rot[i] === 90 ? 1 : 0][d], dist]);
+        }
+      }
+    }
+    return alvo;
+  }
+
+  function cristaisOk(nv, lit) {
+    for (let k = 0; k < nv.cristais.length; k++) if (!lit[nv.cristais[k]]) return false;
+    return true;
+  }
+
+  // Enumera todas as combinações de estados dos elementos móveis; devolve máscaras que resolvem.
+  function resolverNivel(nv) {
+    const m = nv.moveis.length;
+    if (m > 16) return null;
+    const rot = nv.rot.slice();
+    const saida = { lit: new Uint8Array(nv.N * nv.N), dist: new Float32Array(nv.N * nv.N), segs: null };
+    const sols = [];
+    for (let mask = 0; mask < (1 << m); mask++) {
+      for (let k = 0; k < m; k++) rot[nv.moveis[k]] = ((mask >> k) & 1) ? 90 : 0;
+      if (tracar(nv, rot, saida) && cristaisOk(nv, saida.lit)) sols.push(mask);
+    }
+    return sols;
+  }
+
+  function mascaraDe(nv, rot) {
+    let m = 0;
+    for (let k = 0; k < nv.moveis.length; k++) if (rot[nv.moveis[k]] === 90) m |= 1 << k;
+    return m;
+  }
+
+  // ---------- Fases manuais (tutorial progressivo) ----------
+  const NIVEIS_BASE = [
+    {
+      nome: 'Primeiro Reflexo',
+      dica: 'Toque no espelho azul para o girar e guie o laser até ao receptor.',
+      grid: [
+        ['.', '.', '.', 'A', '.'],
+        ['.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.'],
+        ['E0', '.', '.', 'M90', '.'],
+        ['.', '.', '.', '.', '.']
+      ]
+    },
+    {
+      nome: 'Dupla Curva',
+      dica: 'Cada espelho tem dois estados. Combine-os para fazer o caminho completo.',
+      grid: [
+        ['.', '.', '.', '.', '.'],
+        ['.', '.', 'M90', '.', 'A'],
+        ['.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.'],
+        ['E0', '.', 'M90', '.', '.']
+      ]
+    },
+    {
+      nome: 'Primeiro Cristal',
+      dica: 'Os cristais roxos têm de ser iluminados para o receptor ativar.',
+      grid: [
+        ['.', 'A', '.', 'M0', '.'],
+        ['.', '.', '.', '.', '.'],
+        ['.', '#', '.', 'C', '.'],
+        ['.', '.', '.', '.', '.'],
+        ['E0', '.', '.', 'M90', '.']
+      ]
+    },
+    {
+      nome: 'Peça Fixa',
+      dica: 'Espelhos dourados não rodam. Paredes bloqueiam o laser.',
+      grid: [
+        ['.', '.', '.', '.', '.', '.'],
+        ['.', '.', 'M90', '.', 'F90', '.'],
+        ['.', '.', 'C', '#', '.', '.'],
+        ['.', '.', '.', '#', 'A', '.'],
+        ['E0', '.', 'M90', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.']
+      ]
+    },
+    {
+      nome: 'Atalho Enganoso',
+      dica: 'Há mais do que um caminho até ao receptor — mas só um acende o cristal.',
+      grid: [
+        ['.', 'M90', '.', '.', '.', 'M90'],
+        ['E0', 'M0', '.', '.', '.', 'A'],
+        ['.', '.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.'],
+        ['.', 'M0', '.', 'C', '.', 'M90'],
+        ['.', '.', '.', '.', '.', '.']
+      ]
+    },
+    {
+      nome: 'Divisor de Feixe',
+      dica: 'O divisor deixa o feixe passar e cria um ramo lateral. Gire-o para escolher o lado.',
+      grid: [
+        ['.', '.', '.', 'A', '.', '.'],
+        ['.', '.', 'C', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.'],
+        ['E0', '.', 'S90', 'M90', '.', '.'],
+        ['.', '.', '.', '.', '.', '.'],
+        ['.', '.', '.', '.', '.', '.']
+      ]
+    }
+  ];
+
+  // ---------- Gerador procedural determinístico ----------
+  function perfilDificuldade(numero) {
+    const desafio = numero % 5 === 0;
+    const t = Math.max(0, numero - 7 + (desafio ? 3 : 0));
+    const N = Math.min(10, 6 + Math.floor(t / 8));
+    const maxCurvas = Math.min(11, Math.floor(N * N / 4));
+    return {
+      t, N, desafio,
+      curvas: Math.min(maxCurvas, 4 + Math.floor(t * 0.4)),
+      fixoFrac: t < 4 ? 0 : Math.min(0.5, 0.05 * (t - 3)),
+      divisores: t < 2 ? 0 : Math.min(3, 1 + Math.floor((t - 2) / 10)),
+      fixoDiv: t < 12 ? 0 : 0.3,
+      ramalCurva: t >= 10,
+      cristais: Math.min(6, 1 + Math.floor(t / 4)),
+      decoys: t < 6 ? 0 : Math.min(3, 1 + Math.floor((t - 6) / 9)),
+      paredes: Math.min(2 * N, 2 + Math.floor(t * 0.8)),
+      parMin: Math.min(9, 2 + Math.floor((t + 2) / 4)),
+      pFlip: 0.5 + Math.min(0.3, t * 0.012),
+      minFlips: 2 + Math.floor(t / 6),
+      maxMoveis: 14
+    };
+  }
+
+  function nomeDificuldade(numero) {
+    if (numero <= NIVEIS_BASE.length) return { nome: 'Tutorial', cor: '#60a5fa' };
+    const t = numero - 7;
+    if (t < 8) return { nome: 'Fácil', cor: '#34d399' };
+    if (t < 20) return { nome: 'Médio', cor: '#fbbf24' };
+    if (t < 40) return { nome: 'Difícil', cor: '#fb923c' };
+    if (t < 70) return { nome: 'Expert', cor: '#f87171' };
+    return { nome: 'Mestre', cor: '#c084fc' };
+  }
+
+  function tentarGerar(rng, P) {
+    const N = P.N, NN = N * N;
+    const int = (n) => Math.floor(rng() * n);
+    const dentro = (l, c) => l >= 0 && l < N && c >= 0 && c < N;
+    const ocupado = new Uint8Array(NN);
+    const especial = new Uint8Array(NN);
+    const livre = (l, c) => dentro(l, c) && !ocupado[l * N + c];
+    const embaralhar = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = int(i + 1); const x = arr[i]; arr[i] = arr[j]; arr[j] = x; } return arr; };
+
+    let l = int(N), c = int(N), d = int(4);
+    const dEmit = d, emI = l * N + c;
+    ocupado[emI] = 1; especial[emI] = 1;
+
+    const espelhos = [], retas = [], divisores = [], cristaisIdx = [];
+    let alvoI = -1;
+
+    // caminho principal
+    for (let s = 0; s < P.curvas; s++) {
+      const viaveis = [];
+      for (let k = 1; k <= N - 1; k++) {
+        const ml = l + DY[d] * k, mc = c + DX[d] * k;
+        if (!livre(ml, mc)) break;
+        for (const nd of [(d + 1) % 4, (d + 3) % 4]) {
+          if (livre(ml + DY[nd], mc + DX[nd])) viaveis.push({ k, nd });
+        }
+      }
+      if (!viaveis.length) return null;
+      const esc = viaveis[int(viaveis.length)];
+      for (let k = 1; k < esc.k; k++) {
+        const rl = l + DY[d] * k, rc = c + DX[d] * k;
+        ocupado[rl * N + rc] = 1;
+        retas.push({ i: rl * N + rc, d });
+      }
+      const ml = l + DY[d] * esc.k, mc = c + DX[d] * esc.k;
+      ocupado[ml * N + mc] = 1; especial[ml * N + mc] = 1;
+      espelhos.push({ i: ml * N + mc, rotSol: rotRefletir(d, esc.nd), fixo: false });
+      l = ml; c = mc; d = esc.nd;
+    }
+
+    // trecho final até ao receptor
+    let maxRun = 0;
+    for (let k = 1; k <= N - 1; k++) { if (!livre(l + DY[d] * k, c + DX[d] * k)) break; maxRun = k; }
+    if (maxRun < 1) return null;
+    const kf = 1 + int(Math.min(maxRun, 4));
+    for (let k = 1; k < kf; k++) {
+      const rl = l + DY[d] * k, rc = c + DX[d] * k;
+      ocupado[rl * N + rc] = 1; retas.push({ i: rl * N + rc, d });
+    }
+    alvoI = (l + DY[d] * kf) * N + (c + DX[d] * kf);
+    ocupado[alvoI] = 1; especial[alvoI] = 1;
+
+    // divisores com ramos que terminam em cristais obrigatórios
+    for (let sIdx = 0; sIdx < P.divisores; sIdx++) {
+      if (rng() < 0.3 && sIdx > 0) continue;
+      for (let tent = 0; tent < 14; tent++) {
+        const cands = retas.filter(r => !especial[r.i]);
+        if (!cands.length) break;
+        const r = cands[int(cands.length)];
+        const l0 = (r.i / N) | 0, c0 = r.i % N;
+        const opts = [(r.d + 1) % 4, (r.d + 3) % 4].filter(b => livre(l0 + DY[b], c0 + DX[b]));
+        if (!opts.length) continue;
+        const b = opts[int(opts.length)];
+        let maxK = 0;
+        for (let k = 1; k <= 3; k++) { if (!livre(l0 + DY[b] * k, c0 + DX[b] * k)) break; maxK = k; }
+        const k1 = 1 + int(maxK);
+        let curva = null;
+        if (P.ramalCurva && rng() < 0.5) {
+          const ml = l0 + DY[b] * k1, mc = c0 + DX[b] * k1;
+          const nds = [(b + 1) % 4, (b + 3) % 4].filter(nd => livre(ml + DY[nd], mc + DX[nd]));
+          if (nds.length) {
+            const nd = nds[int(nds.length)];
+            let mk = 0;
+            for (let k = 1; k <= 2; k++) { if (!livre(ml + DY[nd] * k, mc + DX[nd] * k)) break; mk = k; }
+            curva = { nd, k2: 1 + int(mk), ml, mc };
+          }
+        }
+        especial[r.i] = 1;
+        divisores.push({ i: r.i, rotSol: rotRefletir(r.d, b), fixo: rng() < P.fixoDiv });
+        for (let k = 1; k < k1; k++) ocupado[(l0 + DY[b] * k) * N + (c0 + DX[b] * k)] = 1;
+        if (!curva) {
+          const ci = (l0 + DY[b] * k1) * N + (c0 + DX[b] * k1);
+          ocupado[ci] = 1; especial[ci] = 1; cristaisIdx.push(ci);
+        } else {
+          const mi = curva.ml * N + curva.mc;
+          ocupado[mi] = 1; especial[mi] = 1;
+          espelhos.push({ i: mi, rotSol: rotRefletir(b, curva.nd), fixo: false });
+          for (let k = 1; k < curva.k2; k++) ocupado[(curva.ml + DY[curva.nd] * k) * N + (curva.mc + DX[curva.nd] * k)] = 1;
+          const ci = (curva.ml + DY[curva.nd] * curva.k2) * N + (curva.mc + DX[curva.nd] * curva.k2);
+          ocupado[ci] = 1; especial[ci] = 1; cristaisIdx.push(ci);
+        }
+        break;
+      }
+    }
+
+    // cristais no caminho principal
+    const candC = embaralhar(retas.filter(r => !especial[r.i]));
+    const nMain = Math.min(P.cristais, candC.length);
+    for (let k = 0; k < nMain; k++) { especial[candC[k].i] = 1; cristaisIdx.push(candC[k].i); }
+    if (cristaisIdx.length === 0) return null;
+
+    // espelhos fixos (na orientação correta)
+    const nFixos = Math.min(Math.floor(P.curvas * P.fixoFrac), Math.max(0, espelhos.length - 2));
+    const ordem = embaralhar(espelhos.map((_, i) => i));
+    for (let k = 0; k < nFixos; k++) espelhos[ordem[k]].fixo = true;
+
+    // embaralhar estados iniciais dos móveis
+    const moveisLista = embaralhar([...espelhos.filter(e => !e.fixo), ...divisores.filter(e => !e.fixo)]);
+    const minFlips = Math.min(moveisLista.length, P.minFlips);
+    moveisLista.forEach((m, k) => {
+      const gira = k < minFlips || rng() < P.pFlip;
+      m.rotIni = gira ? (m.rotSol + 90) % 180 : m.rotSol;
+    });
+    espelhos.forEach(e => { if (e.fixo) e.rotIni = e.rotSol; });
+    divisores.forEach(e => { if (e.fixo) e.rotIni = e.rotSol; });
+
+    // decoys e paredes (preferindo células vizinhas ao caminho)
+    const grid1 = new Array(NN).fill('.');
+    const vizinho = (i) => {
+      const li = (i / N) | 0, ci = i % N;
+      for (let k = 0; k < 4; k++) { const a = li + DY[k], b = ci + DX[k]; if (dentro(a, b) && ocupado[a * N + b]) return true; }
+      return false;
+    };
+    const escolherLivres = (qtd) => {
+      const todos = [];
+      for (let i = 0; i < NN; i++) if (!ocupado[i]) todos.push(i);
+      const adj = embaralhar(todos.filter(vizinho)), resto = embaralhar(todos.filter(i => !vizinho(i)));
+      const lista = [];
+      for (let k = 0; k < qtd; k++) {
+        const pega = (rng() < 0.65 && adj.length) ? adj : (resto.length ? resto : adj);
+        if (!pega.length) break;
+        const i = pega.pop();
+        lista.push(i); ocupado[i] = 1;
+        const ai = adj.indexOf(i); if (ai >= 0) adj.splice(ai, 1);
+        const ri = resto.indexOf(i); if (ri >= 0) resto.splice(ri, 1);
+      }
+      return lista;
+    };
+    const decoys = escolherLivres(P.decoys);
+    const paredes = escolherLivres(P.paredes);
+
+    const nMoveis = moveisLista.length + decoys.length;
+    if (nMoveis > P.maxMoveis) return null;
+
+    grid1[emI] = 'E' + dEmit * 90;
+    grid1[alvoI] = 'A';
+    espelhos.forEach(e => { grid1[e.i] = (e.fixo ? 'F' : 'M') + e.rotIni; });
+    divisores.forEach(e => { grid1[e.i] = (e.fixo ? 'T' : 'S') + e.rotIni; });
+    cristaisIdx.forEach(i => { grid1[i] = 'C'; });
+    decoys.forEach(i => { grid1[i] = 'M' + (rng() < 0.5 ? 0 : 90); });
+    paredes.forEach(i => { grid1[i] = '#'; });
+
+    const grid = [];
+    for (let li = 0; li < N; li++) grid.push(grid1.slice(li * N, li * N + N));
+    return grid;
+  }
+
+  function avaliarNivel(grid) {
+    const nv = parsearGrid(grid);
+    const sols = resolverNivel(nv);
+    if (!sols || !sols.length) return null;
+    const ini = mascaraDe(nv, nv.rot);
+    let par = 99;
+    for (let k = 0; k < sols.length; k++) {
+      const dd = popcount(sols[k] ^ ini);
+      if (dd < par) par = dd;
+    }
+    if (par === 0) return null; // já começa resolvido
+    return { nv, sols, par };
+  }
+
+  function gerarNivel(numero) {
+    const P0 = perfilDificuldade(numero);
+    const rng = criarRNG((Math.imul(numero, 2654435761) ^ 0x9E3779B9) >>> 0);
+    const P = Object.assign({}, P0);
+    for (let tent = 0; tent < 700; tent++) {
+      if (tent > 0 && tent % 100 === 0) { P.curvas = Math.max(3, P.curvas - 1); P.parMin = Math.max(2, P.parMin - 1); }
+      if (tent > 400) { P.divisores = 0; P.decoys = 0; }
+      const grid = tentarGerar(rng, P);
+      if (!grid) continue;
+      const av = avaliarNivel(grid);
+      if (!av || av.par < Math.min(P.parMin, av.nv.moveis.length)) continue;
+      const dif = nomeDificuldade(numero);
+      return {
+        numero, grid, par: av.par, sols: av.sols,
+        nome: (P0.desafio ? 'Desafio ' : 'Setor ') + numero + ' · ' + P0.N + '×' + P0.N,
+        dica: P0.desafio ? '⭐ Fase desafio: um pouco mais difícil que as vizinhas.' : '',
+        desafio: P0.desafio, dificuldade: dif
+      };
+    }
+    // fallback seguro
+    const base = NIVEIS_BASE[1];
+    const av = avaliarNivel(base.grid);
+    return { numero, grid: base.grid, par: av.par, sols: av.sols, nome: 'Setor ' + numero, dica: '', desafio: false, dificuldade: nomeDificuldade(numero) };
+  }
+
+  const _cacheNiveis = new Map();
+  function obterNivel(numero) {
+    if (_cacheNiveis.has(numero)) return _cacheNiveis.get(numero);
+    let res;
+    if (numero <= NIVEIS_BASE.length) {
+      const b = NIVEIS_BASE[numero - 1];
+      const av = avaliarNivel(b.grid);
+      if (!av) console.warn('[Laser Lab] Fase manual ' + numero + ' inválida');
+      res = { numero, grid: b.grid, par: av ? av.par : null, sols: av ? av.sols : [], nome: b.nome, dica: b.dica || '', desafio: false, dificuldade: nomeDificuldade(numero) };
+    } else {
+      res = gerarNivel(numero);
+    }
+    _cacheNiveis.set(numero, res);
+    if (_cacheNiveis.size > 60) _cacheNiveis.delete(_cacheNiveis.keys().next().value);
+    return res;
+  }
+  // ==== FIM NUCLEO ====
+
+  // ==================== PROGRESSO ====================
+  const Progresso = {
+    chave: 'laserlab_v2',
+    dados: { desbloqueada: 1, ultima: 1, estrelas: {}, melhor: {}, mudo: false },
+    carregar() {
+      try {
+        const bruto = localStorage.getItem(this.chave);
+        if (!bruto) return;
+        const d = JSON.parse(bruto);
+        if (d && typeof d === 'object') {
+          this.dados.desbloqueada = Math.max(1, d.desbloqueada | 0);
+          this.dados.ultima = Math.max(1, d.ultima | 0);
+          this.dados.estrelas = d.estrelas || {};
+          this.dados.melhor = d.melhor || {};
+          this.dados.mudo = !!d.mudo;
+        }
+      } catch (e) { /* sem armazenamento disponível */ }
+    },
+    salvar() { try { localStorage.setItem(this.chave, JSON.stringify(this.dados)); } catch (e) { /* ignora */ } },
+    registrar(n, estrelas, giros) {
+      const d = this.dados;
+      d.estrelas[n] = Math.max(d.estrelas[n] || 0, estrelas);
+      d.melhor[n] = Math.min(d.melhor[n] || 9999, giros);
+      d.desbloqueada = Math.max(d.desbloqueada, n + 1);
+      this.salvar();
+    }
+  };
+
+  // ==================== SOM (Web Audio sintetizado) ====================
+  const Som = {
+    ctx: null, mestre: null, mudo: false, ruidoBuf: null, hum: null,
+    iniciar() {
+      if (!this.ctx) {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          this.ctx = new AC();
+          this.mestre = this.ctx.createGain();
+          this.mestre.gain.value = this.mudo ? 0 : 0.6;
+          this.mestre.connect(this.ctx.destination);
+          const n = this.ctx.sampleRate * 0.4;
+          this.ruidoBuf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+          const dados = this.ruidoBuf.getChannelData(0);
+          for (let i = 0; i < n; i++) dados[i] = Math.random() * 2 - 1;
+          this.iniciarHum();
+        } catch (e) { this.ctx = null; }
+      }
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    iniciarHum() {
+      const c = this.ctx;
+      const g = c.createGain(); g.gain.value = 0.014;
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 400;
+      const o1 = c.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 55;
+      const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = 82.5;
+      const lfo = c.createOscillator(); lfo.frequency.value = 0.3;
+      const lg = c.createGain(); lg.gain.value = 60;
+      lfo.connect(lg); lg.connect(f.frequency);
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(this.mestre);
+      o1.start(); o2.start(); lfo.start();
+      this.hum = { o1, o2, g };
+    },
+    ajustarHum(n) {
+      if (!this.hum) return;
+      const t = this.ctx.currentTime;
+      this.hum.o2.frequency.setTargetAtTime(82.5 * (1 + 0.14 * n), t, 0.2);
+      this.hum.g.gain.setTargetAtTime(0.014 + 0.003 * n, t, 0.2);
+    },
+    alternarMudo() {
+      this.mudo = !this.mudo;
+      if (this.mestre) this.mestre.gain.setTargetAtTime(this.mudo ? 0 : 0.6, this.ctx.currentTime, 0.03);
+      return this.mudo;
+    },
+    nota(freq, o) {
+      if (!this.ctx || this.mudo) return;
+      o = o || {};
+      const dur = o.dur || 0.2, vol = o.vol || 0.15, atraso = o.atraso || 0, ataque = o.ataque || 0.005;
+      const t = this.ctx.currentTime + atraso;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = o.tipo || 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      if (o.fim) osc.frequency.exponentialRampToValueAtTime(o.fim, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + ataque);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(g); g.connect(this.mestre);
+      osc.start(t); osc.stop(t + dur + 0.05);
+    },
+    ruido(dur, vol, freq, atraso) {
+      if (!this.ctx || this.mudo || !this.ruidoBuf) return;
+      const t = this.ctx.currentTime + (atraso || 0);
+      const src = this.ctx.createBufferSource(); src.buffer = this.ruidoBuf;
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq || 2000;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(g); g.connect(this.mestre);
+      src.start(t); src.stop(t + dur + 0.02);
+    },
+    girar(alt) { this.nota(alt ? 480 : 640, { dur: 0.1, tipo: 'triangle', vol: 0.12, fim: alt ? 760 : 900 }); this.ruido(0.05, 0.08, 3500); },
+    bloqueado() { this.nota(140, { dur: 0.14, tipo: 'square', vol: 0.07, fim: 80 }); },
+    espelho(n) { this.nota(700 + Math.min(n, 8) * 70, { dur: 0.08, vol: 0.04, tipo: 'sine' }); },
+    cristal(n) {
+      const esc = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66];
+      const f = esc[Math.min(Math.max(n - 1, 0), esc.length - 1)];
+      this.nota(f, { dur: 0.55, vol: 0.14 });
+      this.nota(f * 2, { dur: 0.4, vol: 0.04, atraso: 0.02 });
+    },
+    alvo() { this.nota(880, { dur: 0.25, tipo: 'triangle', vol: 0.12 }); this.nota(1318.5, { dur: 0.4, tipo: 'triangle', vol: 0.1, atraso: 0.09 }); },
+    vitoria() {
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+        this.nota(f, { dur: 0.5, tipo: 'triangle', vol: 0.13, atraso: i * 0.09 });
+        this.nota(f * 2, { dur: 0.35, vol: 0.03, atraso: i * 0.09 });
+      });
+      this.ruido(0.5, 0.05, 6000, 0.35);
+    },
+    reiniciar() { this.nota(520, { dur: 0.22, tipo: 'sawtooth', vol: 0.07, fim: 180 }); },
+    desfazer() { this.nota(720, { dur: 0.12, tipo: 'triangle', vol: 0.1, fim: 420 }); },
+    dica() { this.nota(988, { dur: 0.5, vol: 0.1 }); this.nota(1318.5, { dur: 0.6, vol: 0.07, atraso: 0.12 }); },
+    nivel() { this.nota(200, { dur: 0.35, vol: 0.07, fim: 900 }); this.ruido(0.25, 0.04, 1500); },
+    clique() { this.nota(900, { dur: 0.04, tipo: 'square', vol: 0.04 }); }
+  };
+
+  // ==================== JOGO ====================
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const wrapper = document.getElementById('wrapper');
+  const uiLevel = document.getElementById('uiLevel');
+  const uiMoves = document.getElementById('uiMoves');
+  const uiCrystals = document.getElementById('uiCrystals');
+  const uiNome = document.getElementById('uiNome');
+  const uiDica = document.getElementById('uiDica');
+  const uiBadge = document.getElementById('uiBadge');
+  const winModal = document.getElementById('winModal');
+  const menuModal = document.getElementById('menuModal');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalDesc = document.getElementById('modalDesc');
+  const modalEstrelas = document.getElementById('modalEstrelas');
+  const btnNextLevel = document.getElementById('btnNextLevel');
+  const btnReplay = document.getElementById('btnReplay');
+  const btnReset = document.getElementById('btnReset');
+  const btnUndo = document.getElementById('btnUndo');
+  const btnHint = document.getElementById('btnHint');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnMenu = document.getElementById('btnMenu');
+  const btnSom = document.getElementById('btnSom');
+  const gradeFases = document.getElementById('gradeFases');
+
+  const reduzirMovimento = (typeof window.matchMedia === 'function') && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const VEL_FEIXE = 48; // células por segundo
+  const COR_LASER = [255, 42, 95];
+  const COR_VITORIA = [52, 211, 153];
+
+  const estado = {
+    nivelNum: 1, nivel: null, N: 6, cel: [], giros: 0, desfazer: [], dicasUsadas: 0,
+    segs: [], reveal: 0, maxDist: 0, resolvido: false, vitoria: false,
+    cristaisAtivos: 0, cristaisTotais: 0, hover: null, dica: null,
+    t: 0, tamCSS: 480, shake: 0, flash: 0, corVit: 0,
+    particulas: [], aneis: [], poeira: [], litBuf: null, distBuf: null,
+    menuAberto: false, pagina: 0, alvoIdx: -1
+  };
+  let timerVitoria = null;
+
+  const rgb = (c, a) => a === undefined ? `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})` : `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  const misturar = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+  function tracoArredondado(cx, x, y, w, h, r) {
+    if (typeof cx.roundRect === 'function') { cx.beginPath(); cx.roundRect(x, y, w, h, r); return; }
+    const radius = Math.min(r, w / 2, h / 2);
+    cx.beginPath();
+    cx.moveTo(x + radius, y);
+    cx.arcTo(x + w, y, x + w, y + h, radius);
+    cx.arcTo(x + w, y + h, x, y + h, radius);
+    cx.arcTo(x, y + h, x, y, radius);
+    cx.arcTo(x, y, x + w, y, radius);
+    cx.closePath();
+  }
+
+  // ---------- Partículas ----------
+  function faiscas(x, y, cor, n, vel, vida, tam) {
+    if (reduzirMovimento) n = Math.ceil(n / 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = vel * (0.3 + Math.random() * 0.7);
+      estado.particulas.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vida: vida * (0.6 + Math.random() * 0.4), vidaMax: vida, cor, tam: (tam || 2) * (0.6 + Math.random() * 0.8), grav: 0, forma: 'c', atrito: 2.5 });
+    }
+  }
+  function confete() {
+    const L = estado.tamCSS, cores = ['#ff2a5f', '#00f0ff', '#a855f7', '#10b981', '#fbbf24', '#ffffff'];
+    const n = reduzirMovimento ? 20 : 110;
+    for (let i = 0; i < n; i++) {
+      const lado = i % 2 === 0;
+      estado.particulas.push({
+        x: lado ? 0 : L, y: L * (0.55 + Math.random() * 0.3),
+        vx: (lado ? 1 : -1) * (120 + Math.random() * 260), vy: -(250 + Math.random() * 330),
+        vida: 1.8 + Math.random() * 1.2, vidaMax: 3, cor: cores[i % cores.length], tam: 3 + Math.random() * 4,
+        grav: 480, forma: 'r', rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, atrito: 0.6
+      });
+    }
+  }
+  function anel(x, y, cor, rMax, vida) {
+    estado.aneis.push({ x, y, r: 2, rMax, vida, vidaMax: vida, cor });
+  }
+  const centroPx = (i) => {
+    const tc = estado.tamCSS / estado.N;
+    return { x: ((i % estado.N) + 0.5) * tc, y: (((i / estado.N) | 0) + 0.5) * tc, tc };
+  };
+
+  // ---------- Construção / reinício de fase ----------
+  function criarCelula(nv, i, l, c) {
+    const tp = nv.tipo[i];
+    return {
+      tipo: tp, rot: nv.rot[i], fixo: !!nv.fixo[i],
+      angAlvo: (tp === T_ESPELHO || tp === T_DIVISOR) ? nv.rot[i] : 0,
+      angVis: (tp === T_ESPELHO || tp === T_DIVISOR) ? nv.rot[i] : 0,
+      lit: false, dist: 0, ativo: false, brilho: 0, spawn: -(l + c) * 0.05 - 0.05, bloqueioT: 0
+    };
+  }
+
+  function iniciarFase(n, silencioso) {
+    clearTimeout(timerVitoria);
+    n = Math.max(1, Math.min(n, Progresso.dados.desbloqueada));
+    const nivel = obterNivel(n);
+    const nv = parsearGrid(nivel.grid);
+    estado.nivelNum = n; estado.nivel = Object.assign({}, nivel, nv); // nv: N,tipo,rot,fixo,ei,cristais,moveis
+    estado.N = nv.N; estado.giros = 0; estado.desfazer = []; estado.dicasUsadas = 0;
+    estado.vitoria = false; estado.resolvido = false; estado.dica = null; estado.hover = null;
+    estado.segs = []; estado.reveal = 0; estado.maxDist = 0; estado.corVit = 0; estado.shake = 0; estado.flash = 0;
+    estado.particulas = []; estado.aneis = []; estado.cristaisAtivos = 0;
+    estado.cristaisTotais = nv.cristais.length;
+    estado.litBuf = new Uint8Array(nv.N * nv.N);
+    estado.distBuf = new Float32Array(nv.N * nv.N);
+    estado.cel = [];
+    estado.alvoIdx = -1;
+    for (let l = 0; l < nv.N; l++) for (let c = 0; c < nv.N; c++) {
+      const i = l * nv.N + c;
+      estado.cel.push(criarCelula(nv, i, l, c));
+      if (nv.tipo[i] === T_ALVO) estado.alvoIdx = i;
+    }
+    winModal.classList.remove('visible');
+    fecharMenu(true);
+    Progresso.dados.ultima = n; Progresso.salvar();
+    recalcular();
+    atualizarHUD(true);
+    if (!silencioso) Som.nivel();
+    Som.ajustarHum(0);
+  }
+
+  function assinatura(s) { return s.x0 + ',' + s.y0 + ',' + s.x1 + ',' + s.y1 + ',' + s.d0; }
+
+  function recalcular() {
+    const nv = estado.nivel, N = estado.N;
+    const rot = new Int16Array(N * N);
+    for (let i = 0; i < N * N; i++) rot[i] = estado.cel[i].tipo === T_EMISSOR ? nv.rot[i] : estado.cel[i].rot;
+    const novas = [];
+    const saida = { lit: estado.litBuf, dist: estado.distBuf, segs: novas };
+    const alvo = tracar(nv, rot, saida);
+
+    // segmentos já totalmente visíveis não reanimam
+    const visiveis = new Set();
+    for (const s of estado.segs) if (s.antigo || s.d1 <= estado.reveal + 1e-6) visiveis.add(assinatura(s));
+    let dDiv = Infinity, maxD = 0;
+    for (const s of novas) {
+      s.antigo = visiveis.has(assinatura(s));
+      if (!s.antigo && s.d0 < dDiv) dDiv = s.d0;
+      if (s.d1 > maxD) maxD = s.d1;
+    }
+    estado.segs = novas;
+    estado.maxDist = maxD;
+    if (dDiv !== Infinity) estado.reveal = Math.min(estado.reveal, dDiv);
+
+    for (let i = 0; i < N * N; i++) {
+      const c = estado.cel[i];
+      c.lit = !!estado.litBuf[i];
+      c.dist = estado.distBuf[i];
+      if (!c.lit) c.ativo = false;
+    }
+    estado.resolvido = alvo && cristaisOk(nv, estado.litBuf);
+  }
+
+  // ---------- Ações do jogador ----------
+  function girar(i, desfazendo) {
+    const c = estado.cel[i];
+    c.rot = c.rot === 0 ? 90 : 0;
+    c.angAlvo += desfazendo ? -90 : 90;
+    const p = centroPx(i);
+    anel(p.x, p.y, '0,240,255', p.tc * 0.55, 0.35);
+    faiscas(p.x, p.y, '#7dd3fc', 6, 90, 0.35, 1.8);
+    recalcular();
+  }
+
+  function interagir(pos) {
+    if (!pos || estado.vitoria || estado.menuAberto) return;
+    const i = pos.l * estado.N + pos.c;
+    const c = estado.cel[i];
+    if ((c.tipo === T_ESPELHO || c.tipo === T_DIVISOR) && !c.fixo) {
+      estado.desfazer.push(i);
+      estado.giros++;
+      estado.dica = null;
+      girar(i, false);
+      Som.girar(c.rot === 0);
+      atualizarHUD();
+    } else if (c.tipo === T_ESPELHO || c.tipo === T_DIVISOR || c.tipo === T_PAREDE || c.tipo === T_EMISSOR) {
+      c.bloqueioT = 0.35;
+      const p = centroPx(i);
+      anel(p.x, p.y, '248,113,113', p.tc * 0.45, 0.3);
+      Som.bloqueado();
+    }
+  }
+
+  function desfazerJogada() {
+    if (estado.vitoria || !estado.desfazer.length) return;
+    const i = estado.desfazer.pop();
+    estado.giros = Math.max(0, estado.giros - 1);
+    girar(i, true);
+    Som.desfazer();
+    atualizarHUD();
+  }
+
+  function pedirDica() {
+    if (estado.vitoria) return;
+    const nv = estado.nivel;
+    if (!nv.sols || !nv.sols.length) return;
+    let cur = 0;
+    nv.moveis.forEach((ci, k) => { if (estado.cel[ci].rot === 90) cur |= 1 << k; });
+    let melhor = null, bd = 99;
+    for (let k = 0; k < nv.sols.length; k++) {
+      const dd = popcount(nv.sols[k] ^ cur);
+      if (dd < bd) { bd = dd; melhor = nv.sols[k]; }
+    }
+    if (bd === 0 || melhor === null) return;
+    const diff = melhor ^ cur;
+    const eL = (nv.ei / nv.N) | 0, eC = nv.ei % nv.N;
+    let escolhido = -1, menor = 1e9;
+    nv.moveis.forEach((ci, k) => {
+      if ((diff >> k) & 1) {
+        const d = Math.abs(((ci / nv.N) | 0) - eL) + Math.abs((ci % nv.N) - eC);
+        if (d < menor) { menor = d; escolhido = ci; }
+      }
+    });
+    if (escolhido < 0) return;
+    estado.dica = { i: escolhido, ate: estado.t + 3.2 };
+    estado.dicasUsadas++;
+    Som.dica();
+  }
+
+  // ---------- HUD ----------
+  function atualizarHUD(forcar) {
+    const n = estado.nivelNum, nv = estado.nivel;
+    uiLevel.textContent = n + ' (∞)';
+    const par = nv.par;
+    uiMoves.textContent = par ? `${estado.giros} / ${par}` : String(estado.giros);
+    uiMoves.style.color = !par ? '' : (estado.giros <= par ? '#10b981' : (estado.giros <= par + 2 ? '#fbbf24' : '#f87171'));
+    uiCrystals.textContent = estado.cristaisTotais ? `${estado.cristaisAtivos}/${estado.cristaisTotais}` : '—';
+    uiCrystals.style.color = (estado.cristaisTotais && estado.cristaisAtivos === estado.cristaisTotais) ? '#10b981' : '#f3f4f6';
+    if (forcar) {
+      uiNome.textContent = nv.nome;
+      uiDica.textContent = nv.dica || '';
+      const dif = nv.dificuldade;
+      uiBadge.textContent = dif.nome;
+      uiBadge.style.color = dif.cor;
+    }
+    btnPrev.disabled = n <= 1;
+    btnNext.disabled = n >= Progresso.dados.desbloqueada;
+    btnUndo.disabled = estado.vitoria || estado.desfazer.length === 0;
+    btnHint.disabled = estado.vitoria;
+  }
+
+  function atualizarBotaoSom() { btnSom.textContent = Som.mudo ? '🔇' : '🔊'; }
+
+  // ---------- Vitória ----------
+  function vencer() {
+    estado.vitoria = true;
+    const par = estado.nivel.par;
+    let estrelas = !par ? 3 : (estado.giros <= par ? 3 : (estado.giros <= par + 2 ? 2 : 1));
+    if (estado.dicasUsadas > 0) estrelas = Math.min(estrelas, 2);
+    estado.estrelasFinal = estrelas;
+    Progresso.registrar(estado.nivelNum, estrelas, estado.giros);
+    estado.shake = reduzirMovimento ? 0 : 9;
+    estado.flash = 0.55;
+    confete();
+    const p = centroPx(estado.alvoIdx);
+    anel(p.x, p.y, '16,185,129', p.tc * 1.8, 0.8);
+    anel(p.x, p.y, '255,255,255', p.tc * 1.2, 0.6);
+    faiscas(p.x, p.y, '#34d399', 40, 260, 0.9, 3);
+    Som.vitoria();
+    atualizarHUD();
+    clearTimeout(timerVitoria);
+    timerVitoria = setTimeout(mostrarModalVitoria, 900);
+  }
+
+  function mostrarModalVitoria() {
+    const nv = estado.nivel, est = estado.estrelasFinal || 1;
+    const msgs = ['', 'Resolvido!', 'Muito bem!', 'Perfeito!'];
+    modalTitle.textContent = est === 3 ? 'Circuito Perfeito!' : 'Circuito Ativado!';
+    modalDesc.innerHTML = `<strong>${nv.nome}</strong> concluída em <strong>${estado.giros}</strong> giros` +
+      (nv.par ? ` (par ${nv.par}). ${msgs[est]}` : '.') +
+      (estado.dicasUsadas ? '<br><small>Usaste dica: máximo 2 estrelas.</small>' : '');
+    [...modalEstrelas.children].forEach((s, k) => s.classList.toggle('on', k < est));
+    winModal.classList.remove('visible');
+    void winModal.offsetWidth; // reinicia a animação das estrelas
+    winModal.classList.add('visible');
+  }
+
+  // ---------- Menu de fases ----------
+  const POR_PAG = 15;
+  function renderMenu() {
+    gradeFases.innerHTML = '';
+    const des = Progresso.dados.desbloqueada;
+    const ini = estado.pagina * POR_PAG + 1;
+    for (let n = ini; n < ini + POR_PAG; n++) {
+      const b = document.createElement('button');
+      b.className = 'fase-cel' + (n === estado.nivelNum ? ' atual' : '');
+      const est = Progresso.dados.estrelas[n] || 0;
+      b.innerHTML = `${n > des ? '🔒' : n}<small>${n <= des ? '★'.repeat(est) : ''}</small>`;
+      b.disabled = n > des;
+      b.addEventListener('click', () => { Som.iniciar(); Som.clique(); iniciarFase(n); });
+      gradeFases.appendChild(b);
+    }
+    document.getElementById('menuPagInfo').textContent = `Fases ${ini}–${ini + POR_PAG - 1}`;
+    document.getElementById('btnPagAnt').disabled = estado.pagina === 0;
+    document.getElementById('btnPagProx').disabled = (estado.pagina + 1) * POR_PAG + 1 > des;
+  }
+  function abrirMenu() {
+    estado.pagina = Math.floor((estado.nivelNum - 1) / POR_PAG);
+    renderMenu();
+    estado.menuAberto = true;
+    menuModal.classList.add('visible');
+  }
+  function fecharMenu(silencioso) {
+    estado.menuAberto = false;
+    menuModal.classList.remove('visible');
+    document.getElementById('ajudaModal').classList.remove('visible');
+  }
+  function alternarAjuda() {
+    const m = document.getElementById('ajudaModal');
+    const abrir = !m.classList.contains('visible');
+    fecharMenu();
+    if (abrir) { m.classList.add('visible'); estado.menuAberto = true; }
+  }
+
+  // ---------- Atualização por quadro ----------
+  function ativarCelula(i) {
+    const c = estado.cel[i];
+    c.ativo = true;
+    const p = centroPx(i);
+    if (c.tipo === T_CRISTAL) {
+      const n = estado.cel.filter(x => x.tipo === T_CRISTAL && x.ativo).length;
+      faiscas(p.x, p.y, '#d8b4fe', 18, 170, 0.7, 2.6);
+      anel(p.x, p.y, '192,132,252', p.tc * 0.8, 0.5);
+      Som.cristal(n);
+    } else if (c.tipo === T_ALVO) {
+      faiscas(p.x, p.y, '#6ee7b7', 22, 190, 0.7, 2.6);
+      anel(p.x, p.y, '16,185,129', p.tc * 0.9, 0.6);
+      Som.alvo();
+    } else if (c.tipo === T_ESPELHO || c.tipo === T_DIVISOR) {
+      faiscas(p.x, p.y, c.tipo === T_DIVISOR ? '#99f6e4' : '#ffd1dc', 7, 100, 0.3, 1.6);
+      Som.espelho(Math.round(c.dist));
+    }
+  }
+
+  function atualizar(dt) {
+    estado.t += dt;
+    const N = estado.N, tc = estado.tamCSS / N;
+
+    if (estado.reveal < estado.maxDist + 0.5) estado.reveal += dt * VEL_FEIXE;
+
+    let ativosCristais = 0;
+    for (let i = 0; i < estado.cel.length; i++) {
+      const c = estado.cel[i];
+      if (c.spawn < 1) c.spawn = Math.min(1, c.spawn + dt * 3.2);
+      if (c.bloqueioT > 0) c.bloqueioT = Math.max(0, c.bloqueioT - dt);
+      if (c.tipo === T_ESPELHO || c.tipo === T_DIVISOR) c.angVis += (c.angAlvo - c.angVis) * Math.min(1, dt * 16);
+      if (c.lit && !c.ativo && c.dist <= estado.reveal) ativarCelula(i);
+      c.brilho += ((c.ativo ? 1 : 0) - c.brilho) * Math.min(1, dt * 10);
+      if (c.tipo === T_CRISTAL && c.ativo) ativosCristais++;
+    }
+    if (ativosCristais !== estado.cristaisAtivos) {
+      estado.cristaisAtivos = ativosCristais;
+      Som.ajustarHum(ativosCristais);
+      atualizarHUD();
+    }
+
+    // faíscas nas pontas do feixe (impacto em paredes)
+    if (!reduzirMovimento) {
+      for (const s of estado.segs) {
+        if (s.fim === 1 && (s.antigo || estado.reveal >= s.d1) && Math.random() < dt * 28) {
+          const cor = estado.vitoria ? '#a7f3d0' : '#ffb3c6';
+          faiscas(s.x1 * tc, s.y1 * tc, cor, 1, 70, 0.3, 1.5);
+        }
+      }
+    }
+
+    if (!estado.vitoria && estado.resolvido && estado.alvoIdx >= 0 && estado.cel[estado.alvoIdx].ativo &&
+        ativosCristais === estado.cristaisTotais) {
+      vencer();
+    }
+
+    estado.corVit += ((estado.vitoria ? 1 : 0) - estado.corVit) * Math.min(1, dt * 5);
+    if (estado.shake > 0) estado.shake = Math.max(0, estado.shake - dt * 28);
+    if (estado.flash > 0) estado.flash = Math.max(0, estado.flash - dt * 1.4);
+    if (estado.dica && estado.t > estado.dica.ate) estado.dica = null;
+
+    // partículas
+    const ps = estado.particulas;
+    for (let k = ps.length - 1; k >= 0; k--) {
+      const p = ps[k];
+      p.vida -= dt;
+      if (p.vida <= 0) { ps.splice(k, 1); continue; }
+      const at = Math.exp(-p.atrito * dt);
+      p.vx *= at; p.vy = p.vy * at + p.grav * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.forma === 'r') p.rot += p.vr * dt;
+    }
+    const an = estado.aneis;
+    for (let k = an.length - 1; k >= 0; k--) {
+      const a = an[k]; a.vida -= dt;
+      if (a.vida <= 0) { an.splice(k, 1); continue; }
+      const f = 1 - a.vida / a.vidaMax;
+      a.r = 2 + (a.rMax - 2) * (1 - Math.pow(1 - f, 3));
+    }
+    for (const d of estado.poeira) {
+      d.y -= d.v * dt; d.x += Math.sin(estado.t * 0.5 + d.f) * 0.004 * dt * 60;
+      if (d.y < -0.02) { d.y = 1.02; d.x = Math.random(); }
+    }
+  }
+
+  // ---------- Desenho ----------
+  function desenharParede(x, y, size) {
+    const pad = size * 0.08;
+    ctx.save();
+    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    tracoArredondado(ctx, x + pad, y + pad, size - pad * 2, size - pad * 2, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.beginPath();
+    ctx.moveTo(x + pad + 6, y + pad + 6); ctx.lineTo(x + size - pad - 6, y + size - pad - 6);
+    ctx.moveTo(x + size - pad - 6, y + pad + 6); ctx.lineTo(x + pad + 6, y + size - pad - 6);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function desenharEmissor(size, rotacao) {
+    ctx.save();
+    ctx.rotate((rotacao * Math.PI) / 180);
+    const r = size * 0.34;
+    const pulso = 1 + Math.sin(estado.t * 5) * 0.08;
+    ctx.strokeStyle = 'rgba(255,42,95,0.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, r * 1.3 * pulso, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#1f2937'; ctx.strokeStyle = '#ff2a5f'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff2a5f'; ctx.shadowColor = '#ff2a5f'; ctx.shadowBlur = 12;
+    ctx.fillRect(r * 0.4, -r * 0.32, r * 0.75, r * 0.64);
+    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function desenharAlvo(size, c) {
+    ctx.save();
+    const b = c.brilho, todos = estado.cristaisAtivos === estado.cristaisTotais;
+    const ativo = b > 0.05;
+    const pulsoLento = Math.sin(estado.t * 4.2);
+    const pulsoRapido = Math.sin(estado.t * 7.5);
+    const pulsoEscala = 1 + pulsoLento * (ativo ? 0.09 : 0.06);
+    const r = size * 0.34 * pulsoEscala;
+    const corBorda = ativo && !todos ? '#f59e0b' : '#10b981';
+    const corNucleo = ativo && !todos ? '#fbbf24' : '#34d399';
+
+    // Onda radial pulsante de alvo
+    const onda = (estado.t * (ativo ? 1.15 : 0.75)) % 1;
+    const raioOnda = size * (0.24 + onda * 0.28);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, (1 - onda) * (ativo ? 0.72 : 0.42));
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = ativo ? 2.4 : 1.7;
+    ctx.beginPath();
+    ctx.arc(0, 0, raioOnda, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Brilho e anel externo pulsante
+    ctx.shadowColor = corBorda;
+    ctx.shadowBlur = (ativo ? 16 + 10 * b : 8) + pulsoRapido * 4;
+    ctx.strokeStyle = corBorda;
+    ctx.lineWidth = (ativo ? 3.2 : 2.5) + pulsoLento * 0.4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Anel tracejado rotativo
+    ctx.save();
+    ctx.rotate(estado.t * (ativo ? 1.6 : 0.5));
+    ctx.setLineDash([5, 7]);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = ativo ? corBorda : 'rgba(16, 185, 129, 0.55)';
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.24, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Núcleo verde pulsante
+    const rNucleo = size * (ativo ? 0.21 : 0.17) * (1 + pulsoRapido * 0.11);
+    ctx.shadowColor = '#10b981';
+    ctx.shadowBlur = (ativo ? 16 : 9) + pulsoLento * 3;
+    ctx.fillStyle = corNucleo;
+    ctx.beginPath();
+    ctx.arc(0, 0, rNucleo, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function desenharCristal(size, c) {
+    ctx.save();
+    const b = c.brilho;
+    const r = size * 0.25 + b * Math.sin(estado.t * 7) * 2 + b * 2;
+    if (b > 0.05) { ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 8 + 12 * b; }
+    ctx.beginPath();
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.8, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.8, 0);
+    ctx.closePath();
+    ctx.fillStyle = b > 0.5 ? '#c084fc' : 'rgba(168, 85, 247, 0.18)';
+    ctx.strokeStyle = b > 0.5 ? '#f3e8ff' : '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.15 + 0.35 * b) + ')'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.moveTo(-r * 0.8, 0); ctx.lineTo(r * 0.8, 0); ctx.stroke();
+    if (b > 0.3) {
+      ctx.save(); ctx.rotate(estado.t * 1.5);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.5 + 0.5 * Math.sin(estado.t * 8)) * b + ')';
+      for (let k = 0; k < 4; k++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.fillRect(r * 1.2, -1, 5 * b, 2);
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function desenharEspelho(size, c) {
+    ctx.save();
+    const b = c.brilho;
+    if (!c.fixo) {
+      ctx.beginPath(); ctx.arc(0, 0, size * 0.36, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.22)'; ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]); ctx.lineDashOffset = -estado.t * 8; ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.rotate(((-45 + c.angVis) * Math.PI) / 180);
+    const comp = size * 0.68, esp = size * 0.11;
+    ctx.fillStyle = c.fixo ? '#b45309' : '#0284c7';
+    tracoArredondado(ctx, -comp / 2, -esp / 2, comp, esp, 4); ctx.fill();
+    ctx.fillStyle = b > 0.4 ? '#ffffff' : (c.fixo ? '#fcd34d' : '#7dd3fc');
+    if (b > 0.05) { ctx.shadowColor = c.fixo ? '#f59e0b' : '#00f0ff'; ctx.shadowBlur = 12 * b; }
+    tracoArredondado(ctx, -comp / 2 + 2, -esp * 0.25, comp - 4, esp * 0.5, 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = c.fixo ? '#78350f' : '#0f172a';
+    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function desenharDivisor(size, c) {
+    ctx.save();
+    const b = c.brilho;
+    const corBorda = c.fixo ? '#f59e0b' : '#5eead4';
+    if (!c.fixo) {
+      ctx.beginPath(); ctx.arc(0, 0, size * 0.36, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(94, 234, 212, 0.28)'; ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]); ctx.lineDashOffset = -estado.t * 8; ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.rotate(((-45 + c.angVis) * Math.PI) / 180);
+    const comp = size * 0.7, esp = size * 0.15;
+    if (b > 0.05) { ctx.shadowColor = corBorda; ctx.shadowBlur = 14 * b; }
+    ctx.fillStyle = 'rgba(204,251,241,' + (0.18 + 0.3 * b) + ')';
+    ctx.strokeStyle = corBorda; ctx.lineWidth = 2;
+    tracoArredondado(ctx, -comp / 2, -esp / 2, comp, esp, 3); ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = corBorda;
+    ctx.beginPath(); ctx.moveTo(0, -esp * 0.9); ctx.lineTo(esp * 0.6, 0); ctx.lineTo(0, esp * 0.9); ctx.lineTo(-esp * 0.6, 0); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function desenharFeixe(tc) {
+    const reveal = estado.reveal;
+    const cor = misturar(COR_LASER, COR_VITORIA, estado.corVit);
+    const partes = [];
+    let cabeca = null;
+    for (const s of estado.segs) {
+      let f = 1;
+      if (!s.antigo) {
+        const len = s.d1 - s.d0;
+        f = len > 0 ? (reveal - s.d0) / len : 1;
+        if (f <= 0) continue;
+        if (f < 1) cabeca = { x: (s.x0 + (s.x1 - s.x0) * f) * tc, y: (s.y0 + (s.y1 - s.y0) * f) * tc };
+        if (f > 1) f = 1;
+      }
+      partes.push([s.x0 * tc, s.y0 * tc, (s.x0 + (s.x1 - s.x0) * f) * tc, (s.y0 + (s.y1 - s.y0) * f) * tc]);
+    }
+    if (!partes.length) return;
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const passada = (estilo, largura, blur, dash) => {
+      ctx.beginPath();
+      for (const p of partes) { ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); }
+      ctx.strokeStyle = estilo; ctx.lineWidth = largura;
+      ctx.shadowColor = rgb(cor); ctx.shadowBlur = blur;
+      if (dash) { ctx.setLineDash(dash[0]); ctx.lineDashOffset = dash[1]; } else ctx.setLineDash([]);
+      ctx.stroke();
+    };
+    passada(rgb(cor, 0.35), 10 + Math.sin(estado.t * 9) * 1.5, 20);
+    passada(rgb(cor), 4.5, 0);
+    passada('#fff0f3', 1.8, 0);
+    passada('rgba(255,255,255,0.75)', 1.4, 0, [[4, 16], -estado.t * 90]);
+    if (cabeca) {
+      ctx.setLineDash([]); ctx.shadowColor = rgb(cor); ctx.shadowBlur = 22;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cabeca.x, cabeca.y, 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function desenhar() {
+    const lado = estado.tamCSS, N = estado.N, tc = lado / N;
+    ctx.save();
+    ctx.clearRect(0, 0, lado, lado);
+    ctx.fillStyle = '#0d131f'; ctx.fillRect(0, 0, lado, lado);
+
+    if (estado.shake > 0) ctx.translate((Math.random() - 0.5) * estado.shake, (Math.random() - 0.5) * estado.shake);
+
+    // poeira ambiente
+    for (const d of estado.poeira) {
+      ctx.fillStyle = 'rgba(120,180,255,' + (0.05 + 0.08 * (0.5 + 0.5 * Math.sin(estado.t * 2 + d.f))) + ')';
+      ctx.beginPath(); ctx.arc(d.x * lado, d.y * lado, d.r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // fundo das células
+    for (let l = 0; l < N; l++) {
+      for (let c = 0; c < N; c++) {
+        const x = c * tc, y = l * tc, celula = estado.cel[l * N + c];
+        ctx.fillStyle = (l + c) % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.15)';
+        ctx.fillRect(x, y, tc, tc);
+        if (celula.brilho > 0.02 && celula.tipo !== T_ALVO) {
+          const cv = estado.corVit;
+          ctx.fillStyle = cv > 0.5 ? 'rgba(52,211,153,' + 0.07 * celula.brilho + ')' : 'rgba(255,42,95,' + 0.07 * celula.brilho + ')';
+          ctx.fillRect(x, y, tc, tc);
+        }
+        if (estado.hover && estado.hover.l === l && estado.hover.c === c && !estado.vitoria && !estado.menuAberto) {
+          const movel = !celula.fixo && (celula.tipo === T_ESPELHO || celula.tipo === T_DIVISOR);
+          ctx.fillStyle = movel ? 'rgba(0, 240, 255, 0.12)' : 'rgba(255,255,255,0.03)';
+          ctx.fillRect(x + 2, y + 2, tc - 4, tc - 4);
+          if (movel) {
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(x + 2, y + 2, tc - 4, tc - 4);
+          }
+        }
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, tc, tc);
+      }
+    }
+
+    const escalaEntrada = (c) => c.spawn <= 0 ? 0 : easeOutBack(Math.min(1, c.spawn));
+    const emCelula = (l, c, fn) => {
+      const celula = estado.cel[l * N + c];
+      const e = escalaEntrada(celula);
+      if (e <= 0.001) return;
+      ctx.save();
+      ctx.translate((c + 0.5) * tc, (l + 0.5) * tc);
+      if (celula.bloqueioT > 0) ctx.translate(Math.sin(celula.bloqueioT * 70) * 3, 0);
+      ctx.scale(e, e);
+      fn(celula);
+      ctx.restore();
+    };
+
+    // camada de baixo: paredes e cristais
+    for (let l = 0; l < N; l++) for (let c = 0; c < N; c++) {
+      const t = estado.cel[l * N + c].tipo;
+      if (t === T_PAREDE) emCelula(l, c, () => desenharParede(-tc / 2, -tc / 2, tc));
+      else if (t === T_CRISTAL) emCelula(l, c, (ce) => desenharCristal(tc, ce));
+    }
+
+    desenharFeixe(tc);
+
+    // camada de cima
+    ctx.globalCompositeOperation = 'source-over';
+    for (let l = 0; l < N; l++) for (let c = 0; c < N; c++) {
+      const t = estado.cel[l * N + c].tipo;
+      if (t === T_EMISSOR) emCelula(l, c, (ce) => desenharEmissor(tc, estado.nivel.rot[l * N + c]));
+      else if (t === T_ALVO) emCelula(l, c, (ce) => desenharAlvo(tc, ce));
+      else if (t === T_ESPELHO) emCelula(l, c, (ce) => desenharEspelho(tc, ce));
+      else if (t === T_DIVISOR) emCelula(l, c, (ce) => desenharDivisor(tc, ce));
+    }
+
+    // anel de dica
+    if (estado.dica) {
+      const p = centroPx(estado.dica.i);
+      const k = (Math.sin(estado.t * 8) + 1) / 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(251,191,36,' + (0.5 + 0.5 * k) + ')'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.arc(p.x, p.y, tc * (0.42 + 0.06 * k), 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // anéis de onda
+    for (const a of estado.aneis) {
+      ctx.strokeStyle = 'rgba(' + a.cor + ',' + (a.vida / a.vidaMax) * 0.8 + ')';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(a.x, a.y, a.r, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // partículas
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of estado.particulas) {
+      const al = Math.max(0, Math.min(1, p.vida / p.vidaMax));
+      ctx.globalAlpha = al;
+      ctx.fillStyle = p.cor;
+      if (p.forma === 'r') {
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillRect(-p.tam, -p.tam * 0.5, p.tam * 2, p.tam);
+        ctx.restore();
+      } else {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.tam, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    if (estado.flash > 0) {
+      ctx.fillStyle = 'rgba(255,255,255,' + estado.flash * 0.6 + ')';
+      ctx.fillRect(-20, -20, lado + 40, lado + 40);
+    }
+    ctx.restore();
+  }
+
+  // ---------- Eventos ----------
+  function redimensionarCanvas() {
+    const stage = wrapper.parentElement;
+    const rect = stage.getBoundingClientRect();
+    const tamanho = Math.max(180, Math.floor(Math.min(rect.width || 480, rect.height || 480)));
+    wrapper.style.width = tamanho + 'px';
+    wrapper.style.height = tamanho + 'px';
+    const dpr = window.devicePixelRatio || 1;
+    estado.tamCSS = tamanho;
+    canvas.width = tamanho * dpr;
+    canvas.height = tamanho * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function obterCelulaPorEvento(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const tc = rect.width / estado.N;
+    const c = Math.floor(x / tc), l = Math.floor(y / tc);
+    if (l >= 0 && l < estado.N && c >= 0 && c < estado.N) return { l, c };
+    return null;
+  }
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType === 'touch') return;
+    const pos = obterCelulaPorEvento(e);
+    estado.hover = pos;
+    const c = pos ? estado.cel[pos.l * estado.N + pos.c] : null;
+    canvas.style.cursor = (c && !c.fixo && (c.tipo === T_ESPELHO || c.tipo === T_DIVISOR) && !estado.vitoria) ? 'pointer' : 'default';
+  });
+  canvas.addEventListener('pointerleave', () => { estado.hover = null; canvas.style.cursor = 'default'; });
+  canvas.addEventListener('pointerdown', (e) => {
+    Som.iniciar();
+    if (e.button !== undefined && e.button > 0) return;
+    interagir(obterCelulaPorEvento(e));
+  });
+
+  btnReset.addEventListener('click', () => { Som.iniciar(); Som.reiniciar(); iniciarFase(estado.nivelNum, true); });
+  btnUndo.addEventListener('click', () => { Som.iniciar(); desfazerJogada(); });
+  btnHint.addEventListener('click', () => { Som.iniciar(); pedirDica(); });
+  btnPrev.addEventListener('click', () => { Som.iniciar(); Som.clique(); iniciarFase(estado.nivelNum - 1); });
+  btnNext.addEventListener('click', () => { Som.iniciar(); Som.clique(); iniciarFase(estado.nivelNum + 1); });
+  btnMenu.addEventListener('click', () => { Som.iniciar(); Som.clique(); estado.menuAberto ? fecharMenu() : abrirMenu(); });
+  document.getElementById('btnFecharMenu').addEventListener('click', () => fecharMenu());
+  document.getElementById('btnAjuda').addEventListener('click', () => {
+    alternarAjuda();
+    try { Som.iniciar(); Som.clique(); } catch (e) { /* som indisponível */ }
+  });
+  document.getElementById('ajudaModal').addEventListener('click', (e) => { if (e.target.id === 'ajudaModal') fecharMenu(); });
+  document.getElementById('btnFecharAjuda').addEventListener('click', () => fecharMenu());
+  document.getElementById('btnPagAnt').addEventListener('click', () => { estado.pagina = Math.max(0, estado.pagina - 1); Som.clique(); renderMenu(); });
+  document.getElementById('btnPagProx').addEventListener('click', () => { estado.pagina++; Som.clique(); renderMenu(); });
+  btnNextLevel.addEventListener('click', () => { Som.iniciar(); iniciarFase(estado.nivelNum + 1); });
+  btnReplay.addEventListener('click', () => { Som.iniciar(); Som.reiniciar(); iniciarFase(estado.nivelNum, true); });
+  btnSom.addEventListener('click', () => {
+    Som.iniciar();
+    Progresso.dados.mudo = Som.alternarMudo();
+    Progresso.salvar(); atualizarBotaoSom();
+    if (!Som.mudo) Som.clique();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    Som.iniciar();
+    if (e.ctrlKey || e.metaKey || e.altKey) { if ((e.key === 'z' || e.key === 'Z') && !e.altKey) { e.preventDefault(); desfazerJogada(); } return; }
+    const k = e.key.toLowerCase();
+    if (k === 'r') { Som.reiniciar(); iniciarFase(estado.nivelNum, true); }
+    else if (k === 'z') desfazerJogada();
+    else if (k === 'h') pedirDica();
+    else if (k === 'm') btnSom.click();
+    else if (k === 'escape') fecharMenu();
+    else if (k === '?' || k === 'f1') { e.preventDefault(); alternarAjuda(); }
+    else if (k === 'enter' && estado.vitoria) iniciarFase(estado.nivelNum + 1);
+  });
+
+  window.addEventListener('resize', redimensionarCanvas);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(redimensionarCanvas).observe(wrapper.parentElement);
+
+  // ---------- Laço principal ----------
+  let ultimoT = 0;
+  function quadro(ts) {
+    const dt = Math.min(0.05, ((ts - ultimoT) / 1000) || 0);
+    ultimoT = ts;
+    atualizar(dt);
+    desenhar();
+    requestAnimationFrame(quadro);
+  }
+
+  // ---------- Início ----------
+  Progresso.carregar();
+  Som.mudo = Progresso.dados.mudo;
+  atualizarBotaoSom();
+  for (let k = 0; k < 28; k++) estado.poeira.push({ x: Math.random(), y: Math.random(), v: 0.01 + Math.random() * 0.03, r: 0.8 + Math.random() * 1.6, f: Math.random() * 6.28 });
+  redimensionarCanvas();
+  iniciarFase(Math.min(Progresso.dados.ultima, Progresso.dados.desbloqueada), true);
+  requestAnimationFrame(quadro);
+  </script>
+</body>
+</html>
