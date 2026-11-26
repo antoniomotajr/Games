@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Defesa Tática — Tower Defense Militar (Layout Esquerdo & Ondas Infinitas)</title>
+    <title>Defesa Tática — Tower Defense Militar</title>
     <style>
         /* ==========================================================================
            ESTILOS GERAIS E VARIÁVEIS DE DESIGN (TEMA TÁTICO MILITAR MODERNO)
@@ -15,7 +15,7 @@
             --border-subtle: #2b3e4a;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-
+            
             /* Cores de destaque */
             --gold: #fbbf24;
             --health: #f43f5e;
@@ -49,37 +49,21 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+            padding: 6px 10px;
             overflow: hidden;
         }
 
         /* ==========================================================================
-           CONTAINER PRINCIPAL DO JOGO (LAYOUT COMPACTO COM BARRA LATERAL ESQUERDA)
+           CONTAINER PRINCIPAL DO JOGO (LAYOUT COMPACTO EM TELA ÚNICA)
            ========================================================================== */
         .app-shell {
             width: 100%;
             height: 100%;
-            max-width: 1480px;
+            max-width: 1240px;
             display: grid;
-            grid-template-rows: auto minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr) auto;
             gap: 6px;
             overflow: hidden;
-        }
-
-        .main-workspace {
-            display: grid;
-            grid-template-columns: minmax(225px, 275px) minmax(0, 1fr);
-            gap: 8px;
-            min-height: 0;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        @media (max-width: 780px) {
-            .main-workspace {
-                grid-template-columns: minmax(175px, 215px) minmax(0, 1fr);
-                gap: 6px;
-            }
         }
 
         /* ==========================================================================
@@ -130,7 +114,6 @@
         .stat-lives { color: var(--health); }
         .stat-wave { color: var(--wave); }
         .stat-score { color: var(--score); }
-        .stat-level { color: #c084fc; }
 
         .controls-group {
             display: flex;
@@ -199,133 +182,152 @@
             border-color: #334155;
         }
 
-        .btn-airstrike {
-            background: linear-gradient(135deg, #b91c1c, #ea580c);
-            border-color: #fca5a5;
-            color: #fff;
-            box-shadow: 0 3px 10px rgba(234, 88, 12, 0.3);
+        /* ==========================================================================
+           ÁREA DO CANVAS E MODAIS SOBREPOSTOS
+           ========================================================================== */
+        .canvas-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
 
-        .btn-airstrike:hover:not(:disabled) {
-            background: linear-gradient(135deg, #991b1b, #c2410c);
+        canvas {
+            display: block;
+            background-color: #16221b;
+            border-radius: 12px;
+            border: 0;
+            cursor: crosshair;
+            touch-action: none;
+            box-shadow: 0 14px 28px -8px rgba(0, 0, 0, 0.65);
         }
 
-        .btn-airstrike.armed {
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            border-color: #fef08a;
-            color: #0f172a;
-            box-shadow: 0 0 14px rgba(251, 191, 36, 0.55);
+        /* Telas de Estado (Início, Vitória, Game Over) */
+        .overlay-modal {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 18, 21, 0.84);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            text-align: center;
+            z-index: 20;
+            transition: opacity 0.2s ease;
+        }
+
+        .overlay-modal.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 16px 20px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.75);
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            letter-spacing: -0.4px;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 14px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 540px) {
+            .legend-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .legend-item {
+            background: var(--bg-dark);
+            padding: 6px 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .legend-item strong {
+            display: block;
+            color: var(--text-primary);
+            margin-top: 2px;
+            font-size: 0.76rem;
         }
 
         /* ==========================================================================
-           BARRA LATERAL ESQUERDA (NÍVEL, ARTILHARIAS & DEFESAS, UNIDADE SELECIONADA)
+           PAINEL INFERIOR (LOJA DE TORRES & INSPETOR DE UPGRADE/VENDA)
            ========================================================================== */
-        .hud-sidebar {
-            display: flex;
-            flex-direction: column;
+        .hud-bottom {
+            display: grid;
+            grid-template-columns: 2.1fr 1fr;
             gap: 6px;
-            min-height: 0;
-            height: 100%;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-right: 2px;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 840px) {
+            .hud-bottom {
+                grid-template-columns: 1fr;
+            }
         }
 
         .panel-box {
             background-color: var(--bg-panel);
             border: 1px solid var(--border-subtle);
             border-radius: 10px;
-            padding: 7px 9px;
+            padding: 6px 10px;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: center;
             gap: 5px;
-            min-width: 0;
-            flex-shrink: 0;
-        }
-
-        .level-box {
-            background: linear-gradient(145deg, rgba(25, 37, 44, 0.98), rgba(16, 24, 30, 0.98));
-            border-color: rgba(192, 132, 252, 0.35);
-        }
-
-        .level-summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 6px;
-        }
-
-        .level-title-val {
-            font-size: 0.94rem;
-            font-weight: 800;
-            color: #e9d5ff;
-        }
-
-        .level-mult-val {
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--gold);
-            background: rgba(251, 191, 36, 0.12);
-            border: 1px solid rgba(251, 191, 36, 0.3);
-            padding: 1px 6px;
-            border-radius: 999px;
-            white-space: nowrap;
-        }
-
-        .level-progress-track {
-            width: 100%;
-            height: 6px;
-            background: var(--bg-dark);
-            border-radius: 999px;
-            overflow: hidden;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .level-progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #38bdf8, #a855f7, #fbbf24);
-            transition: width 0.25s ease;
-        }
-
-        .level-subtext {
-            font-size: 0.67rem;
-            color: var(--text-secondary);
-            line-height: 1.25;
         }
 
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 4px;
-            font-size: 0.67rem;
+            font-size: 0.68rem;
             text-transform: uppercase;
-            letter-spacing: 0.55px;
+            letter-spacing: 0.6px;
             color: var(--text-secondary);
             font-weight: 700;
-            min-width: 0;
-        }
-
-        .panel-header > span:first-child {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #build-hint,
-        #inspector-level,
-        #level-badge-tag {
-            flex-shrink: 0;
-            white-space: nowrap;
         }
 
         .towers-shop {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 5px;
-            min-width: 0;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .towers-shop {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .tower-card {
@@ -339,7 +341,6 @@
             flex-direction: column;
             gap: 2px;
             position: relative;
-            min-width: 0;
         }
 
         .tower-card:hover {
@@ -380,40 +381,33 @@
             justify-content: space-between;
             align-items: center;
             gap: 4px;
-            min-width: 0;
         }
 
         .tower-name {
             font-weight: 700;
-            font-size: 0.76rem;
+            font-size: 0.78rem;
             display: flex;
             align-items: center;
             gap: 4px;
-            min-width: 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .hotkey {
-            font-size: 0.6rem;
+            font-size: 0.62rem;
             background: var(--bg-card);
             color: var(--text-secondary);
             padding: 0 4px;
             border-radius: 4px;
             border: 1px solid var(--border-subtle);
-            flex-shrink: 0;
         }
 
         .tower-cost {
             font-weight: 700;
-            font-size: 0.75rem;
+            font-size: 0.76rem;
             color: var(--gold);
-            flex-shrink: 0;
         }
 
         .tower-desc {
-            font-size: 0.66rem;
+            font-size: 0.67rem;
             color: var(--text-secondary);
             line-height: 1.2;
             white-space: nowrap;
@@ -421,73 +415,52 @@
             text-overflow: ellipsis;
         }
 
-        /* Painel de Inspeção da Torre Construída (Unidade Selecionada) */
+        /* Painel de Inspeção da Torre Construída */
         .inspector-content {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            min-height: 52px;
+            min-height: 44px;
             justify-content: center;
-            min-width: 0;
         }
 
         .inspector-empty {
             color: var(--text-secondary);
-            font-size: 0.72rem;
+            font-size: 0.76rem;
             text-align: center;
             padding: 4px 0;
-            line-height: 1.3;
         }
 
         .inspector-details {
             display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 5px;
-            min-width: 0;
-        }
-
-        .inspector-info {
-            min-width: 0;
-            flex: 1;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
         }
 
         .inspector-info h4 {
-            font-size: 0.78rem;
+            font-size: 0.82rem;
             color: var(--text-primary);
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin-bottom: 1px;
         }
 
         .inspector-info p {
-            font-size: 0.68rem;
+            font-size: 0.7rem;
             color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
         .inspector-actions {
             display: flex;
-            gap: 4px;
+            gap: 5px;
             flex-shrink: 0;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .inspector-actions .btn {
-            padding: 4px 6px;
-            font-size: 0.68rem;
-            white-space: nowrap;
-            border-radius: 6px;
         }
 
         .btn-upgrade {
             background-color: rgba(16, 185, 129, 0.15);
             border-color: var(--success);
             color: #34d399;
+            padding: 5px 8px;
+            font-size: 0.72rem;
         }
 
         .btn-upgrade:hover:not(:disabled) {
@@ -499,155 +472,13 @@
             background-color: rgba(239, 68, 68, 0.15);
             border-color: var(--danger);
             color: #f87171;
+            padding: 5px 8px;
+            font-size: 0.72rem;
         }
 
         .btn-sell:hover:not(:disabled) {
             background-color: var(--danger);
             color: #fff;
-        }
-
-        /* ==========================================================================
-           ÁREA AMPLIADA DO CANVAS + RADAR + MODAIS SOBREPOSTOS
-           ========================================================================== */
-        .canvas-wrap {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            min-height: 0;
-            min-width: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            background: rgba(11, 18, 21, 0.45);
-            border-radius: 12px;
-            border: 1px solid rgba(43, 62, 74, 0.55);
-        }
-
-        canvas#gameCanvas {
-            display: block;
-            background-color: #16221b;
-            border-radius: 10px;
-            border: 2px solid var(--border-subtle);
-            cursor: crosshair;
-            touch-action: none;
-            box-shadow: 0 14px 28px -8px rgba(0, 0, 0, 0.65);
-        }
-
-        /* Radar Tático no canto superior direito do mapa */
-        .radar-box {
-            position: absolute;
-            right: 10px;
-            top: 10px;
-            background: rgba(11, 18, 21, 0.88);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            padding: 4px 6px 5px;
-            z-index: 10;
-            pointer-events: none;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
-        }
-
-        .radar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.58rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-secondary);
-            margin-bottom: 3px;
-        }
-
-        #radar-count {
-            color: #38bdf8;
-        }
-
-        canvas#radarCanvas {
-            display: block;
-            border-radius: 4px;
-            background: #101914;
-            border: 1px solid rgba(71, 85, 105, 0.45);
-        }
-
-        /* Telas de Estado (Início, Vitória, Game Over) */
-        .overlay-modal {
-            position: absolute;
-            inset: 0;
-            background: rgba(11, 18, 21, 0.84);
-            backdrop-filter: blur(5px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 12px;
-            text-align: center;
-            z-index: 20;
-            overflow: auto;
-            transition: opacity 0.2s ease;
-        }
-
-        .overlay-modal.hidden {
-            display: none;
-        }
-
-        .modal-card {
-            background-color: var(--bg-panel);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 16px 20px;
-            max-width: 490px;
-            width: 100%;
-            max-height: 100%;
-            overflow: auto;
-            margin: auto;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.75);
-        }
-
-        .modal-title {
-            font-size: 1.38rem;
-            font-weight: 800;
-            margin-bottom: 5px;
-            letter-spacing: -0.4px;
-        }
-
-        .modal-subtitle {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            line-height: 1.4;
-            margin-bottom: 12px;
-        }
-
-        .legend-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-            margin-bottom: 14px;
-            text-align: center;
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-        }
-
-        @media (max-width: 540px) {
-            .legend-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .legend-item {
-            background: var(--bg-dark);
-            padding: 6px 4px;
-            border-radius: 8px;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .legend-item strong {
-            display: block;
-            color: var(--text-primary);
-            margin-top: 2px;
-            font-size: 0.75rem;
         }
 
         /* Toast de Feedback Rápido */
@@ -667,44 +498,63 @@
             opacity: 0;
             transition: opacity 0.2s ease;
             z-index: 15;
-            max-width: 92%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
 
         .feedback-banner.show {
             opacity: 1;
         }
-
-        @media (max-width: 700px) {
-            .btn { padding: 4px 6px; font-size: 0.7rem; }
-            .stat-badge { padding: 3px 6px; font-size: 0.76rem; }
-            .stat-badge span.label { font-size: 0.6rem; }
+    
+        /* ===== Ajustes de tela: nada é cortado ===== */
+        body { padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+        .overlay-modal { overflow: auto; }
+        .modal-card { max-height: 100%; overflow: auto; margin: auto; }
+        .feedback-banner { max-width: 92%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .inspector-actions { flex-wrap: wrap; justify-content: flex-end; }
+        @media (max-width: 840px) { .hud-bottom { grid-template-columns: 1fr 1fr; } .inspector-details { flex-direction: column; align-items: stretch; } }
+        @media (max-width: 700px) { .btn { padding: 4px 7px; font-size: 0.7rem; } .stat-badge { padding: 3px 6px; font-size: 0.76rem; } .stat-badge span.label { font-size: 0.6rem; } }
+        @media (max-width: 600px) { .towers-shop { grid-template-columns: repeat(4, 1fr); } .tower-desc { display: none; } .tower-name { font-size: 0.66rem; flex-wrap: wrap; } .tower-cost { font-size: 0.68rem; } }
+        @media (max-height: 560px) { .tower-desc { display: none; } .modal-card { padding: 10px 14px; } .modal-subtitle { font-size: 0.74rem; margin-bottom: 6px; } .legend-grid { margin-bottom: 8px; } }
+    
+        :root { --tower-aa: #4ade80; }
+        .towers-shop { grid-template-columns: repeat(5, 1fr); }
+        .tower-card[data-type="aa"].selected { border-color: var(--tower-aa); background-color: rgba(74,222,128,0.14); box-shadow: 0 0 12px rgba(74,222,128,0.2); }
+        @media (max-width: 600px) { .towers-shop { grid-template-columns: repeat(5, 1fr); } .tower-name { font-size: 0.6rem; } }
+            #wave-preview { font-size: 0.74rem; gap: 6px; color: var(--text-primary); }
+        @media (max-width: 900px) { #wave-preview { display: none; } }
+    
+        .sel-row { display: flex; gap: 5px; align-items: center; justify-content: center; margin-bottom: 8px; flex-wrap: wrap; }
+        .sel-label { font-size: 0.68rem; color: var(--text-secondary); text-transform: uppercase; min-width: 78px; text-align: left; }
+        #research-list { max-height: 48vh; overflow: auto; }
+        .research-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); text-align: left; font-size: 0.8rem; }
+        .research-row small { color: var(--text-secondary); }
+        .research-row .lv { color: var(--gold); font-weight: 700; }
+    
+        /* ===== Loja de torres na lateral esquerda ===== */
+        .app-shell {
+            grid-template-columns: minmax(104px, 160px) minmax(0, 1fr);
+            grid-template-areas: "top top" "side main" "bottom bottom";
         }
-
-        @media (max-width: 600px) {
-            .towers-shop { grid-template-columns: repeat(2, 1fr); }
-            .tower-desc { display: none; }
-            .tower-name { font-size: 0.66rem; flex-wrap: wrap; }
-            .tower-cost { font-size: 0.68rem; }
-            .radar-box { display: none; }
-        }
-
-        @media (max-height: 560px) {
-            .tower-desc { display: none; }
-            .modal-card { padding: 10px 14px; }
-            .modal-subtitle { font-size: 0.74rem; margin-bottom: 6px; }
-            .legend-grid { margin-bottom: 8px; }
-        }
+        .hud-top { grid-area: top; }
+        .canvas-wrap { grid-area: main; }
+        .hud-bottom { display: contents; }
+        #shop-panel { grid-area: side; min-height: 0; overflow-y: auto; justify-content: flex-start; }
+        #inspector-panel { grid-area: bottom; }
+        #shop-panel .panel-header { flex-direction: column; align-items: flex-start; gap: 2px; }
+        #shop-panel .towers-shop { grid-template-columns: 1fr; gap: 6px; }
+        #shop-panel .tower-card-top { flex-wrap: wrap; }
+        #shop-panel .tower-name { font-size: 0.74rem; flex-wrap: wrap; }
+        #shop-panel .tower-cost { font-size: 0.72rem; }
+        #shop-panel .tower-desc { white-space: normal; overflow: visible; font-size: 0.64rem; }
+        @media (max-width: 700px), (max-height: 600px) { #shop-panel .tower-desc { display: none; } }
+        @media (max-width: 700px) { .app-shell { grid-template-columns: 96px minmax(0, 1fr); } #shop-panel .tower-name { font-size: 0.68rem; } }
     </style>
 </head>
 <body>
 
 <div class="app-shell">
     <!-- ======================================================================
-         HUD SUPERIOR: OURO, VIDAS, ONDA, NÍVEL, PONTUAÇÃO E CONTROLES
+         HUD SUPERIOR: OURO, VIDAS, ONDA, PONTUAÇÃO E CONTROLES
          ====================================================================== -->
     <header class="hud-top">
         <div class="stats-group">
@@ -716,31 +566,30 @@
                 <span class="label">Vidas</span>
                 <span id="ui-lives">20</span>
             </div>
-            <div class="stat-badge stat-wave" title="Progresso das Ondas Infinitas">
+            <div class="stat-badge stat-wave" title="Progresso das Ondas">
                 <span class="label">Onda</span>
-                <span id="ui-wave">0 / ∞</span>
-            </div>
-            <div class="stat-badge stat-level" title="Nível Tático Progressivo">
-                <span class="label">Nível</span>
-                <span id="ui-level">1</span>
+                <span id="ui-wave">0 / 10</span>
             </div>
             <div class="stat-badge stat-score" title="Pontuação Tática">
                 <span class="label">Pontos</span>
                 <span id="ui-score">0</span>
             </div>
+            <div class="stat-badge" id="wave-preview" title="Composição da próxima onda"></div>
         </div>
 
         <div class="controls-group">
             <button id="btn-next-wave" class="btn btn-primary" title="Iniciar próxima onda (bônus se antecipada)">
                 ▶ Iniciar Onda 1
             </button>
-            <button id="btn-airstrike" class="btn btn-airstrike" title="Solicitar Ataque Aéreo de Bombardeio (Tecla A)">
-                ✈️ Ataque Aéreo
-            </button>
+            <button id="btn-air" class="btn" title="Ataque aéreo: bombardeio em faixa (Q). Recarga 40s">💣 Ataque Aéreo (Q)</button>
+            <button id="btn-rep" class="btn" title="Reparar o bunker +5 vidas (E). Recarga 60s">🛠️</button>
+            <button id="btn-frz" class="btn" title="Congelamento global dos veículos (R). Recarga 50s">❄️</button>
+            <button id="btn-sup" class="btn" title="Suprimentos +100 ouro (G). Recarga 75s">💰</button>
+            <button id="btn-auto" class="btn" title="Iniciar ondas automaticamente (A)">🔁 Auto: Off</button>
             <button id="btn-pause" class="btn" title="Pausar ou Continuar (Espaço)">
                 ⏸ Pausar
             </button>
-            <button id="btn-speed" class="btn" title="Alternar velocidade 1x / 2x (F)">
+            <button id="btn-speed" class="btn" title="Alternar velocidade 1x / 2x">
                 ⏩ 1x
             </button>
             <button id="btn-sound" class="btn" title="Ativar ou Silenciar Efeitos Sonoros">
@@ -750,172 +599,173 @@
     </header>
 
     <!-- ======================================================================
-         ÁREA DE TRABALHO: PAINEL ESQUERDO + MAPA AMPLIADO
+         ÁREA PRINCIPAL DO CANVAS + MODAIS
          ====================================================================== -->
-    <div class="main-workspace">
-        <!-- BARRA LATERAL ESQUERDA: NÍVEL, ARTILHARIAS & DEFESAS, UNIDADE SELECIONADA -->
-        <aside class="hud-sidebar">
-            <!-- 1. Nível -->
-            <div class="panel-box level-box" id="level-panel">
-                <div class="panel-header">
-                    <span>Nível</span>
-                    <span id="level-badge-tag" style="color: #c084fc;">Setor 1</span>
-                </div>
-                <div class="level-summary-row">
-                    <span class="level-title-val" id="level-main-title">Nível 1</span>
-                    <span class="level-mult-val" id="level-threat-mult">Ameaça 1.00x</span>
-                </div>
-                <div class="level-progress-track" title="Progresso do nível atual (cada 2 ondas eleva o nível)">
-                    <div class="level-progress-fill" id="level-progress-bar"></div>
-                </div>
-                <div class="level-subtext" id="level-scale-info">
-                    Fases infinitas e progressivas: inimigos e recompensas escalam a cada onda.
-                </div>
-            </div>
+    <main class="canvas-wrap" id="canvas-wrap">
+        <canvas id="gameCanvas"></canvas>
+        <div id="feedback-banner" class="feedback-banner">Aviso</div>
 
-            <!-- 2. Artilharias & Defesas -->
-            <div class="panel-box">
-                <div class="panel-header">
-                    <span>Artilharias &amp; Defesas</span>
-                    <span id="build-hint" style="color: #38bdf8;">Teclas 1-4</span>
-                </div>
-                <div class="towers-shop" id="towers-shop">
-                    <!-- 1. Metralhadora Pesada -->
-                    <div class="tower-card" data-type="mg">
-                        <div class="tower-card-top">
-                            <span class="tower-name" style="color: var(--tower-mg);">
-                                Metralhadora <span class="hotkey">1</span>
-                            </span>
-                            <span class="tower-cost">50g</span>
-                        </div>
-                        <p class="tower-desc">Torreta dupla com alta cadência e balas traçantes.</p>
+        <!-- Modal de Início -->
+        <div id="modal-start" class="overlay-modal">
+            <div class="modal-card">
+                <h1 class="modal-title" style="color: #38bdf8;">DEFESA TÁTICA</h1>
+                <p class="modal-subtitle">
+                    Comande a artilharia defensiva! Posicione torres ao longo da estrada militar para interceptar comboios inimigos antes que destruam o Bunker. Veículos pesados têm blindagem (use Canhão e Mísseis!). Drones e helicópteros voam direto ao Bunker: só Metralhadora, Mísseis e Antiaérea os atingem. Atalhos: 1-5 torres, Q ataque aéreo, T alvo, U evoluir, X vender, F velocidade.
+                </p>
+                <p class="modal-subtitle" id="start-rank"></p>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <span style="color: #facc15; font-size: 1rem;">🚙</span>
+                        <strong>Jipe 4x4</strong>
+                        Rápido e leve
                     </div>
-
-                    <!-- 2. Canhão Pesado Sniper -->
-                    <div class="tower-card" data-type="cannon">
-                        <div class="tower-card-top">
-                            <span class="tower-name" style="color: var(--tower-cannon);">
-                                Canhão <span class="hotkey">2</span>
-                            </span>
-                            <span class="tower-cost">100g</span>
-                        </div>
-                        <p class="tower-desc">Mira laser, longo alcance e disparo perfurante.</p>
+                    <div class="legend-item">
+                        <span style="color: #38bdf8; font-size: 1rem;">🚛</span>
+                        <strong>Caminhão</strong>
+                        Blindagem média
                     </div>
-
-                    <!-- 3. Torre Criogênica -->
-                    <div class="tower-card" data-type="cryo">
-                        <div class="tower-card-top">
-                            <span class="tower-name" style="color: var(--tower-cryo);">
-                                Criogênica <span class="hotkey">3</span>
-                            </span>
-                            <span class="tower-cost">80g</span>
-                        </div>
-                        <p class="tower-desc">Feixe de plasma gelado que desacelera veículos.</p>
+                    <div class="legend-item">
+                        <span style="color: #f43f5e; font-size: 1rem;">🛡️</span>
+                        <strong>Tanque</strong>
+                        Pesado e resistente
                     </div>
-
-                    <!-- 4. Bateria Lança-Mísseis -->
-                    <div class="tower-card" data-type="missile">
-                        <div class="tower-card-top">
-                            <span class="tower-name" style="color: var(--tower-missile);">
-                                Mísseis <span class="hotkey">4</span>
-                            </span>
-                            <span class="tower-cost">130g</span>
-                        </div>
-                        <p class="tower-desc">Mísseis guiados com explosão de dano em área.</p>
+                    <div class="legend-item">
+                        <span style="color: #a855f7; font-size: 1rem;">☣️</span>
+                        <strong>Colosso</strong>
+                        Chefe (Ondas 5 e 10)
                     </div>
                 </div>
+                <div class="sel-row"><span class="sel-label">Mapa</span>
+                    <button class="btn" data-map="0">🌴 Selva</button><button class="btn" data-map="1">🏜️ Deserto</button><button class="btn" data-map="2">❄️ Neve</button></div>
+                <div class="sel-row"><span class="sel-label">Dificuldade</span>
+                    <button class="btn" data-diff="easy">Fácil</button><button class="btn" data-diff="normal">Normal</button><button class="btn" data-diff="hard">Veterano</button></div>
+                <button id="btn-research" class="btn" style="width: 100%; padding: 8px; margin-bottom: 6px;">🔬 Pesquisa (<span id="rp-count">0</span> pts)</button>
+                <button id="btn-start-game" class="btn btn-primary" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                    Iniciar Operação
+                </button>
+                <button id="btn-start-endless" class="btn" style="width: 100%; padding: 9px; font-size: 0.9rem; margin-top: 6px;">♾ Modo Infinito</button>
             </div>
+        </div>
 
-            <!-- 3. Unidade Selecionada -->
-            <div class="panel-box">
-                <div class="panel-header">
-                    <span>Unidade Selecionada</span>
-                    <span id="inspector-level"></span>
-                </div>
-                <div class="inspector-content" id="inspector-content">
-                    <div class="inspector-empty">
-                        Clique em uma torre no mapa para evoluir ou vender.
+        <!-- Modal de Vitória -->
+        <div id="modal-victory" class="overlay-modal hidden">
+            <div class="modal-card">
+                <h1 class="modal-title" style="color: #10b981;">MISSÃO CUMPRIDA!</h1>
+                <p class="modal-subtitle" id="victory-stats">
+                    Você defendeu o Bunker com sucesso contra todas as 10 ondas!
+                </p>
+                <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                    Jogar Novamente
+                </button>
+                <button id="btn-continue-endless" class="btn" style="width: 100%; padding: 9px; font-size: 0.9rem; margin-top: 6px;">♾ Continuar no Modo Infinito</button>
+                <button class="btn btn-menu" style="width: 100%; padding: 9px; font-size: 0.9rem; margin-top: 6px;">☰ Mapa / Dificuldade / Pesquisa</button>
+            </div>
+        </div>
+
+        <!-- Modal de Game Over -->
+        <div id="modal-gameover" class="overlay-modal hidden">
+            <div class="modal-card">
+                <h1 class="modal-title" style="color: #f43f5e;">BUNKER DESTRUÍDO</h1>
+                <p class="modal-subtitle" id="gameover-stats">
+                    O comboio inimigo rompeu suas defesas.
+                </p>
+                <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                    Tentar Novamente
+                </button>
+                <button class="btn btn-menu" style="width: 100%; padding: 9px; font-size: 0.9rem; margin-top: 6px;">☰ Mapa / Dificuldade / Pesquisa</button>
+            </div>
+        </div>
+    <div id="modal-research" class="overlay-modal hidden">
+            <div class="modal-card">
+                <h1 class="modal-title" style="color: #a78bfa;">PESQUISA</h1>
+                <p class="modal-subtitle">Pontos disponíveis: <b id="rp-total">0</b> — melhorias permanentes, até nível 3.</p>
+                <div id="research-list"></div>
+                <button id="btn-research-close" class="btn btn-primary" style="width: 100%; padding: 9px; margin-top: 8px;">Voltar</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- ======================================================================
+         HUD INFERIOR: LOJA DE 4 TORRES & INSPETOR DE UPGRADE/VENDA
+         ====================================================================== -->
+    <section class="hud-bottom">
+        <!-- Loja de Torres -->
+        <div class="panel-box" id="shop-panel">
+            <div class="panel-header">
+                <span>Artilharia & Defesas (Teclas 1-5)</span>
+                <span id="build-hint" style="color: #38bdf8;">Selecione uma arma</span>
+            </div>
+            <div class="towers-shop" id="towers-shop">
+                <!-- 1. Metralhadora Pesada -->
+                <div class="tower-card" data-type="mg">
+                    <div class="tower-card-top">
+                        <span class="tower-name" style="color: var(--tower-mg);">
+                            Metralhadora <span class="hotkey">1</span>
+                        </span>
+                        <span class="tower-cost">50g</span>
                     </div>
+                    <p class="tower-desc">Torreta dupla com alta cadência e balas traçantes.</p>
                 </div>
-            </div>
-        </aside>
 
-        <!-- ÁREA AMPLIADA DO MAPA (CANVAS + RADAR + MODAIS) -->
-        <main class="canvas-wrap" id="canvas-wrap">
-            <canvas id="gameCanvas"></canvas>
-
-            <div class="radar-box" aria-hidden="true">
-                <div class="radar-header">
-                    <span>Radar Tático</span>
-                    <span id="radar-count">0 ALVOS</span>
-                </div>
-                <canvas id="radarCanvas" width="128" height="80"></canvas>
-            </div>
-
-            <div id="feedback-banner" class="feedback-banner">Aviso</div>
-
-            <!-- Modal de Início -->
-            <div id="modal-start" class="overlay-modal">
-                <div class="modal-card">
-                    <h1 class="modal-title" style="color: #38bdf8;">DEFESA TÁTICA</h1>
-                    <p class="modal-subtitle">
-                        Comande a artilharia defensiva em fases infinitas e progressivas! Cada onda aumenta a resistência inimiga e traz Colossos a cada 5 ondas. Atalhos: 1-4 torres, T alvo, U evoluir, X vender, F velocidade, Espaço pausar.
-                    </p>
-                    <div class="legend-grid">
-                        <div class="legend-item">
-                            <span style="color: #facc15; font-size: 1rem;">🚙</span>
-                            <strong>Jipe 4x4</strong>
-                            Rápido e leve
-                        </div>
-                        <div class="legend-item">
-                            <span style="color: #38bdf8; font-size: 1rem;">🚛</span>
-                            <strong>Caminhão</strong>
-                            Blindagem média
-                        </div>
-                        <div class="legend-item">
-                            <span style="color: #f43f5e; font-size: 1rem;">🛡️</span>
-                            <strong>Tanque</strong>
-                            Pesado e resistente
-                        </div>
-                        <div class="legend-item">
-                            <span style="color: #a855f7; font-size: 1rem;">☣️</span>
-                            <strong>Colosso</strong>
-                            Chefe (A cada 5 ondas)
-                        </div>
+                <!-- 2. Canhão Pesado Sniper -->
+                <div class="tower-card" data-type="cannon">
+                    <div class="tower-card-top">
+                        <span class="tower-name" style="color: var(--tower-cannon);">
+                            Canhão <span class="hotkey">2</span>
+                        </span>
+                        <span class="tower-cost">100g</span>
                     </div>
-                    <button id="btn-start-game" class="btn btn-primary" style="width: 100%; padding: 9px; font-size: 0.9rem;">
-                        Iniciar Operação
-                    </button>
+                    <p class="tower-desc">Mira laser, longo alcance e disparo perfurante.</p>
                 </div>
-            </div>
 
-            <!-- Modal de Vitória -->
-            <div id="modal-victory" class="overlay-modal hidden">
-                <div class="modal-card">
-                    <h1 class="modal-title" style="color: #10b981;">OPERAÇÃO CONCLUÍDA!</h1>
-                    <p class="modal-subtitle" id="victory-stats">
-                        Você resistiu às ondas do comboio inimigo!
-                    </p>
-                    <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
-                        Jogar Novamente
-                    </button>
+                <!-- 3. Torre Criogênica -->
+                <div class="tower-card" data-type="cryo">
+                    <div class="tower-card-top">
+                        <span class="tower-name" style="color: var(--tower-cryo);">
+                            Criogênica <span class="hotkey">3</span>
+                        </span>
+                        <span class="tower-cost">80g</span>
+                    </div>
+                    <p class="tower-desc">Feixe de plasma gelado que desacelera veículos.</p>
                 </div>
-            </div>
 
-            <!-- Modal de Game Over -->
-            <div id="modal-gameover" class="overlay-modal hidden">
-                <div class="modal-card">
-                    <h1 class="modal-title" style="color: #f43f5e;">BUNKER DESTRUÍDO</h1>
-                    <p class="modal-subtitle" id="gameover-stats">
-                        O comboio inimigo rompeu suas defesas.
-                    </p>
-                    <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
-                        Tentar Novamente
-                    </button>
+                <!-- 4. Bateria Lança-Mísseis -->
+                <div class="tower-card" data-type="missile">
+                    <div class="tower-card-top">
+                        <span class="tower-name" style="color: var(--tower-missile);">
+                            Mísseis <span class="hotkey">4</span>
+                        </span>
+                        <span class="tower-cost">130g</span>
+                    </div>
+                    <p class="tower-desc">Mísseis guiados com explosão de dano em área.</p>
+                </div>
+
+                <!-- 5. Antiaérea -->
+                <div class="tower-card" data-type="aa">
+                    <div class="tower-card-top">
+                        <span class="tower-name" style="color: var(--tower-aa);">
+                            Antiaérea <span class="hotkey">5</span>
+                        </span>
+                        <span class="tower-cost">90g</span>
+                    </div>
+                    <p class="tower-desc">Dispara só contra helicópteros e drones.</p>
                 </div>
             </div>
-        </main>
-    </div>
+        </div>
+
+        <!-- Inspetor de Torre Selecionada -->
+        <div class="panel-box" id="inspector-panel">
+            <div class="panel-header">
+                <span>Unidade Selecionada</span>
+                <span id="inspector-level"></span>
+            </div>
+            <div class="inspector-content" id="inspector-content">
+                <div class="inspector-empty">
+                    Clique em uma torre no mapa para evoluir ou vender.
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 <script>
@@ -967,6 +817,7 @@
             return this.muted;
         }
 
+        // Disparo seco e rápido de Metralhadora
         playMG() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -985,10 +836,12 @@
             osc.stop(now + 0.065);
         }
 
+        // Disparo grave e potente de Canhão
         playCannon() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
 
+            // Sub-grave
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
@@ -1003,6 +856,7 @@
             osc.start(now);
             osc.stop(now + 0.31);
 
+            // Estouro de pólvora (ruído filtrado)
             if (this.noiseBuffer) {
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = this.noiseBuffer;
@@ -1023,6 +877,7 @@
             }
         }
 
+        // Pulso energético da Torre Criogênica
         playCryo() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1041,6 +896,7 @@
             osc.stop(now + 0.13);
         }
 
+        // Lançamento de Míssil (chiado propulsor)
         playMissileLaunch() {
             if (this.muted || !this.ctx || !this.noiseBuffer) return;
             const now = this.ctx.currentTime;
@@ -1064,6 +920,7 @@
             noise.stop(now + 0.23);
         }
 
+        // Explosão de veículo ou míssil
         playExplosion(heavy = false) {
             if (this.muted || !this.ctx || !this.noiseBuffer) return;
             const now = this.ctx.currentTime;
@@ -1088,6 +945,7 @@
             noise.stop(now + duration + 0.02);
         }
 
+        // Construção / Upgrade de torre
         playBuild(isUpgrade = false) {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1106,6 +964,7 @@
             });
         }
 
+        // Venda de torre (som metálico de moedas)
         playSell() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1123,6 +982,7 @@
             });
         }
 
+        // Alerta de dano na Base
         playBaseHit() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1139,6 +999,7 @@
             osc.stop(now + 0.29);
         }
 
+        // Início de Onda
         playWaveStart() {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1155,6 +1016,7 @@
             osc.stop(now + 0.41);
         }
 
+        // Vitória / Game Over
         playEndGame(victory) {
             if (this.muted || !this.ctx) return;
             const now = this.ctx.currentTime;
@@ -1184,18 +1046,26 @@
     const INITIAL_GOLD = 160;
     const INITIAL_LIVES = 20;
     const MAX_TOWER_LEVEL = 4;
-    const TARGET_MODES = ['Avançado', 'Forte', 'Próximo'];
+    const TARGET_MODES = ['Primeiro', 'Mais forte', 'Mais fraco', 'Mais perto'];
+    const blockedCells = new Set();
+    const AIR_CD = 40;
 
-    const AIRSTRIKE_CONFIG = {
-        cost: 75,
-        cooldown: 30.0,
-        radius: 1.95,
-        baseDamage: 145,
-        waveDamageScale: 28,
-        bombCount: 5
-    };
-
+    // 4 Torres Militares Distintas
     const TOWER_TYPES = {
+        aa: {
+            id: 'aa',
+            name: 'Bateria Antiaérea',
+            shortName: 'Antiaérea',
+            cost: 90,
+            color: '#4ade80',
+            range: 4.4,
+            damage: 24,
+            fireRate: 1.7,
+            projectileSpeed: 17.0,
+            slowFactor: 0,
+            slowDuration: 0,
+            splashRadius: 0
+        },
         mg: {
             id: 'mg',
             name: 'Metralhadora Pesada',
@@ -1203,8 +1073,8 @@
             cost: 50,
             color: '#38bdf8',
             range: 2.75,
-            damage: 14,
-            fireRate: 2.35,
+            damage: 16,
+            fireRate: 2.35,      // rajada rápida
             projectileSpeed: 13.0,
             slowFactor: 0,
             slowDuration: 0,
@@ -1234,7 +1104,7 @@
             damage: 10,
             fireRate: 2.5,
             projectileSpeed: 14.0,
-            slowFactor: 0.50,
+            slowFactor: 0.50,    // reduz 50% da velocidade
             slowDuration: 2.2,
             splashRadius: 0
         },
@@ -1246,141 +1116,218 @@
             color: '#ef4444',
             range: 3.9,
             damage: 58,
-            fireRate: 0.72,
-            projectileSpeed: 11.5,
+            fireRate: 0.68,
+            projectileSpeed: 8.5,
             slowFactor: 0,
             slowDuration: 0,
-            splashRadius: 1.45
+            splashRadius: 1.25   // explosão em área (células)
         }
     };
 
+    // 4 Tipos de Veículos Inimigos
     const ENEMY_TYPES = {
+        drone: { id: 'drone', name: 'Drone Kamikaze', baseHp: 38, speed: 3.4, reward: 14, score: 30, color: '#94a3b8', accent: '#e2e8f0', sizeRatio: 0.26, lifeDamage: 1, air: true },
+        heli: { id: 'heli', name: 'Helicóptero de Ataque', baseHp: 260, speed: 1.7, reward: 40, score: 110, color: '#475569', accent: '#fbbf24', sizeRatio: 0.42, lifeDamage: 3, air: true },
         jeep: {
             id: 'jeep',
             name: 'Jipe de Reconhecimento',
             baseHp: 46,
-            speed: 3.45,
+            speed: 3.35,
             reward: 13,
             score: 25,
             color: '#eab308',
             accent: '#fef08a',
-            sizeRatio: 0.29,
+            sizeRatio: 0.34,
             lifeDamage: 1
         },
         truck: {
             id: 'truck',
             name: 'Caminhão Blindado',
             baseHp: 95,
-            speed: 2.15,
+            speed: 2.05,
             reward: 16,
             score: 40,
             color: '#3b82f6',
             accent: '#93c5fd',
-            sizeRatio: 0.34,
+            sizeRatio: 0.40,
             lifeDamage: 1
         },
         tank: {
             id: 'tank',
             name: 'Tanque de Guerra',
             baseHp: 280,
-            speed: 1.25,
+            speed: 1.18,
             reward: 32,
             score: 90,
             color: '#dc2626',
             accent: '#fca5a5',
-            sizeRatio: 0.38,
+            sizeRatio: 0.44,
             lifeDamage: 2
         },
         boss: {
             id: 'boss',
             name: 'Blindado Colosso (Chefe)',
             baseHp: 1150,
-            speed: 0.85,
-            reward: 115,
+            speed: 0.78,
+            reward: 110,
             score: 350,
             color: '#7e22ce',
             accent: '#e9d5ff',
-            sizeRatio: 0.46,
+            sizeRatio: 0.54,
             lifeDamage: 5
         }
     };
 
+    // Pontos de controle da estrada militar no grid 16x10
     const PATH_WAYPOINTS = [
-        { col: 0, row: 1 },
-        { col: 11, row: 1 },
-        { col: 11, row: 4 },
-        { col: 2, row: 4 },
-        { col: 2, row: 7 },
-        { col: 13, row: 7 },
+        { col: 0, row: 2 },
+        { col: 4, row: 2 },
+        { col: 4, row: 7 },
+        { col: 9, row: 7 },
+        { col: 9, row: 2 },
         { col: 13, row: 2 },
-        { col: 15, row: 2 },
-        { col: 15, row: 8 },
-        { col: 6, row: 8 },
-        { col: 6, row: 9 }
+        { col: 13, row: 8 },
+        { col: 15, row: 8 }
     ];
 
-    function getCurrentLevel(waveNum) {
-        return Math.max(1, Math.floor((Math.max(1, waveNum) - 1) / 2) + 1);
+    // 10 Ondas Progressivas com Jipes, Caminhões, Tanques e Chefes
+    const WAVES_CONFIG = [
+        // Onda 1: Batedores e caminhões leves
+        [
+            { type: 'truck', count: 5, interval: 1.25, hpMult: 1.0 },
+            { type: 'jeep', count: 3, interval: 1.0, hpMult: 1.0 }
+        ],
+        // Onda 2: Patrulha rápida de Jipes + Caminhões
+        [
+            { type: 'jeep', count: 7, interval: 0.85, hpMult: 1.1 },
+            { type: 'truck', count: 5, interval: 1.1, hpMult: 1.15 }
+        ],
+        // Onda 3: Primeiro Tanque de Guerra escoltado
+        [
+            { type: 'truck', count: 6, interval: 0.95, hpMult: 1.25 },
+            { type: 'tank', count: 1, interval: 2.0, hpMult: 1.0 },
+            { type: 'jeep', count: 5, interval: 0.8, hpMult: 1.2 }
+        ],
+        // Onda 4: Avanço mecanizado
+        [
+            { type: 'jeep', count: 10, interval: 0.65, hpMult: 1.3 },
+            { type: 'tank', count: 2, interval: 1.8, hpMult: 1.15 }
+        ],
+        // Onda 5: Mini-Chefe Colosso + Escolta
+        [
+            { type: 'truck', count: 6, interval: 0.85, hpMult: 1.4 },
+            { type: 'boss', count: 1, interval: 2.5, hpMult: 0.85 },
+            { type: 'jeep', count: 6, interval: 0.7, hpMult: 1.35 }
+        ],
+        // Onda 6: Blitzkrieg de Jipes e Tanques
+        [
+            { type: 'jeep', count: 14, interval: 0.52, hpMult: 1.55 },
+            { type: 'tank', count: 3, interval: 1.5, hpMult: 1.4 }
+        ],
+        // Onda 7: Divisão Blindada
+        [
+            { type: 'tank', count: 5, interval: 1.35, hpMult: 1.65 },
+            { type: 'truck', count: 9, interval: 0.75, hpMult: 1.75 }
+        ],
+        // Onda 8: Ofensiva Combinada Pesada
+        [
+            { type: 'truck', count: 10, interval: 0.65, hpMult: 1.9 },
+            { type: 'jeep', count: 12, interval: 0.48, hpMult: 1.85 },
+            { type: 'tank', count: 4, interval: 1.25, hpMult: 1.85 }
+        ],
+        // Onda 9: Vanguarda de Tanques Pesados
+        [
+            { type: 'tank', count: 7, interval: 1.15, hpMult: 2.15 },
+            { type: 'jeep', count: 14, interval: 0.45, hpMult: 2.1 }
+        ],
+        // Onda 10: Assalto Final com 2 Colossos
+        [
+            { type: 'truck', count: 10, interval: 0.55, hpMult: 2.4 },
+            { type: 'tank', count: 6, interval: 1.0, hpMult: 2.4 },
+            { type: 'boss', count: 2, interval: 3.8, hpMult: 1.35 },
+            { type: 'jeep', count: 14, interval: 0.4, hpMult: 2.4 }
+        ]
+    ];
+
+    // ========================================================================
+    // Ameaça aérea nas ondas existentes
+    WAVES_CONFIG[2].push({ type: 'drone', count: 4, interval: 0.9, hpMult: 1.0 });
+    WAVES_CONFIG[4].push({ type: 'drone', count: 6, interval: 0.7, hpMult: 1.2 });
+    WAVES_CONFIG[5].push({ type: 'heli', count: 1, interval: 2.0, hpMult: 1.0 });
+    WAVES_CONFIG[6].push({ type: 'drone', count: 8, interval: 0.6, hpMult: 1.5 }, { type: 'heli', count: 2, interval: 1.8, hpMult: 1.4 });
+    WAVES_CONFIG[7].push({ type: 'heli', count: 3, interval: 1.6, hpMult: 1.7 });
+    WAVES_CONFIG[8].push({ type: 'drone', count: 10, interval: 0.5, hpMult: 1.9 }, { type: 'heli', count: 3, interval: 1.5, hpMult: 2.0 });
+    WAVES_CONFIG[9].push({ type: 'heli', count: 4, interval: 1.4, hpMult: 2.2 });
+
+    const THEMES = {
+        forest: { g0: '#20402b', g1: '#183323', g2: '#122a1d', dirtA: 'rgba(120,98,62,0.30)', dirtB: 'rgba(120,98,62,0)', pal: ['#2c5236', '#24452e', '#16301f', '#335c3c', '#3a6a41'], blade: '#4f8a52', fl: ['#fde68a', '#fca5a5'], flN: 0.8, r0: '#4a4435', r1: '#59616d', r2: '#2a313b', t1: '#1b3826', t2: '#254d34', bush: '#1e3f2b', rock: '#334155', tc: ['#173222', '#23482f', '#2f5d3b', '#3d7348'], wA: '#2f7a9c', wB: '#1b4965', shore: '#5b4b32' },
+        desert: { g0: '#cfa862', g1: '#bb9248', g2: '#a67d3c', dirtA: 'rgba(150,95,40,0.28)', dirtB: 'rgba(150,95,40,0)', pal: ['#d6b26c', '#bf9852', '#a9833f', '#e2c382', '#c4a05a'], blade: '#8a6a2f', fl: ['#f59e0b', '#fdba74'], flN: 0.1, r0: '#8a6a3f', r1: '#a08a68', r2: '#51463b', t1: '#8a6a2f', t2: '#a98343', bush: '#7a6a35', rock: '#6b5b4a', tc: ['#6b5a2a', '#8a7433', '#a38c3d', '#bda64a'], wA: '#35b5ac', wB: '#1d7f80', shore: '#c9a56a' },
+        snow: { g0: '#e1ecf2', g1: '#cbdbe5', g2: '#b5c9d7', dirtA: 'rgba(110,140,170,0.25)', dirtB: 'rgba(110,140,170,0)', pal: ['#f1f7fa', '#d6e4ec', '#c3d5e1', '#ffffff', '#b8cddb'], blade: '#9db6c6', fl: ['#bae6fd', '#e0f2fe'], flN: 0.3, r0: '#6a7782', r1: '#97a5b1', r2: '#3b4650', t1: '#1f4a3a', t2: '#2f6a52', bush: '#3b6a5a', rock: '#64748b', tc: ['#17382c', '#1f4a3a', '#2f6a52', '#e8f3f8'], wA: '#b9e3f7', wB: '#86bde0', shore: '#e8f1f6' }
+    };
+    const P = (col, row) => ({ col, row });
+    const MAPS = [
+        { name: 'Selva Tática', theme: THEMES.forest,
+          path: [P(0, 2), P(4, 2), P(4, 7), P(9, 7), P(9, 2), P(13, 2), P(13, 8), P(15, 8)],
+          obs: [{ t: 'pond', c: 1, r: 4, w: 2, h: 2 }, { t: 'tent', c: 11, r: 5 }, { t: 'crates', c: 6, r: 9 }, { t: 'rocks', c: 14, r: 4 }, { t: 'tree', c: 6, r: 0 }, { t: 'tree', c: 2, r: 8 }],
+          props: [[0.4, 0.4, 'tree', 1.0], [1.2, 0.6, 'tree', 0.8], [8.6, 0.6, 'rock', 0.9], [7.3, 0.8, 'tree', 1.05], [14.8, 0.5, 'tree', 1.1], [15.4, 1.3, 'rock', 0.85], [0.5, 8.8, 'tree', 1.0], [1.3, 9.3, 'rock', 0.9], [6.4, 4.5, 'crater', 0.95], [10.4, 4.6, 'crater', 0.85], [3.4, 5.8, 'bush', 0.9], [11.4, 8.7, 'bush', 0.95], [15.3, 5.2, 'tree', 0.95]] },
+        { name: 'Deserto Árido', theme: THEMES.desert,
+          path: [P(0, 7), P(3, 7), P(3, 2), P(7, 2), P(7, 6), P(11, 6), P(11, 1), P(14, 1), P(14, 8), P(15, 8)],
+          obs: [{ t: 'pond', c: 9, r: 8, w: 2, h: 2 }, { t: 'rocks', c: 5, r: 4 }, { t: 'rocks', c: 9, r: 4 }, { t: 'rocks', c: 1, r: 3 }, { t: 'cactus', c: 6, r: 8 }, { t: 'cactus', c: 12, r: 3 }, { t: 'cactus', c: 13, r: 6 }, { t: 'crates', c: 5, r: 0 }],
+          props: [[0.5, 0.5, 'rock', 0.9], [2.2, 0.9, 'bush', 0.9], [8.6, 0.5, 'crater', 0.9], [15.3, 0.7, 'bush', 1.0], [5.5, 8.4, 'crater', 0.9], [1.5, 5.4, 'rock', 0.9], [8.3, 5.6, 'bush', 0.9]] },
+        { name: 'Montanha Gelada', theme: THEMES.snow,
+          path: [P(0, 5), P(5, 5), P(5, 1), P(9, 1), P(9, 8), P(12, 8), P(12, 3), P(15, 3)],
+          obs: [{ t: 'pond', c: 2, r: 1, w: 2, h: 2 }, { t: 'tree', c: 7, r: 3 }, { t: 'tree', c: 7, r: 6 }, { t: 'tree', c: 11, r: 6 }, { t: 'rocks', c: 14, r: 6 }, { t: 'rocks', c: 1, r: 8 }, { t: 'tree', c: 13, r: 0 }, { t: 'tree', c: 3, r: 8 }],
+          props: [[0.5, 0.5, 'tree', 0.9], [7.4, 0.7, 'rock', 0.9], [15.3, 0.6, 'tree', 0.9], [0.5, 6.8, 'bush', 0.9], [4.4, 3.2, 'crater', 0.9], [14.4, 4.8, 'bush', 0.9]] }
+    ];
+    let currentMap = 0;
+    let theme = THEMES.forest;
+
+    const DIFFS = {
+        easy: { name: 'Fácil', gold: 1.35, lives: 1.5, hp: 0.85, reward: 1.1, rp: 0.8 },
+        normal: { name: 'Normal', gold: 1, lives: 1, hp: 1, reward: 1, rp: 1 },
+        hard: { name: 'Veterano', gold: 0.8, lives: 0.6, hp: 1.3, reward: 0.9, rp: 1.5 }
+    };
+
+    const RESEARCH = [
+        { id: 'dmg', name: 'Munição Reforçada', desc: '+8% de dano das torres por nível' },
+        { id: 'range', name: 'Radar Avançado', desc: '+5% de alcance por nível' },
+        { id: 'rate', name: 'Mecanismo Rápido', desc: '+6% de cadência por nível' },
+        { id: 'eco', name: 'Logística', desc: '+20 de ouro inicial e +8% de recompensas' },
+        { id: 'bunker', name: 'Bunker Reforçado', desc: '+3 vidas por nível' },
+        { id: 'cmd', name: 'Comando Tático', desc: '-15% de recarga das habilidades' }
+    ];
+
+    function loadResearch() {
+        try { const d = JSON.parse(localStorage.getItem('defesaTaticaPesq') || 'null'); if (d && d.lv) return d; } catch (e) {}
+        return { rp: 0, lv: {} };
     }
-
-    function getThreatMultiplier(waveNum) {
-        const w = Math.max(1, waveNum);
-        return +(1 + (w - 1) * 0.22 + Math.pow(Math.max(0, w - 5), 1.25) * 0.07).toFixed(2);
+    function saveResearch(d) { try { localStorage.setItem('defesaTaticaPesq', JSON.stringify(d)); } catch (e) {} }
+    function computeResearch() {
+        const l = loadResearch().lv, g = k => l[k] || 0;
+        return { dmg: 1 + 0.08 * g('dmg'), range: 1 + 0.05 * g('range'), rate: 1 + 0.06 * g('rate'), startGold: 20 * g('eco'), reward: 1 + 0.08 * g('eco'), lives: 3 * g('bunker'), cd: Math.max(0.4, 1 - 0.15 * g('cmd')) };
     }
-
-    function buildWaveConfig(waveNumber) {
-        const w = Math.max(1, waveNumber);
-
-        const hpGrowth = 1 + (w - 1) * 0.24 + Math.pow(Math.max(0, w - 5), 1.25) * 0.08;
-        const bossHpGrowth = 1 + (w - 1) * 0.28 + Math.pow(Math.max(0, w - 5), 1.3) * 0.1;
-
-        const countScale = 1 + (w - 1) * 0.18 - Math.max(0, w - 12) * 0.04;
-        const speedPace = Math.max(0.45, 1 - Math.min(0.45, (w - 1) * 0.025));
-
-        const groups = [];
-
-        const jeepCount = Math.max(2, Math.round((3 + w * 1.15) * countScale));
-        const truckCount = Math.max(3, Math.round((4 + w * 0.95) * countScale));
-
-        if (w % 2 === 0) {
-            groups.push({ type: 'jeep', count: jeepCount, interval: +(0.82 * speedPace).toFixed(2), hpMult: +hpGrowth.toFixed(2) });
-            groups.push({ type: 'truck', count: truckCount, interval: +(1.02 * speedPace).toFixed(2), hpMult: +(hpGrowth * 1.05).toFixed(2) });
-        } else {
-            groups.push({ type: 'truck', count: truckCount, interval: +(1.05 * speedPace).toFixed(2), hpMult: +(hpGrowth * 1.05).toFixed(2) });
-            groups.push({ type: 'jeep', count: jeepCount, interval: +(0.80 * speedPace).toFixed(2), hpMult: +hpGrowth.toFixed(2) });
-        }
-
-        if (w >= 3) {
-            const tankCount = Math.min(18, Math.max(1, Math.round((w - 2) * 0.95 * Math.sqrt(countScale))));
-            groups.push({
-                type: 'tank',
-                count: tankCount,
-                interval: +(1.55 * speedPace).toFixed(2),
-                hpMult: +(hpGrowth * 0.95).toFixed(2)
+    function renderResearch() {
+        const d = loadResearch();
+        document.getElementById('rp-total').textContent = d.rp;
+        const box = document.getElementById('research-list');
+        box.innerHTML = '';
+        for (const r of RESEARCH) {
+            const lv = d.lv[r.id] || 0, cost = 10 * (lv + 1), maxed = lv >= 3;
+            const row = document.createElement('div');
+            row.className = 'research-row';
+            row.innerHTML = `<div><b>${r.name}</b> <span class="lv">${lv}/3</span><br><small>${r.desc}</small></div>`;
+            const bt = document.createElement('button');
+            bt.className = 'btn btn-upgrade';
+            bt.textContent = maxed ? 'Máx' : `${cost} pts`;
+            bt.disabled = maxed || d.rp < cost;
+            bt.addEventListener('click', () => {
+                const d2 = loadResearch(), l2 = d2.lv[r.id] || 0, c2 = 10 * (l2 + 1);
+                if (l2 >= 3 || d2.rp < c2) return;
+                d2.rp -= c2; d2.lv[r.id] = l2 + 1; saveResearch(d2); renderResearch();
             });
+            row.appendChild(bt);
+            box.appendChild(row);
         }
-
-        if (w % 5 === 0) {
-            const bossCount = Math.min(5, Math.floor(w / 5));
-            groups.push({
-                type: 'boss',
-                count: bossCount,
-                interval: 3.2,
-                hpMult: +(bossHpGrowth * (w === 5 ? 0.85 : 1.0)).toFixed(2)
-            });
-        }
-
-        if (w >= 6) {
-            const vanguardCount = Math.min(22, Math.round(4 + w * 0.7));
-            groups.push({
-                type: 'jeep',
-                count: vanguardCount,
-                interval: +(0.52 * speedPace).toFixed(2),
-                hpMult: +(hpGrowth * 1.08).toFixed(2)
-            });
-        }
-
-        return groups;
     }
 
     // ========================================================================
@@ -1388,15 +1335,17 @@
     // ========================================================================
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const radarCanvas = document.getElementById('radarCanvas');
-    const radarCtx = radarCanvas.getContext('2d');
     const canvasWrap = document.getElementById('canvas-wrap');
 
     const pathCellsSet = new Set();
     const pathCellList = [];
-    const sceneryProps = [];
+    const sceneryProps = []; // Árvores, rochas, crateras decorativas fora da pista
 
     function buildMapAndScenery() {
+        const mp = MAPS[currentMap];
+        theme = mp.theme;
+        PATH_WAYPOINTS.length = 0;
+        PATH_WAYPOINTS.push(...mp.path);
         pathCellsSet.clear();
         pathCellList.length = 0;
 
@@ -1422,19 +1371,11 @@
         pathCellsSet.add(`${last.col},${last.row}`);
         pathCellList.push({ col: last.col, row: last.row });
 
+        // Gera elementos decorativos sutis nas bordas/cantos que não atrapalham a visão
         sceneryProps.length = 0;
-        const fixedProps = [
-            { col: 0.4, row: 0.4, type: 'tree', scale: 0.9 },
-            { col: 5.5, row: 0.45, type: 'rock', scale: 0.85 },
-            { col: 14.8, row: 0.5, type: 'tree', scale: 1.0 },
-            { col: 0.5, row: 5.5, type: 'tree', scale: 0.95 },
-            { col: 7.2, row: 5.6, type: 'crater', scale: 0.9 },
-            { col: 10.2, row: 2.6, type: 'bush', scale: 0.85 },
-            { col: 1.1, row: 9.2, type: 'rock', scale: 0.85 },
-            { col: 11.5, row: 9.1, type: 'tree', scale: 0.95 },
-            { col: 14.5, row: 5.3, type: 'crater', scale: 0.85 }
-        ];
-        sceneryProps.push(...fixedProps);
+        for (const p of mp.props) sceneryProps.push({ col: p[0], row: p[1], type: p[2], scale: p[3] });
+        blockedCells.clear();
+        for (const o of mp.obs) for (let dx = 0; dx < (o.w || 1); dx++) for (let dy = 0; dy < (o.h || 1); dy++) blockedCells.add(`${o.c + dx},${o.r + dy}`);
     }
     buildMapAndScenery();
 
@@ -1458,44 +1399,128 @@
         floatingTexts: [],
         selectedBuildType: null,
         selectedTower: null,
-        airstrikeArmed: false,
-        airstrikeCooldown: 0,
-        airstrikes: [],
         hoverCell: null,
         cellSize: 60,
         lastTimestamp: 0,
         timeElapsed: 0,
-        screenShake: 0
+        screenShake: 0,
+        airCooldown: 0, airArmed: false, planes: [], bombs: [], baseFlash: 0, mouse: null, endless: false, autoWave: false, autoTimer: 4,
+        maxLives: INITIAL_LIVES, cds: { repair: 0, freeze: 0, supply: 0 }, diff: DIFFS.normal,
+        rs: { dmg: 1, range: 1, rate: 1, startGold: 0, reward: 1, lives: 0, cd: 1 }, selMap: 0, selDiff: 'normal', rpGiven: 0, wonOnce: false,
+        stats: { damage: 0, kills: 0, gold: 0, by: {} }
     };
+
+    let bgCanvas = null;
 
     function resizeCanvas() {
         const rect = canvasWrap.getBoundingClientRect();
-        const availW = Math.max(220, rect.width - 12);
-        const availH = Math.max(140, rect.height - 12);
-        const targetRatio = COLS / ROWS;
-
-        let cssWidth = availW;
-        let cssHeight = cssWidth / targetRatio;
-
-        if (cssHeight > availH) {
-            cssHeight = availH;
-            cssWidth = cssHeight * targetRatio;
-        }
-
-        cssWidth = Math.max(220, Math.floor(cssWidth));
-        cssHeight = Math.max(140, Math.floor(cssHeight));
-
+        const availW = Math.max(120, rect.width - 2);
+        const availH = Math.max(75, rect.height - 2);
+        const cs = Math.max(8, Math.floor(Math.min(availW / COLS, availH / ROWS) * 4) / 4);
+        const cssWidth = cs * COLS, cssHeight = cs * ROWS;
         canvas.style.width = `${cssWidth}px`;
         canvas.style.height = `${cssHeight}px`;
-
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = cssWidth * dpr;
-        canvas.height = cssHeight * dpr;
+        canvas.width = Math.round(cssWidth * dpr);
+        canvas.height = Math.round(cssHeight * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        state.cellSize = cssWidth / COLS;
+        state.cellSize = cs;
+        buildBackground();
     }
 
+    function buildBackground() {
+        const cs = state.cellSize, W = COLS * cs, H = ROWS * cs;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        bgCanvas = document.createElement('canvas');
+        bgCanvas.width = Math.round(W * dpr); bgCanvas.height = Math.round(H * dpr);
+        const b = bgCanvas.getContext('2d');
+        b.scale(dpr, dpr);
+        let seed = 1234567;
+        const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+        const g = b.createLinearGradient(0, 0, W, H);
+        g.addColorStop(0, theme.g0); g.addColorStop(0.5, theme.g1); g.addColorStop(1, theme.g2);
+        b.fillStyle = g; b.fillRect(0, 0, W, H);
+        for (let i = 0; i < 9; i++) {
+            const x = rnd() * W, y = rnd() * H, r = cs * (0.9 + rnd() * 1.4);
+            const rg = b.createRadialGradient(x, y, 0, x, y, r);
+            rg.addColorStop(0, theme.dirtA); rg.addColorStop(1, theme.dirtB);
+            b.fillStyle = rg; b.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+        const pal = theme.pal;
+        for (let i = 0; i < COLS * ROWS * 22; i++) {
+            b.globalAlpha = 0.25 + rnd() * 0.35;
+            b.fillStyle = pal[(rnd() * pal.length) | 0];
+            b.beginPath(); b.arc(rnd() * W, rnd() * H, cs * (0.015 + rnd() * 0.05), 0, 7); b.fill();
+        }
+        b.globalAlpha = 0.5; b.strokeStyle = theme.blade; b.lineWidth = 1;
+        for (let i = 0; i < COLS * ROWS * 4; i++) { const x = rnd() * W, y = rnd() * H; b.beginPath(); b.moveTo(x, y); b.lineTo(x + (rnd() - 0.5) * cs * 0.1, y - cs * 0.07); b.stroke(); }
+        for (let i = 0; i < COLS * ROWS * theme.flN; i++) { b.fillStyle = theme.fl[rnd() < 0.5 ? 0 : 1]; b.beginPath(); b.arc(rnd() * W, rnd() * H, cs * 0.018, 0, 7); b.fill(); }
+        b.globalAlpha = 1;
+        b.strokeStyle = 'rgba(203,213,225,0.12)'; b.lineWidth = 1;
+        const tk = cs * 0.07;
+        for (let c = 0; c <= COLS; c++) for (let r = 0; r <= ROWS; r++) {
+            b.beginPath(); b.moveTo(c * cs - tk, r * cs); b.lineTo(c * cs + tk, r * cs); b.moveTo(c * cs, r * cs - tk); b.lineTo(c * cs, r * cs + tk); b.stroke();
+        }
+        // estrada
+        const trace = () => { b.beginPath(); PATH_WAYPOINTS.forEach((wp, i) => { const x = (wp.col + 0.5) * cs, y = (wp.row + 0.5) * cs; if (i) b.lineTo(x, y); else b.moveTo(x, y); }); };
+        b.lineCap = 'square'; b.lineJoin = 'round';
+        b.save(); b.translate(2, 3); trace(); b.strokeStyle = 'rgba(0,0,0,0.35)'; b.lineWidth = cs * 0.9; b.stroke(); b.restore();
+        trace(); b.strokeStyle = theme.r0; b.lineWidth = cs * 0.96; b.stroke();
+        trace(); b.strokeStyle = theme.r1; b.lineWidth = cs * 0.84; b.stroke();
+        trace(); b.strokeStyle = theme.r2; b.lineWidth = cs * 0.74; b.stroke();
+        for (const pc of pathCellList) for (let i = 0; i < 18; i++) {
+            b.fillStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.18)';
+            b.fillRect((pc.col + 0.13 + rnd() * 0.74) * cs, (pc.row + 0.13 + rnd() * 0.74) * cs, 1.6, 1.6);
+        }
+        b.lineCap = 'butt';
+        for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
+            const a = PATH_WAYPOINTS[i], e = PATH_WAYPOINTS[i + 1];
+            const x1 = (a.col + 0.5) * cs, y1 = (a.row + 0.5) * cs, x2 = (e.col + 0.5) * cs, y2 = (e.row + 0.5) * cs;
+            const L = Math.hypot(x2 - x1, y2 - y1), nx = -(y2 - y1) / L, ny = (x2 - x1) / L;
+            for (const off of [-0.17, 0.17]) { b.beginPath(); b.moveTo(x1 + nx * off * cs, y1 + ny * off * cs); b.lineTo(x2 + nx * off * cs, y2 + ny * off * cs); b.strokeStyle = 'rgba(0,0,0,0.22)'; b.lineWidth = 3; b.stroke(); }
+        }
+        trace(); b.setLineDash([cs * 0.2, cs * 0.24]); b.strokeStyle = 'rgba(250,204,21,0.45)'; b.lineWidth = 2; b.stroke(); b.setLineDash([]);
+        // props decorativos
+        for (const prop of sceneryProps) drawSceneryProp(b, prop, cs);
+        // obstáculos (células bloqueadas), conforme o mapa
+        const bigTree = (x, y, r) => {
+            b.fillStyle = 'rgba(0,0,0,0.35)'; b.beginPath(); b.arc(x + 5, y + 6, r, 0, 7); b.fill();
+            [[0, 0, 1], [-0.2, -0.15, 0.78], [0.15, -0.25, 0.55], [-0.1, -0.3, 0.3]].forEach(([dx, dy, k], n) => { b.fillStyle = theme.tc[n]; b.beginPath(); b.arc(x + dx * r, y + dy * r, r * k, 0, 7); b.fill(); });
+        };
+        for (const o of MAPS[currentMap].obs) {
+            const x = (o.c + 0.5) * cs, y = (o.r + 0.5) * cs;
+            if (o.t === 'pond') {
+                const x0 = o.c * cs, y0 = o.r * cs, w = o.w * cs, h = o.h * cs;
+                b.fillStyle = theme.shore; b.beginPath(); b.roundRect(x0 - 4, y0 - 4, w + 8, h + 8, cs * 0.5); b.fill();
+                const wg = b.createLinearGradient(x0, y0, x0 + w, y0 + h); wg.addColorStop(0, theme.wA); wg.addColorStop(1, theme.wB);
+                b.fillStyle = wg; b.beginPath(); b.roundRect(x0 + 2, y0 + 2, w - 4, h - 4, cs * 0.45); b.fill();
+                b.strokeStyle = 'rgba(255,255,255,0.35)'; b.lineWidth = 1;
+                for (let k = 0; k < 3; k++) { b.beginPath(); b.ellipse(x0 + w * (0.3 + k * 0.2), y0 + h * (0.35 + k * 0.15), cs * 0.22, cs * 0.09, 0, 0, 7); b.stroke(); }
+            } else if (o.t === 'tent') {
+                b.fillStyle = 'rgba(0,0,0,0.35)'; b.beginPath(); b.moveTo(x + 4, y - cs * 0.34); b.lineTo(x + cs * 0.46, y + cs * 0.36); b.lineTo(x - cs * 0.38, y + cs * 0.36); b.fill();
+                b.fillStyle = '#556b3f'; b.beginPath(); b.moveTo(x, y - cs * 0.38); b.lineTo(x + cs * 0.42, y + cs * 0.3); b.lineTo(x - cs * 0.42, y + cs * 0.3); b.closePath(); b.fill();
+                b.fillStyle = '#3d4f2c'; b.beginPath(); b.moveTo(x, y - cs * 0.38); b.lineTo(x + cs * 0.42, y + cs * 0.3); b.lineTo(x, y + cs * 0.3); b.closePath(); b.fill();
+                b.fillStyle = '#111827'; b.beginPath(); b.moveTo(x - cs * 0.08, y + cs * 0.3); b.lineTo(x, y - cs * 0.02); b.lineTo(x + cs * 0.08, y + cs * 0.3); b.fill();
+            } else if (o.t === 'crates') {
+                for (const [dx, dy, k] of [[-0.18, 0.1, 0.36], [0.17, 0.12, 0.34], [0, -0.17, 0.34]]) {
+                    const sz = cs * k, bx = x + dx * cs - sz / 2, by = y + dy * cs - sz / 2;
+                    b.fillStyle = '#7c5a32'; b.strokeStyle = '#3b2a14'; b.lineWidth = 1.5; b.fillRect(bx, by, sz, sz); b.strokeRect(bx, by, sz, sz);
+                    b.beginPath(); b.moveTo(bx, by); b.lineTo(bx + sz, by + sz); b.moveTo(bx + sz, by); b.lineTo(bx, by + sz); b.stroke();
+                }
+            } else if (o.t === 'rocks') {
+                for (const [dx, dy, k, col] of [[-0.15, 0.1, 0.3, theme.rock], [0.15, 0.05, 0.26, '#3b4758'], [0, -0.15, 0.24, '#566377']]) { b.fillStyle = col; b.strokeStyle = '#1e293b'; b.lineWidth = 1.5; b.beginPath(); b.arc(x + dx * cs, y + dy * cs, cs * k, 0, 7); b.fill(); b.stroke(); }
+            } else if (o.t === 'cactus') {
+                b.fillStyle = 'rgba(0,0,0,0.3)'; b.beginPath(); b.ellipse(x + 4, y + cs * 0.3, cs * 0.28, cs * 0.1, 0, 0, 7); b.fill();
+                b.fillStyle = '#3f7d3a'; b.strokeStyle = '#1f4d22'; b.lineWidth = 1.5;
+                for (const [rx0, ry0, rw, rh] of [[-0.09, -0.34, 0.18, 0.64], [-0.3, -0.12, 0.22, 0.12], [-0.3, -0.26, 0.12, 0.26], [0.08, -0.02, 0.22, 0.12], [0.18, -0.16, 0.12, 0.26]]) { b.beginPath(); b.roundRect(x + rx0 * cs, y + ry0 * cs, rw * cs, rh * cs, cs * 0.06); b.fill(); b.stroke(); }
+            } else if (o.t === 'tree') {
+                bigTree(x, y, cs * 0.42);
+            }
+        }
+    }
     window.addEventListener('resize', resizeCanvas);
+    if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe(canvasWrap);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     function triggerScreenShake(intensity) {
@@ -1516,11 +1541,10 @@
             this.color = cfg.color;
             this.level = 1;
             this.totalInvested = cfg.cost;
-            this.targetMode = 0;
 
-            this.range = cfg.range;
-            this.damage = cfg.damage;
-            this.fireRate = cfg.fireRate;
+            this.range = +(cfg.range * state.rs.range).toFixed(2);
+            this.damage = Math.round(cfg.damage * state.rs.dmg);
+            this.fireRate = +(cfg.fireRate * state.rs.rate).toFixed(2);
             this.projectileSpeed = cfg.projectileSpeed;
             this.slowFactor = cfg.slowFactor;
             this.slowDuration = cfg.slowDuration;
@@ -1530,8 +1554,10 @@
             this.angle = 0;
             this.recoil = 0;
             this.muzzleFlash = 0;
-            this.barrelToggle = 0;
+            this.barrelToggle = 0; // alterna canos na metralhadora/míssil
             this.currentTarget = null;
+            this.targetMode = 0;
+            this.crit = { mg: 0.08, cannon: 0.15, cryo: 0, missile: 0.1, aa: 0.1 }[typeKey] || 0;
         }
 
         getUpgradeCost() {
@@ -1549,6 +1575,7 @@
 
             state.gold -= cost;
             this.totalInvested += cost;
+            state.stats.gold += cost;
             this.level++;
 
             this.damage = Math.round(this.damage * 1.40);
@@ -1581,6 +1608,7 @@
                 const dy = target.y - (this.row + 0.5);
                 const desiredAngle = Math.atan2(dy, dx);
 
+                // Rotação suave da torreta
                 let diff = desiredAngle - this.angle;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
@@ -1596,26 +1624,29 @@
             }
         }
 
+        canTarget(e) {
+            if (this.type === 'aa') return !!e.air;
+            if (e.air) return this.type === 'mg' || this.type === 'missile';
+            return true;
+        }
+
         findTarget() {
             const cx = this.col + 0.5;
             const cy = this.row + 0.5;
             let bestTarget = null;
-            let bestScore = -Infinity;
+            let bestScore = -1;
 
             for (const enemy of state.enemies) {
                 const dist = Math.hypot(enemy.x - cx, enemy.y - cy);
-                if (dist <= this.range) {
+                if (dist <= this.range && this.canTarget(enemy)) {
                     let score = enemy.distanceTraveled;
-                    if (this.targetMode === 1) {
-                        score = enemy.hp;
-                    } else if (this.targetMode === 2) {
-                        score = -dist;
-                    } else {
-                        if (this.type === 'cryo' && enemy.slowTimer <= 0.2) {
-                            score += 120;
-                        } else if (this.type === 'cannon' && (enemy.type === 'tank' || enemy.type === 'boss')) {
-                            score += 40;
-                        }
+                    if (this.targetMode === 1) score = enemy.hp + 1;
+                    else if (this.targetMode === 2) score = 10000 - enemy.hp;
+                    else if (this.targetMode === 3) score = 1000 - dist * 100;
+                    if (this.type === 'cryo' && enemy.slowTimer <= 0.2) {
+                        score += 120;
+                    } else if (this.type === 'cannon' && (enemy.type === 'tank' || enemy.type === 'boss')) {
+                        score += 40;
                     }
                     if (score > bestScore) {
                         bestScore = score;
@@ -1630,6 +1661,7 @@
             const cx = this.col + 0.5;
             const cy = this.row + 0.5;
 
+            // Deslocamento lateral para canos duplos (Metralhadora e Míssil)
             let lateralOffset = 0;
             if (this.type === 'mg' || this.type === 'missile') {
                 lateralOffset = (this.barrelToggle === 0 ? -0.09 : 0.09);
@@ -1641,29 +1673,25 @@
             const spawnX = cx + Math.cos(this.angle) * muzzleDist + perpX;
             const spawnY = cy + Math.sin(this.angle) * muzzleDist + perpY;
 
+            // Sons específicos por arma
             if (this.type === 'mg') sfx.playMG();
             else if (this.type === 'cannon') sfx.playCannon();
             else if (this.type === 'cryo') sfx.playCryo();
             else if (this.type === 'missile') sfx.playMissileLaunch();
+            else if (this.type === 'aa') sfx.playMG();
 
-            state.projectiles.push(new Projectile(
-                spawnX,
-                spawnY,
-                target,
-                this.damage,
-                this.projectileSpeed,
-                this.color,
-                this.type,
-                this.slowFactor,
-                this.slowDuration,
-                this.splashRadius
-            ));
+            const proj = new Projectile(spawnX, spawnY, target, this.damage, this.projectileSpeed, this.color, this.type, this.slowFactor, this.slowDuration, this.splashRadius);
+            proj.crit = Math.random() < this.crit;
+            if (proj.crit) proj.damage *= 2;
+            state.projectiles.push(proj);
+            if (this.type === 'mg') state.particles.push(new Particle(cx, cy, '#facc15', 0.9, 0.4, 1.6));
         }
 
         draw(ctx, cs) {
             const cx = (this.col + 0.5) * cs;
             const cy = (this.row + 0.5) * cs;
 
+            // Mira laser tática do Canhão Sniper
             if (this.type === 'cannon' && this.currentTarget && this.currentTarget.hp > 0) {
                 ctx.save();
                 ctx.strokeStyle = 'rgba(249, 115, 22, 0.28)';
@@ -1676,16 +1704,20 @@
                 ctx.restore();
             }
 
+            // Plataforma de concreto militar (Base da torre)
             const pad = cs * 0.11;
             const size = cs - pad * 2;
-            ctx.fillStyle = '#1e293b';
-            ctx.strokeStyle = '#475569';
+            const bg0 = ctx.createLinearGradient(this.col * cs, this.row * cs, (this.col + 1) * cs, (this.row + 1) * cs);
+            bg0.addColorStop(0, '#3b4a5e'); bg0.addColorStop(1, '#111827');
+            ctx.fillStyle = bg0;
+            ctx.strokeStyle = this.level >= 4 ? '#fbbf24' : '#475569';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.roundRect(this.col * cs + pad, this.row * cs + pad, size, size, 8);
             ctx.fill();
             ctx.stroke();
 
+            // Detalhes metálicos nos cantos da plataforma
             ctx.fillStyle = '#64748b';
             const bOff = cs * 0.18;
             [[bOff, bOff], [cs - bOff, bOff], [bOff, cs - bOff], [cs - bOff, cs - bOff]].forEach(([bx, by]) => {
@@ -1694,6 +1726,12 @@
                 ctx.fill();
             });
 
+            if (this.level >= 4) {
+                ctx.strokeStyle = `rgba(251,191,36,${0.3 + 0.2 * Math.sin(state.timeElapsed * 5)})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(cx, cy, cs * 0.52, 0, Math.PI * 2); ctx.stroke();
+            }
+            // Estrelas/Barras de Nível na base
             if (this.level > 1) {
                 ctx.fillStyle = '#fbbf24';
                 for (let i = 0; i < this.level - 1; i++) {
@@ -1703,6 +1741,13 @@
                 }
             }
 
+            if (this.muzzleFlash > 0) {
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, cs * 1.1);
+                gr.addColorStop(0, this.color + '66'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, cs * 1.1, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
+            // Torreta Giratória
             ctx.save();
             ctx.translate(cx, cy);
             ctx.rotate(this.angle);
@@ -1711,10 +1756,12 @@
             ctx.translate(recoilShift, 0);
 
             if (this.type === 'mg') {
+                // Metralhadora Pesada (Canos duplos + tambor blindado)
                 ctx.fillStyle = '#94a3b8';
                 ctx.fillRect(cs * 0.05, -cs * 0.13, cs * 0.34, cs * 0.06);
                 ctx.fillRect(cs * 0.05, cs * 0.07, cs * 0.34, cs * 0.06);
 
+                // Corpo da torreta
                 ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 2;
@@ -1723,11 +1770,13 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Núcleo ciano
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.arc(-cs * 0.03, 0, cs * 0.1, 0, Math.PI * 2);
                 ctx.fill();
 
+                // Clarão de disparo (Muzzle flash)
                 if (this.muzzleFlash > 0) {
                     const fy = this.barrelToggle === 1 ? -cs * 0.10 : cs * 0.10;
                     ctx.fillStyle = '#fef08a';
@@ -1737,11 +1786,14 @@
                 }
 
             } else if (this.type === 'cannon') {
+                // Canhão Pesado Sniper (Cano longo com freio de boca)
                 ctx.fillStyle = '#cbd5e1';
                 ctx.fillRect(0, -cs * 0.055, cs * 0.46, cs * 0.11);
+                // Freio de boca na ponta
                 ctx.fillStyle = this.color;
                 ctx.fillRect(cs * 0.40, -cs * 0.08, cs * 0.08, cs * 0.16);
 
+                // Casamata blindada angular
                 ctx.fillStyle = '#1e293b';
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 2.2;
@@ -1762,6 +1814,7 @@
                 }
 
             } else if (this.type === 'cryo') {
+                // Torre Criogênica (Bobinas de plasma gelado)
                 ctx.strokeStyle = '#e9d5ff';
                 ctx.lineWidth = 2.5;
                 ctx.beginPath();
@@ -1771,6 +1824,7 @@
                 ctx.lineTo(cs * 0.34, cs * 0.06);
                 ctx.stroke();
 
+                // Cristal energético pulsante
                 const pulse = 1 + Math.sin(state.timeElapsed * 8) * 0.08;
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
@@ -1783,6 +1837,7 @@
                 ctx.fill();
 
             } else if (this.type === 'missile') {
+                // Bateria Lança-Mísseis (Casulo duplo com ogivas vermelhas)
                 ctx.fillStyle = '#334155';
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 2;
@@ -1791,15 +1846,28 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Tubos de lançamento
                 ctx.fillStyle = '#0f172a';
                 ctx.fillRect(-cs * 0.14, -cs * 0.16, cs * 0.34, cs * 0.11);
                 ctx.fillRect(-cs * 0.14, cs * 0.05, cs * 0.34, cs * 0.11);
 
+                // Pontas dos mísseis carregados
                 ctx.fillStyle = '#ef4444';
                 ctx.beginPath();
                 ctx.arc(cs * 0.20, -cs * 0.105, cs * 0.045, 0, Math.PI * 2);
                 ctx.arc(cs * 0.20, cs * 0.105, cs * 0.045, 0, Math.PI * 2);
                 ctx.fill();
+            } else if (this.type === 'aa') {
+                ctx.fillStyle = '#334155'; ctx.strokeStyle = this.color; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(0, 0, cs * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillRect(cs * 0.05, -cs * 0.2, cs * 0.4, cs * 0.05);
+                ctx.fillRect(cs * 0.05, cs * 0.15, cs * 0.4, cs * 0.05);
+                ctx.fillRect(cs * 0.05, -cs * 0.03, cs * 0.46, cs * 0.06);
+                ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(-cs * 0.04, 0, cs * 0.08, 0, Math.PI * 2); ctx.fill();
+                if (this.muzzleFlash > 0) {
+                    ctx.fillStyle = '#bbf7d0'; ctx.beginPath(); ctx.arc(cs * 0.54, 0, cs * 0.1 * this.muzzleFlash, 0, Math.PI * 2); ctx.fill();
+                }
             }
 
             ctx.restore();
@@ -1810,19 +1878,23 @@
         constructor(typeKey, hpMult = 1.0) {
             const cfg = ENEMY_TYPES[typeKey];
             this.type = typeKey;
-            this.maxHp = Math.round(cfg.baseHp * hpMult);
+            this.maxHp = Math.round(cfg.baseHp * hpMult * state.diff.hp);
             this.hp = this.maxHp;
             this.baseSpeed = cfg.speed;
-            this.reward = cfg.reward;
+            this.reward = Math.round(cfg.reward * state.diff.reward * state.rs.reward);
             this.score = cfg.score;
             this.color = cfg.color;
             this.accent = cfg.accent;
             this.sizeRatio = cfg.sizeRatio;
             this.lifeDamage = cfg.lifeDamage;
+            this.armor = { jeep: 0, truck: 2, tank: 6, boss: 9, heli: 2 }[typeKey] || 0;
+            this.air = !!cfg.air;
+            this.dustTimer = 0;
 
             this.waypointIndex = 0;
             this.x = PATH_WAYPOINTS[0].col + 0.5;
             this.y = PATH_WAYPOINTS[0].row + 0.5;
+            if (cfg.air) this.y = Math.min(ROWS - 0.5, Math.max(0.5, this.y + (Math.random() - 0.5) * 3));
             this.distanceTraveled = 0;
             this.angle = 0;
 
@@ -1838,7 +1910,11 @@
             this.slowTimer = Math.max(this.slowTimer, duration);
         }
 
-        takeDamage(amount) {
+        takeDamage(amount, src = 'air') {
+            amount = Math.max(amount * 0.3, amount - this.armor);
+            const dealt = Math.min(this.hp, amount);
+            state.stats.damage += dealt;
+            state.stats.by[src] = (state.stats.by[src] || 0) + dealt;
             this.hp -= amount;
             this.hitFlash = 0.09;
             if (this.hp <= 0) {
@@ -1859,16 +1935,23 @@
             }
 
             this.wheelPhase += currentSpeed * dt * 12;
+            this.dustTimer -= dt;
+            if (this.dustTimer <= 0 && !this.air) {
+                this.dustTimer = 0.11;
+                state.particles.push(new Particle(this.x - Math.cos(this.angle) * 0.3, this.y - Math.sin(this.angle) * 0.3, '#8b7d62', 0.15, 0.5, 3));
+            }
 
+            // Solta fumaça se estiver muito danificado (< 40% de vida)
             if (this.hp < this.maxHp * 0.4) {
                 this.smokeTimer -= dt;
                 if (this.smokeTimer <= 0) {
                     this.smokeTimer = 0.14;
                     state.particles.push(new Particle(this.x, this.y, '#64748b', 0.4, 0.5, 4));
+                    if (this.hp < this.maxHp * 0.25) state.particles.push(new Particle(this.x, this.y, '#fb923c', 0.5, 0.3, 3, true));
                 }
             }
 
-            const targetWp = PATH_WAYPOINTS[this.waypointIndex + 1];
+            const targetWp = this.air ? PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1] : PATH_WAYPOINTS[this.waypointIndex + 1];
             if (!targetWp) return true;
 
             const tx = targetWp.col + 0.5;
@@ -1877,6 +1960,7 @@
             const dy = ty - this.y;
             const dist = Math.hypot(dx, dy);
 
+            // Rotação suave do veículo nas curvas
             const targetAngle = Math.atan2(dy, dx);
             let angleDiff = targetAngle - this.angle;
             while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
@@ -1888,7 +1972,7 @@
                 this.x = tx;
                 this.y = ty;
                 this.distanceTraveled += dist;
-                this.waypointIndex++;
+                this.waypointIndex = this.air ? PATH_WAYPOINTS.length : this.waypointIndex + 1;
                 if (this.waypointIndex >= PATH_WAYPOINTS.length - 1) {
                     return true;
                 }
@@ -1901,7 +1985,51 @@
             return false;
         }
 
+        drawAir(ctx, cs) {
+            const px = this.x * cs, py = this.y * cs, s = cs * this.sizeRatio, t = state.timeElapsed;
+            ctx.save();
+            ctx.translate(px + cs * 0.25, py + cs * 0.45); ctx.rotate(this.angle);
+            ctx.fillStyle = 'rgba(0,0,0,0.28)';
+            ctx.beginPath(); ctx.ellipse(0, 0, s * 1.1, s * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+            ctx.save();
+            ctx.translate(px, py - cs * 0.25); ctx.rotate(this.angle);
+            const body = this.hitFlash > 0 ? '#ffffff' : this.color;
+            if (this.type === 'drone') {
+                ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(-s, -s); ctx.lineTo(s, s); ctx.moveTo(s, -s); ctx.lineTo(-s, s); ctx.stroke();
+                for (const [rx0, ry0] of [[-s, -s], [s, -s], [-s, s], [s, s]]) {
+                    ctx.fillStyle = 'rgba(226,232,240,0.45)';
+                    ctx.beginPath(); ctx.ellipse(rx0, ry0, s * 0.55, s * 0.55 * Math.abs(Math.cos(t * 40 + rx0)), 0, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.fillStyle = body; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.arc(0, 0, s * 0.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = `rgba(239,68,68,${0.5 + 0.5 * Math.sin(t * 12)})`;
+                ctx.beginPath(); ctx.arc(s * 0.2, 0, s * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            } else {
+                ctx.fillStyle = body; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2;
+                ctx.fillRect(-s * 1.9, -s * 0.12, s * 1.3, s * 0.24);
+                ctx.beginPath(); ctx.ellipse(0, 0, s * 1.1, s * 0.62, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.ellipse(s * 0.55, 0, s * 0.4, s * 0.38, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#0f172a'; ctx.fillRect(s * 0.2, -s * 0.95, s * 0.7, s * 0.14); ctx.fillRect(s * 0.2, s * 0.81, s * 0.7, s * 0.14);
+                ctx.strokeStyle = 'rgba(226,232,240,0.8)'; ctx.lineWidth = 2.5;
+                const ra = t * 30;
+                ctx.beginPath(); ctx.moveTo(Math.cos(ra) * s * 1.7, Math.sin(ra) * s * 1.7); ctx.lineTo(-Math.cos(ra) * s * 1.7, -Math.sin(ra) * s * 1.7);
+                ctx.moveTo(Math.cos(ra + 1.57) * s * 1.7, Math.sin(ra + 1.57) * s * 1.7); ctx.lineTo(-Math.cos(ra + 1.57) * s * 1.7, -Math.sin(ra + 1.57) * s * 1.7); ctx.stroke();
+                ctx.fillStyle = this.accent; ctx.beginPath(); ctx.arc(0, 0, s * 0.16, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+            if (this.hp < this.maxHp) {
+                const barW = cs * 0.6, pct = Math.max(0, this.hp / this.maxHp);
+                const bx = Math.min(Math.max(px - barW / 2, 2), COLS * cs - barW - 2), by = Math.max(2, py - cs * 0.25 - s * 1.5 - 8);
+                ctx.fillStyle = 'rgba(11,18,21,0.9)'; ctx.fillRect(bx - 1, by - 1, barW + 2, 6);
+                ctx.fillStyle = pct > 0.5 ? '#10b981' : (pct > 0.25 ? '#fbbf24' : '#ef4444'); ctx.fillRect(bx, by, barW * pct, 4);
+            }
+        }
+
         draw(ctx, cs) {
+            if (this.air) { this.drawAir(ctx, cs); return; }
             const px = this.x * cs;
             const py = this.y * cs;
             const s = cs * this.sizeRatio;
@@ -1909,6 +2037,12 @@
             ctx.save();
             ctx.translate(px, py);
 
+            if (this.slowTimer > 0) {
+                ctx.save(); ctx.strokeStyle = 'rgba(233,213,255,0.9)'; ctx.lineWidth = 1.5;
+                for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + state.timeElapsed * 1.5; ctx.beginPath(); ctx.moveTo(Math.cos(a) * s * 1.1, Math.sin(a) * s * 1.1); ctx.lineTo(Math.cos(a) * s * 1.5, Math.sin(a) * s * 1.5); ctx.stroke(); }
+                ctx.restore();
+            }
+            // Aura de congelamento criogênico
             if (this.slowTimer > 0) {
                 ctx.strokeStyle = 'rgba(192, 132, 252, 0.85)';
                 ctx.fillStyle = 'rgba(168, 85, 247, 0.16)';
@@ -1921,6 +2055,7 @@
 
             ctx.rotate(this.angle);
 
+            // Sombra realista projetada no asfalto
             ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
             ctx.beginPath();
             ctx.roundRect(-s * 1.05 + 3, -s * 0.72 + 4, s * 2.1, s * 1.44, 5);
@@ -1929,6 +2064,8 @@
             const bodyColor = this.hitFlash > 0 ? '#ffffff' : (this.slowTimer > 0 ? '#c084fc' : this.color);
 
             if (this.type === 'jeep') {
+                // JIPE MILITAR 4x4
+                // 4 Rodas
                 ctx.fillStyle = '#0f172a';
                 const wW = s * 0.48, wH = s * 0.24;
                 ctx.fillRect(-s * 0.75, -s * 0.82, wW, wH);
@@ -1936,6 +2073,7 @@
                 ctx.fillRect(-s * 0.75, s * 0.58, wW, wH);
                 ctx.fillRect(s * 0.25, s * 0.58, wW, wH);
 
+                // Chassi
                 ctx.fillStyle = bodyColor;
                 ctx.strokeStyle = '#0f172a';
                 ctx.lineWidth = 1.8;
@@ -1944,13 +2082,16 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Para-brisa e capô
                 ctx.fillStyle = '#1e293b';
                 ctx.fillRect(s * 0.12, -s * 0.46, s * 0.24, s * 0.92);
+                // Faróis dianteiros
                 ctx.fillStyle = '#fef9c3';
                 ctx.fillRect(s * 0.82, -s * 0.45, s * 0.12, s * 0.22);
                 ctx.fillRect(s * 0.82, s * 0.23, s * 0.12, s * 0.22);
 
             } else if (this.type === 'truck') {
+                // CAMINHÃO BLINDADO 6x6
                 ctx.fillStyle = '#0f172a';
                 const wW = s * 0.42, wH = s * 0.22;
                 [-0.78, -0.15, 0.48].forEach(wx => {
@@ -1958,6 +2099,7 @@
                     ctx.fillRect(s * wx, s * 0.63, wW, wH);
                 });
 
+                // Carroceria de carga
                 ctx.fillStyle = bodyColor;
                 ctx.strokeStyle = '#0f172a';
                 ctx.lineWidth = 2;
@@ -1966,27 +2108,33 @@
                 ctx.fill();
                 ctx.stroke();
 
+                // Lona/Teto reforçado
                 ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.accent;
                 ctx.fillRect(-s * 0.92, -s * 0.48, s * 1.18, s * 0.96);
 
+                // Cabine frontal
                 ctx.fillStyle = bodyColor;
                 ctx.beginPath();
                 ctx.roundRect(s * 0.42, -s * 0.62, s * 0.58, s * 1.24, 4);
                 ctx.fill();
                 ctx.stroke();
 
+                // Vidro da cabine
                 ctx.fillStyle = '#0f172a';
                 ctx.fillRect(s * 0.65, -s * 0.48, s * 0.22, s * 0.96);
 
             } else if (this.type === 'tank' || this.type === 'boss') {
+                // TANQUE DE GUERRA PESADO / COLOSSO CHEFE
                 const isBoss = this.type === 'boss';
 
+                // Esteiras laterais
                 ctx.fillStyle = '#1e293b';
                 ctx.strokeStyle = '#0f172a';
                 ctx.lineWidth = 2;
                 ctx.fillRect(-s * 1.05, -s * 0.88, s * 2.1, s * 0.34);
                 ctx.fillRect(-s * 1.05, s * 0.54, s * 2.1, s * 0.34);
 
+                // Gomos animados das esteiras
                 ctx.fillStyle = '#475569';
                 const treadOffset = (this.wheelPhase % 6) - 3;
                 for (let tx = -s * 0.9; tx < s * 0.9; tx += s * 0.32) {
@@ -1994,21 +2142,25 @@
                     ctx.fillRect(tx + treadOffset, s * 0.56, 3, s * 0.30);
                 }
 
+                // Casco principal blindado
                 ctx.fillStyle = bodyColor;
                 ctx.beginPath();
                 ctx.roundRect(-s * 0.95, -s * 0.62, s * 1.9, s * 1.24, 5);
                 ctx.fill();
                 ctx.stroke();
 
+                // Placas de blindagem reativa
                 ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.accent;
                 ctx.fillRect(-s * 0.72, -s * 0.44, s * 1.35, s * 0.88);
 
+                // Torreta e Cano do Tanque
                 ctx.fillStyle = bodyColor;
                 ctx.beginPath();
                 ctx.arc(-s * 0.05, 0, s * (isBoss ? 0.48 : 0.40), 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
 
+                // Cano(s) do Tanque
                 ctx.fillStyle = '#0f172a';
                 if (isBoss) {
                     ctx.fillRect(s * 0.15, -s * 0.22, s * 0.98, s * 0.14);
@@ -2018,13 +2170,31 @@
                 }
             }
 
+            if (this.type === 'jeep' || this.type === 'truck') {
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                const hl = ctx.createLinearGradient(s * 0.95, 0, s * 2.5, 0);
+                hl.addColorStop(0, 'rgba(254,249,195,0.30)'); hl.addColorStop(1, 'rgba(254,249,195,0)');
+                ctx.fillStyle = hl; ctx.beginPath(); ctx.moveTo(s * 0.95, -s * 0.35); ctx.lineTo(s * 2.5, -s * 0.85); ctx.lineTo(s * 2.5, s * 0.85); ctx.lineTo(s * 0.95, s * 0.35); ctx.fill();
+                ctx.restore();
+            }
+            ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(-s * 0.8, -s * 0.6, s * 1.6, s * 0.3);
+            if (this.type === 'tank' || this.type === 'boss') {
+                ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(-s * 0.05, 0, s * 0.16, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = this.accent; ctx.lineWidth = 1.2; ctx.stroke();
+            }
+            if (this.type === 'boss') {
+                ctx.save(); ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = `rgba(239,68,68,${0.45 + 0.35 * Math.sin(state.timeElapsed * 6)})`;
+                ctx.beginPath(); ctx.arc(-s * 0.05, 0, s * 0.11, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            }
             ctx.restore();
 
+            // Barra de Vida acima do veículo quando danificado (ou sempre no Chefe)
             if (this.hp < this.maxHp || this.type === 'boss') {
                 const barW = cs * (this.type === 'boss' ? 0.95 : 0.68);
                 const barH = this.type === 'boss' ? 6 : 5;
-                const bx = px - barW / 2;
-                const by = py - s * 1.15 - 8;
+                const bx = Math.min(Math.max(px - barW / 2, 2), COLS * cs - barW - 2);
+                const by = Math.max(2, py - s * 1.15 - 8);
                 const pct = Math.max(0, this.hp / this.maxHp);
 
                 ctx.fillStyle = 'rgba(11, 18, 21, 0.9)';
@@ -2068,8 +2238,9 @@
             const step = this.speed * dt;
 
             this.trail.push({ x: this.x, y: this.y });
-            if (this.trail.length > 5) this.trail.shift();
+            if (this.trail.length > 9) this.trail.shift();
 
+            // Rastro de fumaça para mísseis
             if (this.towerType === 'missile') {
                 this.smokeTimer -= dt;
                 if (this.smokeTimer <= 0) {
@@ -2089,10 +2260,13 @@
         }
 
         onHit() {
+            // Dano em área (Bateria Lança-Mísseis)
             if (this.splashRadius > 0) {
                 sfx.playExplosion(false);
                 triggerScreenShake(3.5);
                 state.shockwaves.push(new Shockwave(this.lastTargetX, this.lastTargetY, this.splashRadius, '#f97316'));
+                state.shockwaves.push(new Fireball(this.lastTargetX, this.lastTargetY, this.splashRadius * 1.1));
+                state.scorchMarks.push(new ScorchMark(this.lastTargetX, this.lastTargetY, 0.3));
                 spawnExplosionParticles(this.lastTargetX, this.lastTargetY, '#f97316', 14, 2.5);
 
                 for (let i = state.enemies.length - 1; i >= 0; i--) {
@@ -2101,7 +2275,7 @@
                     if (d <= this.splashRadius) {
                         const falloff = 1 - (d / (this.splashRadius * 1.6));
                         const dmg = Math.max(1, Math.round(this.damage * falloff));
-                        if (enemy.takeDamage(dmg)) {
+                        if (enemy.takeDamage(dmg, this.towerType)) {
                             handleEnemyKilled(enemy);
                         }
                     }
@@ -2109,11 +2283,13 @@
                 return;
             }
 
+            // Dano de alvo único (Metralhadora, Canhão, Criogênica)
             if (this.target && this.target.hp > 0) {
                 if (this.slowFactor > 0) {
                     this.target.applySlow(this.slowFactor, this.slowDuration);
                 }
-                const killed = this.target.takeDamage(this.damage);
+                const killed = this.target.takeDamage(this.damage, this.towerType);
+                if (this.crit) addFloatingText(this.lastTargetX, this.lastTargetY - 0.3, 'CRÍTICO!', '#fde047');
                 spawnExplosionParticles(this.lastTargetX, this.lastTargetY, this.color, this.towerType === 'cannon' ? 9 : 4, 1.5);
 
                 if (killed) {
@@ -2123,10 +2299,11 @@
         }
 
         draw(ctx, cs) {
+            // Rastro luminoso
             if (this.trail.length > 1) {
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = this.towerType === 'cannon' ? 3.2 : (this.towerType === 'mg' ? 1.8 : 2.4);
-                ctx.globalAlpha = 0.55;
+                ctx.globalAlpha = 0.85; ctx.globalCompositeOperation = 'lighter'; ctx.shadowColor = this.color; ctx.shadowBlur = 8;
                 ctx.beginPath();
                 ctx.moveTo(this.trail[0].x * cs, this.trail[0].y * cs);
                 for (let i = 1; i < this.trail.length; i++) {
@@ -2134,7 +2311,7 @@
                 }
                 ctx.lineTo(this.x * cs, this.y * cs);
                 ctx.stroke();
-                ctx.globalAlpha = 1;
+                ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
             }
 
             ctx.save();
@@ -2142,6 +2319,7 @@
             ctx.rotate(this.angle);
 
             if (this.towerType === 'missile') {
+                // Corpo do míssil com ogiva
                 ctx.fillStyle = '#f8fafc';
                 ctx.fillRect(-6, -2.2, 10, 4.4);
                 ctx.fillStyle = '#ef4444';
@@ -2152,11 +2330,13 @@
                 ctx.closePath();
                 ctx.fill();
             } else if (this.towerType === 'cannon') {
+                // Projétil perfurante incandescente
                 ctx.fillStyle = '#fed7aa';
                 ctx.beginPath();
                 ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
                 ctx.fill();
             } else {
+                // Bala traçante ou pulso criogênico
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
                 ctx.arc(0, 0, this.towerType === 'cryo' ? 3.4 : 2.3, 0, Math.PI * 2);
@@ -2167,7 +2347,7 @@
     }
 
     class Particle {
-        constructor(x, y, color, speedScale = 1.8, maxLife = 0.45, size = 3.5) {
+        constructor(x, y, color, speedScale = 1.8, maxLife = 0.45, size = 3.5, glow = false) {
             this.x = x;
             this.y = y;
             this.color = color;
@@ -2178,6 +2358,7 @@
             this.life = maxLife * (0.7 + Math.random() * 0.5);
             this.maxLife = this.life;
             this.size = size * (0.7 + Math.random() * 0.6);
+            this.glow = glow;
         }
 
         update(dt) {
@@ -2194,7 +2375,8 @@
             ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
             ctx.fillStyle = this.color;
             ctx.beginPath();
-            ctx.arc(this.x * cs, this.y * cs, this.size, 0, Math.PI * 2);
+            ctx.globalCompositeOperation = this.glow ? 'lighter' : 'source-over';
+            ctx.arc(this.x * cs, this.y * cs, this.size * (this.glow ? 1 : 1 + (1 - this.life / this.maxLife) * 1.3), 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
@@ -2234,7 +2416,7 @@
             this.x = x;
             this.y = y;
             this.radius = radius;
-            this.life = 8.0;
+            this.life = 8.0; // desaparece suavemente após 8s
             this.maxLife = 8.0;
         }
 
@@ -2250,135 +2432,6 @@
             ctx.beginPath();
             ctx.arc(this.x * cs, this.y * cs, this.radius * cs, 0, Math.PI * 2);
             ctx.fill();
-            ctx.restore();
-        }
-    }
-
-    class AirStrikeRun {
-        constructor(targetX, targetY) {
-            this.targetX = targetX;
-            this.targetY = targetY;
-            this.radius = AIRSTRIKE_CONFIG.radius;
-            this.damage = AIRSTRIKE_CONFIG.baseDamage + Math.max(0, state.waveIndex - 1) * AIRSTRIKE_CONFIG.waveDamageScale;
-
-            this.duration = 1.15;
-            this.elapsed = 0;
-            this.detonated = false;
-
-            const angle = -0.35 + (Math.random() - 0.5) * 0.25;
-            this.angle = angle;
-            const span = Math.max(COLS, ROWS) * 0.85;
-            this.startX = targetX - Math.cos(angle) * span;
-            this.startY = targetY - Math.sin(angle) * span;
-            this.endX = targetX + Math.cos(angle) * span;
-            this.endY = targetY + Math.sin(angle) * span;
-
-            this.subBombs = [];
-            for (let i = 0; i < AIRSTRIKE_CONFIG.bombCount; i++) {
-                const t = i / Math.max(1, AIRSTRIKE_CONFIG.bombCount - 1);
-                const along = (t - 0.5) * this.radius * 1.1;
-                const perp = (Math.random() - 0.5) * this.radius * 0.65;
-                const bx = targetX + Math.cos(angle) * along - Math.sin(angle) * perp;
-                const by = targetY + Math.sin(angle) * along + Math.cos(angle) * perp;
-                this.subBombs.push({
-                    x: bx,
-                    y: by,
-                    dropAt: 0.36 + t * 0.24,
-                    exploded: false
-                });
-            }
-        }
-
-        detonateBomb(bx, by) {
-            sfx.playExplosion(true);
-            triggerScreenShake(5.5);
-            state.scorchMarks.push(new ScorchMark(bx, by, 0.45));
-            state.shockwaves.push(new Shockwave(bx, by, this.radius * 0.72, '#fb923c'));
-            spawnExplosionParticles(bx, by, '#ef4444', 16, 2.8);
-            spawnExplosionParticles(bx, by, '#fde047', 10, 2.0);
-
-            for (let i = state.enemies.length - 1; i >= 0; i--) {
-                const enemy = state.enemies[i];
-                const d = Math.hypot(enemy.x - bx, enemy.y - by);
-                if (d <= this.radius * 0.85) {
-                    const falloff = Math.max(0.45, 1 - (d / (this.radius * 1.15)));
-                    const dmg = Math.max(1, Math.round(this.damage * falloff));
-                    if (enemy.takeDamage(dmg)) {
-                        handleEnemyKilled(enemy);
-                    }
-                }
-            }
-        }
-
-        update(dt) {
-            this.elapsed += dt;
-
-            for (const b of this.subBombs) {
-                if (!b.exploded && this.elapsed >= b.dropAt) {
-                    b.exploded = true;
-                    this.detonateBomb(b.x, b.y);
-                }
-            }
-
-            if (!this.detonated && this.elapsed >= 0.58) {
-                this.detonated = true;
-                addFloatingText(this.targetX, this.targetY - 0.35, `BOMBARDEIO -${this.damage}`, '#fb923c');
-            }
-
-            return this.elapsed >= this.duration;
-        }
-
-        draw(ctx, cs) {
-            const tx = this.targetX * cs;
-            const ty = this.targetY * cs;
-            const rPx = this.radius * cs;
-
-            ctx.save();
-            const alpha = Math.max(0, 1 - Math.max(0, (this.elapsed - 0.55) / 0.6));
-            ctx.globalAlpha = alpha;
-            ctx.strokeStyle = '#fb923c';
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 4]);
-            ctx.beginPath();
-            ctx.arc(tx, ty, rPx, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            const progress = Math.min(1, this.elapsed / this.duration);
-            const planeX = (this.startX + (this.endX - this.startX) * progress) * cs;
-            const planeY = (this.startY + (this.endY - this.startY) * progress) * cs;
-
-            ctx.save();
-            ctx.translate(planeX, planeY);
-            ctx.rotate(this.angle);
-
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-            ctx.beginPath();
-            ctx.moveTo(cs * 0.45 + 6, 6);
-            ctx.lineTo(-cs * 0.35 + 6, -cs * 0.42 + 6);
-            ctx.lineTo(-cs * 0.18 + 6, 6);
-            ctx.lineTo(-cs * 0.35 + 6, cs * 0.42 + 6);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = '#e2e8f0';
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 1.8;
-            ctx.beginPath();
-            ctx.moveTo(cs * 0.48, 0);
-            ctx.lineTo(-cs * 0.36, -cs * 0.44);
-            ctx.lineTo(-cs * 0.16, 0);
-            ctx.lineTo(-cs * 0.36, cs * 0.44);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = '#f97316';
-            ctx.fillRect(-cs * 0.12, -cs * 0.08, cs * 0.34, cs * 0.16);
-
-            ctx.restore();
             ctx.restore();
         }
     }
@@ -2405,20 +2458,59 @@
             ctx.font = '800 13px sans-serif';
             ctx.textAlign = 'center';
             ctx.fillStyle = '#090d10';
-            ctx.fillText(this.text, this.x * cs + 1, this.y * cs + 1);
+            const hw = ctx.measureText(this.text).width / 2 + 4;
+            const fx = Math.min(Math.max(this.x * cs, hw), COLS * cs - hw);
+            const fy = Math.min(Math.max(this.y * cs, 14), ROWS * cs - 4);
+            ctx.fillText(this.text, fx + 1, fy + 1);
             ctx.fillStyle = this.color;
-            ctx.fillText(this.text, this.x * cs, this.y * cs);
+            ctx.fillText(this.text, fx, fy);
             ctx.restore();
         }
     }
 
     // ========================================================================
-    // 5. LÓGICA DE ONDAS INFINITAS, ECONOMIA E EVENTOS
+    // EFEITOS ADICIONAIS
+    // ========================================================================
+    class Fireball {
+        constructor(x, y, r) { this.x = x; this.y = y; this.r = r; this.life = 0.38; this.maxLife = 0.38; }
+        update(dt) { this.life -= dt; return this.life <= 0; }
+        draw(ctx, cs) {
+            const p = 1 - this.life / this.maxLife, r = this.r * cs * (0.35 + p * 0.75);
+            const g = ctx.createRadialGradient(this.x * cs, this.y * cs, 0, this.x * cs, this.y * cs, r);
+            g.addColorStop(0, `rgba(255,251,200,${1 - p})`); g.addColorStop(0.45, `rgba(251,146,60,${0.8 * (1 - p)})`); g.addColorStop(1, 'rgba(127,29,29,0)');
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(this.x * cs, this.y * cs, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
+    }
+
+    class Wreck {
+        constructor(e) { this.x = e.x; this.y = e.y; this.angle = e.angle; this.sr = e.sizeRatio; this.life = 4; this.t = 0; }
+        update(dt) {
+            this.life -= dt; this.t -= dt;
+            if (this.t <= 0) {
+                this.t = 0.13;
+                state.particles.push(new Particle(this.x, this.y, '#475569', 0.2, 1.0, 5));
+                if (Math.random() < 0.5) state.particles.push(new Particle(this.x, this.y, '#fb923c', 0.3, 0.35, 2.6, true));
+            }
+            return this.life <= 0;
+        }
+        draw(ctx, cs) {
+            const s = cs * this.sr;
+            ctx.save(); ctx.globalAlpha = Math.min(1, this.life / 1.5) * 0.85;
+            ctx.translate(this.x * cs, this.y * cs); ctx.rotate(this.angle);
+            ctx.fillStyle = '#0b0f12'; ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(-s * 0.9, -s * 0.6, s * 1.8, s * 1.2, 4); ctx.fill(); ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // ========================================================================
+    // 5. LÓGICA DE ONDAS, ECONOMIA E EVENTOS
     // ========================================================================
 
     function spawnExplosionParticles(x, y, color, count, speedScale = 1.8) {
         for (let i = 0; i < count; i++) {
-            state.particles.push(new Particle(x, y, color, speedScale, 0.45, 3.4));
+            state.particles.push(new Particle(x, y, color, speedScale, 0.45, 3.4, true));
         }
     }
 
@@ -2432,12 +2524,17 @@
             state.enemies.splice(idx, 1);
             state.gold += enemy.reward;
             state.score += enemy.score;
+            state.stats.kills++;
 
             const isHeavy = enemy.type === 'tank' || enemy.type === 'boss';
             sfx.playExplosion(isHeavy);
             if (isHeavy) triggerScreenShake(enemy.type === 'boss' ? 8 : 4.5);
 
+            // Explosão em camadas + marca de queimadura no asfalto
             state.scorchMarks.push(new ScorchMark(enemy.x, enemy.y, isHeavy ? 0.34 : 0.22));
+            if (!enemy.air) state.scorchMarks.push(new Wreck(enemy));
+            state.shockwaves.push(new Fireball(enemy.x, enemy.y, isHeavy ? 1.3 : 0.8));
+            for (let i = 0; i < (isHeavy ? 8 : 4); i++) state.particles.push(new Particle(enemy.x, enemy.y, '#1f2937', 2.4, 0.7, 3.5));
             state.shockwaves.push(new Shockwave(enemy.x, enemy.y, isHeavy ? 0.95 : 0.55, '#fbbf24'));
             spawnExplosionParticles(enemy.x, enemy.y, '#f97316', isHeavy ? 18 : 10, 2.2);
             spawnExplosionParticles(enemy.x, enemy.y, '#fef08a', isHeavy ? 10 : 5, 1.5);
@@ -2450,6 +2547,7 @@
         state.lives = Math.max(0, state.lives - enemy.lifeDamage);
         sfx.playBaseHit();
         triggerScreenShake(7);
+        state.baseFlash = 1;
         state.shockwaves.push(new Shockwave(enemy.x, enemy.y, 0.9, '#f43f5e'));
         spawnExplosionParticles(enemy.x, enemy.y, '#f43f5e', 16, 2.0);
         addFloatingText(enemy.x, enemy.y - 0.3, `-${enemy.lifeDamage} Vida`, '#f43f5e');
@@ -2462,58 +2560,67 @@
 
     function startNextWave() {
         if (state.status !== 'playing') return;
+        if (!state.endless && state.waveIndex >= WAVES_CONFIG.length) return;
         if (state.waveActive && state.spawnQueue.length > 0) return;
 
+        // Bônus tático se chamar a próxima onda antes de todos os inimigos atuais morrerem
         if (state.waveActive && state.enemies.length > 0) {
-            const rushBonus = 15 + state.waveIndex * 3;
+            const rushBonus = 15 + state.waveIndex * 2;
             state.gold += rushBonus;
             state.score += rushBonus * 5;
             addFloatingText(PATH_WAYPOINTS[0].col + 0.8, PATH_WAYPOINTS[0].row + 0.3, `Bônus Antecipação +${rushBonus}g`, '#38bdf8');
         }
 
-        const nextWaveNumber = state.waveIndex + 1;
-        const waveCfg = buildWaveConfig(nextWaveNumber);
+        const waveCfg = getWaveConfig(state.waveIndex);
         let delayAccumulator = 0.25;
 
         for (const group of waveCfg) {
-            const rewardScale = 1 + Math.min(1.8, (nextWaveNumber - 1) * 0.05);
             for (let i = 0; i < group.count; i++) {
                 state.spawnQueue.push({
                     type: group.type,
                     hpMult: group.hpMult,
-                    rewardMult: rewardScale,
                     delay: delayAccumulator
                 });
                 delayAccumulator += group.interval;
             }
         }
 
-        state.waveIndex = nextWaveNumber;
+        state.waveIndex++;
         state.waveActive = true;
         state.spawnTimer = 0;
         sfx.playWaveStart();
-        const bossNotice = nextWaveNumber % 5 === 0 ? ' • ALERTA: COLOSSO!' : '';
-        showBanner(`Onda ${state.waveIndex} (Nível ${getCurrentLevel(state.waveIndex)}) iniciada${bossNotice}`);
+        const hasAir = waveCfg.some(g => g.type === 'drone' || g.type === 'heli');
+        showBanner(`Onda ${state.waveIndex}${state.endless ? '' : ' de ' + WAVES_CONFIG.length} em curso!${hasAir ? ' ⚠ Ameaça aérea!' : ''}`);
         updateHUD();
+    }
+
+    function triggerVictory() {
+        state.status = 'victory';
+        sfx.playEndGame(true);
+        const finalScore = state.score + state.lives * 50 + state.gold * 2;
+        saveRanking(finalScore);
+        document.getElementById('victory-stats').innerHTML = `Excelente comando! Você resistiu às ${WAVES_CONFIG.length} ondas com ${state.lives} vidas restantes. Pontuação Final: ${finalScore}.<br><br>${statsHTML()}<br>🔬 +${awardRP(true)} pontos de pesquisa`;
+        document.getElementById('modal-victory').classList.remove('hidden');
     }
 
     function triggerGameOver() {
         state.status = 'gameover';
-        state.airstrikeArmed = false;
         sfx.playEndGame(false);
-        document.getElementById('gameover-stats').textContent =
-            `O Bunker caiu na Onda ${state.waveIndex} (Nível ${getCurrentLevel(state.waveIndex)}). Pontuação alcançada: ${state.score}.`;
+        document.getElementById('gameover-stats').innerHTML = `O Bunker caiu na Onda ${state.waveIndex}${state.endless ? ' (Modo Infinito)' : ' de ' + WAVES_CONFIG.length}. Pontuação: ${state.score}.<br><br>${statsHTML()}<br>🔬 +${awardRP(false)} pontos de pesquisa<br><br><b>Ranking</b><br>${rankingHTML(saveRanking())}`;
         document.getElementById('modal-gameover').classList.remove('hidden');
-        updateHUD();
     }
 
     function resetGame() {
         sfx.init();
+        state.diff = DIFFS[state.selDiff];
+        state.rs = computeResearch();
+        applyMap(state.selMap);
         state.status = 'playing';
         state.paused = false;
         state.gameSpeed = 1;
-        state.gold = INITIAL_GOLD;
-        state.lives = INITIAL_LIVES;
+        state.gold = Math.round(INITIAL_GOLD * state.diff.gold) + state.rs.startGold;
+        state.maxLives = Math.round(INITIAL_LIVES * state.diff.lives) + state.rs.lives;
+        state.lives = state.maxLives;
         state.score = 0;
         state.waveIndex = 0;
         state.waveActive = false;
@@ -2525,13 +2632,12 @@
         state.particles = [];
         state.shockwaves = [];
         state.scorchMarks = [];
-        state.airstrikes = [];
         state.floatingTexts = [];
         state.selectedBuildType = null;
         state.selectedTower = null;
-        state.airstrikeArmed = false;
-        state.airstrikeCooldown = 0;
         state.screenShake = 0;
+        state.stats = { damage: 0, kills: 0, gold: 0, by: {} }; state.autoTimer = 4;
+        state.cds = { repair: 0, freeze: 0, supply: 0 }; state.rpGiven = 0; state.wonOnce = false; state.endless = false; state.airCooldown = 0; state.airArmed = false; state.planes = []; state.bombs = []; state.baseFlash = 0;
 
         document.getElementById('modal-start').classList.add('hidden');
         document.getElementById('modal-victory').classList.add('hidden');
@@ -2549,70 +2655,201 @@
         updateInspector();
     }
 
-    function toggleAirstrikeArmed() {
-        sfx.init();
-        if (state.status !== 'playing') return;
-
-        if (state.airstrikeArmed) {
-            state.airstrikeArmed = false;
-            updateHUD();
-            return;
-        }
-
-        if (state.airstrikeCooldown > 0) {
-            showBanner(`Ataque aéreo em recarga (${state.airstrikeCooldown.toFixed(1)}s)`);
-            return;
-        }
-
-        if (state.gold < AIRSTRIKE_CONFIG.cost) {
-            showBanner(`Ouro insuficiente! Ataque aéreo custa ${AIRSTRIKE_CONFIG.cost}g`);
-            return;
-        }
-
-        state.airstrikeArmed = true;
-        state.selectedBuildType = null;
-        state.selectedTower = null;
-        updateInspector();
-        updateHUD();
-        showBanner('Clique no mapa para marcar a zona de bombardeio (ESC cancela)');
+    function updateAirBtn() {
+        const b = document.getElementById('btn-air');
+        if (!b) return;
+        const txt = state.airCooldown > 0 ? `💣 ${Math.ceil(state.airCooldown)}s` : (state.airArmed ? '🎯 Clique no mapa' : '💣 Ataque Aéreo (Q)');
+        if (b.textContent !== txt) b.textContent = txt;
+        b.classList.toggle('btn-muted', state.airCooldown > 0);
+        b.classList.toggle('btn-warning-active', state.airArmed);
+        updateAbilityBtns();
     }
 
-    function launchAirstrikeAt(col, row) {
-        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
-            showBanner('Alvo fora da zona operacional!');
-            return;
-        }
-        if (state.airstrikeCooldown > 0) {
-            showBanner('Ataque aéreo ainda em recarga!');
-            return;
-        }
-        if (state.gold < AIRSTRIKE_CONFIG.cost) {
-            showBanner('Ouro insuficiente para ataque aéreo!');
-            state.airstrikeArmed = false;
-            updateHUD();
-            return;
-        }
-
-        state.gold -= AIRSTRIKE_CONFIG.cost;
-        state.airstrikeCooldown = AIRSTRIKE_CONFIG.cooldown;
-        state.airstrikeArmed = false;
-
-        const tx = col + 0.5;
-        const ty = row + 0.5;
-        state.airstrikes.push(new AirStrikeRun(tx, ty));
-        sfx.playMissileLaunch();
+    function toggleAirstrike() {
+        if (state.status !== 'playing') return;
+        if (state.airCooldown > 0) { showBanner(`Ataque aéreo recarregando: ${Math.ceil(state.airCooldown)}s`); return; }
+        state.airArmed = !state.airArmed;
+        state.selectedBuildType = null;
+        updateAirBtn();
         updateHUD();
+    }
+
+    function callAirstrike(x, y) {
+        state.airArmed = false;
+        state.airCooldown = AIR_CD * state.rs.cd;
+        state.planes.push({ x: -2, y, startX: x - 1.5, dropped: 0 });
+        sfx.playWaveStart();
+        showBanner('Caças a caminho!');
+        updateAirBtn();
+    }
+
+    function airBlast(x, y) {
+        sfx.playExplosion(true);
+        triggerScreenShake(5);
+        state.shockwaves.push(new Shockwave(x, y, 1.1, '#fbbf24'));
+        state.shockwaves.push(new Fireball(x, y, 1.2));
+        state.scorchMarks.push(new ScorchMark(x, y, 0.35));
+        spawnExplosionParticles(x, y, '#f97316', 16, 2.6);
+        for (let i = state.enemies.length - 1; i >= 0; i--) {
+            const e = state.enemies[i];
+            if (Math.hypot(e.x - x, e.y - y) <= 1.1 && e.takeDamage(110, 'air')) handleEnemyKilled(e);
+        }
+    }
+
+    function updateAir(dt) {
+        if (state.airCooldown > 0) state.airCooldown = Math.max(0, state.airCooldown - dt);
+        for (const k in state.cds) if (state.cds[k] > 0) state.cds[k] = Math.max(0, state.cds[k] - dt);
+        state.baseFlash = Math.max(0, state.baseFlash - dt * 2.2);
+        for (let i = state.planes.length - 1; i >= 0; i--) {
+            const p = state.planes[i];
+            p.x += 16 * dt;
+            while (p.dropped < 7 && p.x >= p.startX + p.dropped * 0.5) {
+                state.bombs.push({ x: p.startX + p.dropped * 0.5, y: p.y + (Math.random() - 0.5) * 0.9, t: 0.6, max: 0.6 });
+                p.dropped++;
+            }
+            if (p.x > COLS + 3) state.planes.splice(i, 1);
+        }
+        for (let i = state.bombs.length - 1; i >= 0; i--) {
+            const b = state.bombs[i];
+            b.t -= dt;
+            if (b.t <= 0) { state.bombs.splice(i, 1); airBlast(b.x, b.y); }
+        }
+        updateAirBtn();
+    }
+
+    function statsHTML() {
+        const st = state.stats;
+        const names = { mg: 'Metralhadora', cannon: 'Canhão', cryo: 'Criogênica', missile: 'Mísseis', aa: 'Antiaérea', air: 'Ataque aéreo' };
+        const rows = Object.entries(st.by).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${names[k] || k}: ${Math.round(v)}`).join(' • ');
+        return `<b>Estatísticas</b><br>Abates: ${st.kills} • Dano total: ${Math.round(st.damage)} • Ouro gasto: ${st.gold}<br>${rows}`;
+    }
+
+    function updateWavePreview() {
+        const el = document.getElementById('wave-preview');
+        if (!el) return;
+        if (!state.endless && state.waveIndex >= WAVES_CONFIG.length) { el.textContent = 'Última onda'; return; }
+        const icons = { jeep: '🚙', truck: '🚛', tank: '🛡️', boss: '☣️', drone: '🛸', heli: '🚁' };
+        const cnt = {};
+        for (const g of getWaveConfig(state.waveIndex)) cnt[g.type] = (cnt[g.type] || 0) + g.count;
+        const html = `<span class="label">Próx.</span><span>${Object.entries(cnt).map(([k, v]) => `${icons[k]}${v}`).join(' ')}</span>`;
+        if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; }
+    }
+
+    function updateAuto(dt) {
+        if (!state.autoWave || state.waveActive || state.waveIndex === 0) { state.autoTimer = 4; return; }
+        if (!state.endless && state.waveIndex >= WAVES_CONFIG.length) return;
+        state.autoTimer -= dt;
+        if (state.autoTimer <= 0) { state.autoTimer = 4; startNextWave(); }
+    }
+
+    function applyMap(i) {
+        currentMap = i;
+        buildMapAndScenery();
+        buildBackground();
+    }
+
+    function updateAbilityBtns() {
+        for (const [id, k, icon] of [['btn-rep', 'repair', '🛠️'], ['btn-frz', 'freeze', '❄️'], ['btn-sup', 'supply', '💰']]) {
+            const el = document.getElementById(id);
+            if (!el) continue;
+            const cd = state.cds[k];
+            const txt = cd > 0 ? `${icon} ${Math.ceil(cd)}` : icon;
+            if (el.textContent !== txt) el.textContent = txt;
+            el.classList.toggle('btn-muted', cd > 0);
+        }
+    }
+
+    function useAbility(k) {
+        if (state.status !== 'playing') return;
+        if (state.cds[k] > 0) { showBanner(`Habilidade recarregando: ${Math.ceil(state.cds[k])}s`); return; }
+        const base = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
+        if (k === 'repair') {
+            if (state.lives >= state.maxLives) { showBanner('O Bunker já está íntegro'); return; }
+            state.lives = Math.min(state.maxLives, state.lives + 5);
+            addFloatingText(base.col + 0.5, base.row, '+5 Vidas', '#34d399');
+            spawnExplosionParticles(base.col + 0.5, base.row + 0.5, '#34d399', 16, 1.8);
+            state.shockwaves.push(new Shockwave(base.col + 0.5, base.row + 0.5, 1.2, '#34d399'));
+            sfx.playBuild(true);
+            state.cds.repair = 60 * state.rs.cd;
+        } else if (k === 'freeze') {
+            state.enemies.forEach(e => { if (!e.air) e.applySlow(0.7, 4); });
+            state.shockwaves.push(new Shockwave(COLS / 2, ROWS / 2, 9, '#a855f7'));
+            sfx.playCryo();
+            showBanner('Congelamento global!');
+            state.cds.freeze = 50 * state.rs.cd;
+        } else if (k === 'supply') {
+            state.gold += 100;
+            addFloatingText(base.col - 1, base.row, '+100g', '#fbbf24');
+            sfx.playBuild(false);
+            state.cds.supply = 75 * state.rs.cd;
+        }
+        updateHUD();
+        updateAbilityBtns();
+    }
+
+    function awardRP(victory) {
+        state.wonOnce = state.wonOnce || victory;
+        const total = Math.round((Math.floor(state.score / 150) + state.waveIndex * 2 + (state.wonOnce ? 25 : 0)) * state.diff.rp);
+        const gain = Math.max(0, total - state.rpGiven);
+        state.rpGiven = total;
+        const d = loadResearch(); d.rp += gain; saveResearch(d);
+        return gain;
+    }
+
+    function refreshMenu() {
+        document.querySelectorAll('[data-map]').forEach(b => b.classList.toggle('btn-active', +b.dataset.map === state.selMap));
+        document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('btn-active', b.dataset.diff === state.selDiff));
+        document.getElementById('rp-count').textContent = loadResearch().rp;
+        showStartRank();
+    }
+
+    function getWaveConfig(i) {
+        if (i < WAVES_CONFIG.length) return WAVES_CONFIG[i];
+        const k = i - WAVES_CONFIG.length + 1, m = 2.4 + k * 0.35;
+        const cfg = [
+            { type: 'truck', count: 8 + k, interval: Math.max(0.3, 0.55 - k * 0.01), hpMult: m },
+            { type: 'jeep', count: 10 + k * 2, interval: Math.max(0.25, 0.4 - k * 0.01), hpMult: m },
+            { type: 'tank', count: 4 + Math.floor(k * 0.8), interval: 0.9, hpMult: m },
+            { type: 'drone', count: 6 + k, interval: 0.45, hpMult: m * 0.9 },
+            { type: 'heli', count: 2 + Math.floor(k / 2), interval: 1.2, hpMult: m }
+        ];
+        if ((i + 1) % 5 === 0) cfg.push({ type: 'boss', count: 1 + Math.floor(k / 5), interval: 3.5, hpMult: m * 0.9 });
+        return cfg;
+    }
+
+    function loadRanking() {
+        try { return JSON.parse(localStorage.getItem('defesaTaticaRank') || '[]'); } catch (e) { return []; }
+    }
+
+    function saveRanking(score) {
+        let list = loadRanking();
+        list.push({ s: score === undefined ? state.score : score, w: state.waveIndex, e: state.endless ? 1 : 0 });
+        list.sort((a, b) => b.s - a.s);
+        list = list.slice(0, 5);
+        try { localStorage.setItem('defesaTaticaRank', JSON.stringify(list)); } catch (e) {}
+        return list;
+    }
+
+    function rankingHTML(list) {
+        return list.map((r, i) => `${i + 1}º — ${r.s} pts (onda ${r.w}${r.e ? ' ∞' : ''})`).join('<br>');
+    }
+
+    function showStartRank() {
+        const list = loadRanking();
+        const el = document.getElementById('start-rank');
+        if (el) el.innerHTML = list.length ? '<b>Ranking</b><br>' + rankingHTML(list) : '';
     }
 
     function isCellBuildable(col, row) {
         if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
         if (pathCellsSet.has(`${col},${row}`)) return false;
+        if (blockedCells.has(`${col},${row}`)) return false;
         if (state.towers.some(t => t.col === col && t.row === row)) return false;
         return true;
     }
 
     // ========================================================================
-    // 6. ATUALIZAÇÃO DO LOOP, RADAR E RENDERIZAÇÃO DO CENÁRIO MILITAR
+    // 6. ATUALIZAÇÃO DO LOOP E RENDERIZAÇÃO DO CENÁRIO MILITAR
     // ========================================================================
 
     function update(rawDt) {
@@ -2620,37 +2857,32 @@
 
         const dt = Math.min(rawDt, 0.05) * state.gameSpeed;
         state.timeElapsed += dt;
+        updateAir(dt);
+        updateAuto(dt);
         if (state.screenShake > 0) {
             state.screenShake = Math.max(0, state.screenShake - dt * 28);
         }
 
-        if (state.airstrikeCooldown > 0) {
-            const prevSec = Math.ceil(state.airstrikeCooldown);
-            state.airstrikeCooldown = Math.max(0, state.airstrikeCooldown - dt);
-            const nextSec = Math.ceil(state.airstrikeCooldown);
-            if (prevSec !== nextSec || state.airstrikeCooldown === 0) {
-                updateAirstrikeButton();
-            }
-        }
-
+        // Gerenciamento de Spawn da Onda
         if (state.waveActive) {
             state.spawnTimer += dt;
             while (state.spawnQueue.length > 0 && state.spawnTimer >= state.spawnQueue[0].delay) {
                 const nextEnemy = state.spawnQueue.shift();
-                const spawned = new Enemy(nextEnemy.type, nextEnemy.hpMult);
-                if (nextEnemy.rewardMult) {
-                    spawned.reward = Math.max(spawned.reward, Math.round(spawned.reward * nextEnemy.rewardMult));
-                }
-                state.enemies.push(spawned);
+                state.enemies.push(new Enemy(nextEnemy.type, nextEnemy.hpMult));
             }
 
             if (state.spawnQueue.length === 0 && state.enemies.length === 0) {
                 state.waveActive = false;
-                const waveBonus = 25 + state.waveIndex * 8;
-                state.gold += waveBonus;
-                state.score += waveBonus * 5;
-                showBanner(`Onda ${state.waveIndex} limpa! Recompensa: +${waveBonus}g`);
-                updateHUD();
+                if (!state.endless && state.waveIndex >= WAVES_CONFIG.length) {
+                    triggerVictory();
+                    return;
+                } else {
+                    const waveBonus = 25 + state.waveIndex * 6;
+                    state.gold += waveBonus;
+                    state.score += waveBonus * 5;
+                    showBanner(`Onda ${state.waveIndex} limpa! Recompensa: +${waveBonus}g`);
+                    updateHUD();
+                }
             }
         }
 
@@ -2667,10 +2899,6 @@
 
         for (let i = state.projectiles.length - 1; i >= 0; i--) {
             if (state.projectiles[i].update(dt)) state.projectiles.splice(i, 1);
-        }
-
-        for (let i = state.airstrikes.length - 1; i >= 0; i--) {
-            if (state.airstrikes[i].update(dt)) state.airstrikes.splice(i, 1);
         }
 
         for (let i = state.particles.length - 1; i >= 0; i--) {
@@ -2696,22 +2924,24 @@
         const r = cs * 0.28 * prop.scale;
 
         if (prop.type === 'tree') {
+            // Sombra da árvore
             ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
             ctx.beginPath();
             ctx.arc(x + 4, y + 5, r, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = '#1b3826';
+            // Copa folhagem militar escura
+            ctx.fillStyle = theme.t1;
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.fillStyle = '#254d34';
+            ctx.fillStyle = theme.t2;
             ctx.beginPath();
             ctx.arc(x - r * 0.2, y - r * 0.2, r * 0.65, 0, Math.PI * 2);
             ctx.fill();
         } else if (prop.type === 'rock') {
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = theme.rock;
             ctx.strokeStyle = '#1e293b';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -2731,60 +2961,11 @@
             ctx.lineWidth = 1.5;
             ctx.stroke();
         } else if (prop.type === 'bush') {
-            ctx.fillStyle = '#1e3f2b';
+            ctx.fillStyle = theme.bush;
             ctx.beginPath();
             ctx.arc(x - r * 0.3, y, r * 0.65, 0, Math.PI * 2);
             ctx.arc(x + r * 0.3, y + r * 0.1, r * 0.55, 0, Math.PI * 2);
             ctx.fill();
-        }
-    }
-
-    function renderRadar() {
-        const rw = radarCanvas.width;
-        const rh = radarCanvas.height;
-        const sx = rw / COLS;
-        const sy = rh / ROWS;
-
-        radarCtx.clearRect(0, 0, rw, rh);
-        radarCtx.fillStyle = '#101914';
-        radarCtx.fillRect(0, 0, rw, rh);
-
-        radarCtx.strokeStyle = '#334155';
-        radarCtx.lineWidth = Math.max(2, sx * 0.55);
-        radarCtx.lineCap = 'round';
-        radarCtx.lineJoin = 'round';
-        radarCtx.beginPath();
-        PATH_WAYPOINTS.forEach((wp, idx) => {
-            const px = (wp.col + 0.5) * sx;
-            const py = (wp.row + 0.5) * sy;
-            if (idx === 0) radarCtx.moveTo(px, py);
-            else radarCtx.lineTo(px, py);
-        });
-        radarCtx.stroke();
-
-        const spawnWp = PATH_WAYPOINTS[0];
-        const baseWp = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
-        radarCtx.fillStyle = '#ef4444';
-        radarCtx.fillRect(spawnWp.col * sx, spawnWp.row * sy, sx, sy);
-        radarCtx.fillStyle = '#10b981';
-        radarCtx.fillRect(baseWp.col * sx, baseWp.row * sy, sx, sy);
-
-        for (const t of state.towers) {
-            radarCtx.fillStyle = t.color;
-            radarCtx.fillRect((t.col + 0.25) * sx, (t.row + 0.25) * sy, sx * 0.5, sy * 0.5);
-        }
-
-        for (const e of state.enemies) {
-            radarCtx.fillStyle = e.type === 'boss' ? '#e879f9' : '#fbbf24';
-            radarCtx.beginPath();
-            radarCtx.arc(e.x * sx, e.y * sy, e.type === 'boss' ? 3.2 : 2.1, 0, Math.PI * 2);
-            radarCtx.fill();
-        }
-
-        const totalTargets = state.enemies.length + state.spawnQueue.length;
-        const radarCountEl = document.getElementById('radar-count');
-        if (radarCountEl) {
-            radarCountEl.textContent = `${totalTargets} ALVOS`;
         }
     }
 
@@ -2794,70 +2975,26 @@
         const height = ROWS * cs;
 
         ctx.save();
+        // Tremor de câmera sutil em impactos
         if (state.screenShake > 0.1) {
             const sx = (Math.random() - 0.5) * state.screenShake;
             const sy = (Math.random() - 0.5) * state.screenShake;
             ctx.translate(sx, sy);
         }
 
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                const isAlt = (r + c) % 2 === 0;
-                ctx.fillStyle = isAlt ? '#16241d' : '#132019';
-                ctx.fillRect(c * cs, r * cs, cs, cs);
-            }
-        }
+        // 1-3. Cenário estático em cache (grama, estrada, lagoa, tenda, caixas, árvores)
+        ctx.drawImage(bgCanvas, 0, 0, width, height);
 
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
-        ctx.lineWidth = 1;
-        for (let c = 0; c <= COLS; c++) {
-            ctx.beginPath();
-            ctx.moveTo(c * cs, 0);
-            ctx.lineTo(c * cs, height);
-            ctx.stroke();
-        }
-        for (let r = 0; r <= ROWS; r++) {
-            ctx.beginPath();
-            ctx.moveTo(0, r * cs);
-            ctx.lineTo(width, r * cs);
-            ctx.stroke();
-        }
-
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = cs * 0.78;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        PATH_WAYPOINTS.forEach((wp, idx) => {
-            const wx = (wp.col + 0.5) * cs;
-            const wy = (wp.row + 0.5) * cs;
-            if (idx === 0) ctx.moveTo(wx, wy);
-            else ctx.lineTo(wx, wy);
-        });
-        ctx.stroke();
-
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = cs * 0.66;
-        ctx.stroke();
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.28)';
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([cs * 0.16, cs * 0.20]);
-        ctx.stroke();
-        ctx.restore();
-
-        for (const prop of sceneryProps) {
-            drawSceneryProp(ctx, prop, cs);
-        }
-
+        // 4. Marcas de queimadura de veículos destruídos no asfalto
         for (const sm of state.scorchMarks) {
             sm.draw(ctx, cs);
         }
 
+        // 5. Portal Inimigo (Spawn) e Bunker Defensivo (Base)
         const spawnWp = PATH_WAYPOINTS[0];
         const baseWp = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
 
+        // Zona de Invasão (Spawn)
         const spX = (spawnWp.col + 0.5) * cs;
         const spY = (spawnWp.row + 0.5) * cs;
         ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
@@ -2872,6 +3009,14 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('INVASÃO', spX, spY);
+        ctx.save();
+        for (let i = 0; i < 3; i++) {
+            const a = (state.timeElapsed * 2 + i / 3) % 1;
+            ctx.globalAlpha = 1 - a; ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2.5;
+            const ax = spX + cs * (0.45 + a * 0.5);
+            ctx.beginPath(); ctx.moveTo(ax, spY - cs * 0.22); ctx.lineTo(ax + cs * 0.12, spY); ctx.lineTo(ax, spY + cs * 0.22); ctx.stroke();
+        }
+        ctx.restore();
 
         // Bunker Defensivo (Base)
         const bsX = (baseWp.col + 0.5) * cs;
@@ -2895,8 +3040,16 @@
 
         ctx.fillStyle = '#34d399';
         ctx.fillText('BUNKER', bsX, bsY);
+        ctx.save();
+        ctx.strokeStyle = state.lives > state.maxLives * 0.5 ? '#10b981' : (state.lives > state.maxLives * 0.25 ? '#fbbf24' : '#ef4444');
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(bsX, bsY, cs * 0.43, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, state.lives) / state.maxLives); ctx.stroke();
+        ctx.translate(bsX, bsY - cs * 0.27); ctx.rotate(state.timeElapsed * 2);
+        ctx.strokeStyle = 'rgba(52,211,153,0.9)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-cs * 0.1, 0); ctx.lineTo(cs * 0.1, 0); ctx.stroke();
+        ctx.restore();
 
-        // Círculo de alcance da torre selecionada no mapa
+        // 6. Círculo de alcance da torre selecionada no mapa
         if (state.selectedTower) {
             const st = state.selectedTower;
             const cx = (st.col + 0.5) * cs;
@@ -2916,43 +3069,14 @@
         // 8. Veículos Inimigos
         for (const enemy of state.enemies) enemy.draw(ctx, cs);
 
-        // 9. Projéteis, Ataques Aéreos, Ondas de Choque, Partículas e Textos Flutuantes
+        // 9. Projéteis, Ondas de Choque, Partículas e Textos Flutuantes
         for (const proj of state.projectiles) proj.draw(ctx, cs);
-        for (const strike of state.airstrikes) strike.draw(ctx, cs);
         for (const sw of state.shockwaves) sw.draw(ctx, cs);
         for (const p of state.particles) p.draw(ctx, cs);
         for (const ft of state.floatingTexts) ft.draw(ctx, cs);
 
-        // 10. Prévia de Ataque Aéreo ou Construção no Hover
-        if (state.status === 'playing' && state.airstrikeArmed && state.hoverCell) {
-            const { col, row } = state.hoverCell;
-            if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
-                const cx = (col + 0.5) * cs;
-                const cy = (row + 0.5) * cs;
-                const rPx = AIRSTRIKE_CONFIG.radius * cs;
-
-                ctx.save();
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.16)';
-                ctx.strokeStyle = '#fb923c';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([6, 4]);
-                ctx.beginPath();
-                ctx.arc(cx, cy, rPx, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                ctx.strokeStyle = '#fde047';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(cx - 12, cy);
-                ctx.lineTo(cx + 12, cy);
-                ctx.moveTo(cx, cy - 12);
-                ctx.lineTo(cx, cy + 12);
-                ctx.stroke();
-                ctx.restore();
-            }
-        } else if (state.status === 'playing' && state.selectedBuildType && state.hoverCell) {
+        // 10. Prévia de Construção no Hover
+        if (state.status === 'playing' && state.selectedBuildType && state.hoverCell) {
             const { col, row } = state.hoverCell;
             const cfg = TOWER_TYPES[state.selectedBuildType];
             const valid = isCellBuildable(col, row) && state.gold >= cfg.cost;
@@ -2973,8 +3097,49 @@
             ctx.fill();
         }
 
+        // Ataque aéreo: mira, bombas e caças
+        if (state.airArmed && state.mouse) {
+            const mx = state.mouse.x * cs, my = state.mouse.y * cs;
+            ctx.save();
+            ctx.strokeStyle = 'rgba(251,191,36,0.9)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]);
+            ctx.strokeRect(mx - 2.5 * cs, my - cs, 5 * cs, 2 * cs);
+            ctx.beginPath(); ctx.moveTo(mx - 8, my); ctx.lineTo(mx + 8, my); ctx.moveTo(mx, my - 8); ctx.lineTo(mx, my + 8); ctx.stroke();
+            ctx.restore();
+        }
+        for (const b of state.bombs) {
+            const k = b.t / b.max;
+            ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(b.x * cs, b.y * cs, cs * (0.15 + 0.5 * k), 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(b.x * cs, b.y * cs - k * cs * 2.2, 3, 6, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        for (const p of state.planes) {
+            const jet = (ox, oy, fill) => {
+                ctx.fillStyle = fill; ctx.beginPath();
+                ctx.moveTo(p.x * cs + ox + cs * 0.6, p.y * cs + oy); ctx.lineTo(p.x * cs + ox - cs * 0.35, p.y * cs + oy - cs * 0.5);
+                ctx.lineTo(p.x * cs + ox - cs * 0.15, p.y * cs + oy); ctx.lineTo(p.x * cs + ox - cs * 0.35, p.y * cs + oy + cs * 0.5);
+                ctx.closePath(); ctx.fill();
+            };
+            jet(cs * 0.3, cs * 0.55, 'rgba(0,0,0,0.3)');
+            jet(0, -cs * 0.3, '#cbd5e1');
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(251,146,60,0.8)';
+            ctx.beginPath(); ctx.arc(p.x * cs - cs * 0.2, p.y * cs - cs * 0.3, cs * 0.09, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        }
+
+        // Sombras de nuvens e vinheta
+        ctx.save();
+        for (let i = 0; i < 3; i++) {
+            const nx = ((state.timeElapsed * 18 + i * cs * 9) % (width + cs * 8)) - cs * 4, ny = cs * (2 + i * 3.2);
+            const cg = ctx.createRadialGradient(nx, ny, 0, nx, ny, cs * 2.5);
+            cg.addColorStop(0, 'rgba(0,0,0,0.12)'); cg.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = cg; ctx.fillRect(nx - cs * 2.5, ny - cs * 2.5, cs * 5, cs * 5);
+        }
+        const vg = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.45, width / 2, height / 2, Math.max(width, height) * 0.75);
+        vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)');
+        ctx.fillStyle = vg; ctx.fillRect(0, 0, width, height);
+        if (state.baseFlash > 0) { ctx.fillStyle = `rgba(244,63,94,${state.baseFlash * 0.28})`; ctx.fillRect(0, 0, width, height); }
         ctx.restore();
-        renderRadar();
+
+        ctx.restore();
     }
 
     function gameLoop(timestamp) {
@@ -3006,26 +3171,14 @@
     function updateHUD() {
         document.getElementById('ui-gold').textContent = state.gold;
         document.getElementById('ui-lives').textContent = state.lives;
-        document.getElementById('ui-wave').textContent = `${state.waveIndex} / ∞`;
+        document.getElementById('ui-wave').textContent = `${state.waveIndex} / ${state.endless ? '∞' : WAVES_CONFIG.length}`;
         document.getElementById('ui-score').textContent = state.score;
 
-        const displayWave = state.waveIndex === 0 ? 1 : state.waveIndex;
-        const currentLevel = getCurrentLevel(displayWave);
-        const threatMult = getThreatMultiplier(displayWave);
-        const waveInLevel = state.waveIndex === 0 ? 0 : (((state.waveIndex - 1) % 2) + 1);
-        const levelPct = state.waveIndex === 0 ? 0 : (waveInLevel === 2 ? 100 : 50);
-
-        document.getElementById('ui-level').textContent = currentLevel;
-        document.getElementById('level-badge-tag').textContent = `Setor ${currentLevel}`;
-        document.getElementById('level-main-title').textContent = `Nível ${currentLevel}`;
-        document.getElementById('level-threat-mult').textContent = `Ameaça ${threatMult.toFixed(2)}x`;
-        document.getElementById('level-progress-bar').style.width = `${levelPct}%`;
-        document.getElementById('level-scale-info').textContent = state.waveIndex === 0
-            ? 'Pronto para iniciar: fases infinitas e progressivas ativas.'
-            : `Onda ${state.waveIndex}: vida e recompensas escalam continuamente.`;
-
         const btnWave = document.getElementById('btn-next-wave');
-        if (state.waveActive && state.spawnQueue.length > 0) {
+        if (!state.endless && state.waveIndex >= WAVES_CONFIG.length) {
+            btnWave.textContent = 'Onda Final';
+            btnWave.disabled = true;
+        } else if (state.waveActive && state.spawnQueue.length > 0) {
             btnWave.textContent = `Onda ${state.waveIndex} em curso...`;
             btnWave.disabled = true;
         } else if (state.waveActive && state.enemies.length > 0) {
@@ -3044,37 +3197,17 @@
         });
 
         const hint = document.getElementById('build-hint');
-        if (state.airstrikeArmed) {
-            hint.textContent = 'Alvo Aéreo ativo (ESC cancela)';
-        } else if (state.selectedBuildType) {
+        if (state.selectedBuildType) {
             hint.textContent = `Posicionando: ${TOWER_TYPES[state.selectedBuildType].shortName} (ESC cancela)`;
         } else {
-            hint.textContent = 'Teclas 1-4';
+            hint.textContent = 'Selecione uma arma';
         }
-
-        updateAirstrikeButton();
 
         if (state.selectedTower) {
             updateInspector();
         }
-    }
-
-    function updateAirstrikeButton() {
-        const btnAir = document.getElementById('btn-airstrike');
-        if (!btnAir) return;
-
-        btnAir.classList.toggle('armed', state.airstrikeArmed);
-
-        if (state.airstrikeArmed) {
-            btnAir.textContent = '🎯 Marcar Alvo';
-            btnAir.disabled = false;
-        } else if (state.airstrikeCooldown > 0) {
-            btnAir.textContent = `✈️ ${Math.ceil(state.airstrikeCooldown)}s`;
-            btnAir.disabled = true;
-        } else {
-            btnAir.textContent = `✈️ Aéreo (${AIRSTRIKE_CONFIG.cost}g)`;
-            btnAir.disabled = state.status !== 'playing' || state.gold < AIRSTRIKE_CONFIG.cost;
-        }
+        updateAirBtn();
+        updateWavePreview();
     }
 
     function updateInspector() {
@@ -3097,16 +3230,16 @@
         container.innerHTML = `
             <div class="inspector-details">
                 <div class="inspector-info">
-                    <h4 style="color: ${t.color};">${TOWER_TYPES[t.type].shortName} (Nv.${t.level})</h4>
-                    <p>Dano <strong>${t.damage}</strong> • Alc <strong>${t.range}</strong></p>
+                    <h4 style="color: ${t.color};">${t.name}</h4>
+                    <p>Dano: <strong>${t.damage}</strong> • Alcance: <strong>${t.range}</strong></p>
                 </div>
                 <div class="inspector-actions">
                     <button id="btn-do-target" class="btn" title="Prioridade de alvo (T)">🎯 ${TARGET_MODES[t.targetMode]}</button>
-                    <button id="btn-do-upgrade" class="btn btn-upgrade" ${isMax || !canAfford ? 'disabled' : ''} title="Evoluir torre (U)">
-                        ${isMax ? 'Máx' : `▲ ${upgCost}g`}
+                    <button id="btn-do-upgrade" class="btn btn-upgrade" ${isMax || !canAfford ? 'disabled' : ''}>
+                        ${isMax ? 'Máximo' : `▲ Evoluir (${upgCost}g)`}
                     </button>
-                    <button id="btn-do-sell" class="btn btn-sell" title="Vender torre (X)">
-                        +${sellVal}g
+                    <button id="btn-do-sell" class="btn btn-sell">
+                        Vender (+${sellVal}g)
                     </button>
                 </div>
             </div>
@@ -3143,7 +3276,7 @@
 
     function selectBuildType(typeKey) {
         sfx.init();
-        state.airstrikeArmed = false;
+        state.airArmed = false;
         if (state.selectedBuildType === typeKey) {
             state.selectedBuildType = null;
         } else {
@@ -3162,8 +3295,8 @@
 
     function getGridCoordsFromEvent(e) {
         const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches && e.touches.length ? e.touches[0].clientY : e.clientY;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         const x = clientX - rect.left;
         const y = clientY - rect.top;
         const col = Math.floor(x / state.cellSize);
@@ -3173,10 +3306,13 @@
 
     canvas.addEventListener('mousemove', (e) => {
         state.hoverCell = getGridCoordsFromEvent(e);
+        const mr = canvas.getBoundingClientRect();
+        state.mouse = { x: (e.clientX - mr.left) / state.cellSize, y: (e.clientY - mr.top) / state.cellSize };
     });
 
     canvas.addEventListener('mouseleave', () => {
         state.hoverCell = null;
+        state.mouse = null;
     });
 
     canvas.addEventListener('click', (e) => {
@@ -3184,8 +3320,9 @@
         if (state.status !== 'playing') return;
         const { col, row } = getGridCoordsFromEvent(e);
 
-        if (state.airstrikeArmed) {
-            launchAirstrikeAt(col, row);
+        if (state.airArmed) {
+            const ar = canvas.getBoundingClientRect();
+            callAirstrike((e.clientX - ar.left) / state.cellSize, (e.clientY - ar.top) / state.cellSize);
             return;
         }
 
@@ -3201,10 +3338,12 @@
             }
 
             state.gold -= cfg.cost;
+            state.stats.gold += cfg.cost;
             const newTower = new Tower(col, row, state.selectedBuildType);
             state.towers.push(newTower);
             sfx.playBuild(false);
             spawnExplosionParticles(col + 0.5, row + 0.5, cfg.color, 12, 1.6);
+            state.shockwaves.push(new Shockwave(col + 0.5, row + 0.5, 0.9, cfg.color));
             state.selectedTower = newTower;
             state.selectedBuildType = null;
             updateHUD();
@@ -3221,12 +3360,19 @@
         e.preventDefault();
         state.selectedBuildType = null;
         state.selectedTower = null;
-        state.airstrikeArmed = false;
         updateHUD();
         updateInspector();
     });
 
     document.getElementById('btn-start-game').addEventListener('click', resetGame);
+    document.getElementById('btn-start-endless').addEventListener('click', () => {
+        resetGame(); state.endless = true; updateHUD(); showBanner('Modo Infinito: sobreviva o máximo!');
+    });
+    document.getElementById('btn-continue-endless').addEventListener('click', () => {
+        state.endless = true; state.status = 'playing';
+        document.getElementById('modal-victory').classList.add('hidden');
+        updateHUD(); showBanner('Modo Infinito!');
+    });
     document.querySelectorAll('.btn-restart').forEach(btn => {
         btn.addEventListener('click', resetGame);
     });
@@ -3235,8 +3381,6 @@
         sfx.init();
         startNextWave();
     });
-
-    document.getElementById('btn-airstrike').addEventListener('click', toggleAirstrikeArmed);
 
     const btnPause = document.getElementById('btn-pause');
     btnPause.addEventListener('click', () => {
@@ -3248,9 +3392,20 @@
 
     const btnSpeed = document.getElementById('btn-speed');
     btnSpeed.addEventListener('click', () => {
-        state.gameSpeed = state.gameSpeed === 1 ? 2 : 1;
+        state.gameSpeed = state.gameSpeed === 1 ? 2 : (state.gameSpeed === 2 ? 3 : 1);
         btnSpeed.textContent = `⏩ ${state.gameSpeed}x`;
-        btnSpeed.classList.toggle('btn-active', state.gameSpeed === 2);
+        btnSpeed.classList.toggle('btn-active', state.gameSpeed !== 1);
+    });
+
+    document.getElementById('btn-air').addEventListener('click', () => { sfx.init(); toggleAirstrike(); });
+
+    const btnAuto = document.getElementById('btn-auto');
+    btnAuto.addEventListener('click', () => {
+        sfx.init();
+        state.autoWave = !state.autoWave;
+        state.autoTimer = 4;
+        btnAuto.textContent = state.autoWave ? '🔁 Auto: On' : '🔁 Auto: Off';
+        btnAuto.classList.toggle('btn-active', state.autoWave);
     });
 
     const btnSound = document.getElementById('btn-sound');
@@ -3263,37 +3418,65 @@
 
     window.addEventListener('keydown', (e) => {
         if (state.status !== 'playing') return;
-        const k = e.key.toLowerCase();
         if (e.key === '1') selectBuildType('mg');
         else if (e.key === '2') selectBuildType('cannon');
         else if (e.key === '3') selectBuildType('cryo');
         else if (e.key === '4') selectBuildType('missile');
-        else if (k === 'a') {
-            toggleAirstrikeArmed();
+        else if (e.key === '5') selectBuildType('aa');
+        else if ((e.key === 't' || e.key === 'T') && state.selectedTower) {
+            state.selectedTower.targetMode = (state.selectedTower.targetMode + 1) % TARGET_MODES.length;
+            updateInspector();
+        } else if ((e.key === 'u' || e.key === 'U') && state.selectedTower) {
+            const ub = document.getElementById('btn-do-upgrade'); if (ub) ub.click();
+        } else if ((e.key === 'x' || e.key === 'X') && state.selectedTower) {
+            const sb = document.getElementById('btn-do-sell'); if (sb) sb.click();
+        } else if (e.key === 'e' || e.key === 'E') {
+            useAbility('repair');
+        } else if (e.key === 'r' || e.key === 'R') {
+            useAbility('freeze');
+        } else if (e.key === 'g' || e.key === 'G') {
+            useAbility('supply');
+        } else if (e.key === 'a' || e.key === 'A') {
+            document.getElementById('btn-auto').click();
+        } else if (e.key === 'q' || e.key === 'Q') {
+            toggleAirstrike();
+        } else if (e.key === 'f' || e.key === 'F') {
+            btnSpeed.click();
         } else if (e.key === 'Escape') {
+            state.airArmed = false; updateAirBtn();
             state.selectedBuildType = null;
             state.selectedTower = null;
-            state.airstrikeArmed = false;
             updateHUD();
             updateInspector();
         } else if (e.code === 'Space') {
             e.preventDefault();
             btnPause.click();
-        } else if (k === 'f') {
-            btnSpeed.click();
-        } else if (k === 't' && state.selectedTower) {
-            state.selectedTower.targetMode = (state.selectedTower.targetMode + 1) % TARGET_MODES.length;
-            updateInspector();
-        } else if (k === 'u' && state.selectedTower) {
-            const btnUpg = document.getElementById('btn-do-upgrade');
-            if (btnUpg && !btnUpg.disabled) btnUpg.click();
-        } else if (k === 'x' && state.selectedTower) {
-            const btnSell = document.getElementById('btn-do-sell');
-            if (btnSell) btnSell.click();
         }
     });
 
     updateHUD();
+    document.querySelectorAll('[data-map]').forEach(b => b.addEventListener('click', () => { state.selMap = +b.dataset.map; applyMap(state.selMap); refreshMenu(); }));
+    document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => { state.selDiff = b.dataset.diff; refreshMenu(); }));
+    document.getElementById('btn-research').addEventListener('click', () => {
+        document.getElementById('modal-start').classList.add('hidden');
+        document.getElementById('modal-research').classList.remove('hidden');
+        renderResearch();
+    });
+    document.getElementById('btn-research-close').addEventListener('click', () => {
+        document.getElementById('modal-research').classList.add('hidden');
+        document.getElementById('modal-start').classList.remove('hidden');
+        refreshMenu();
+    });
+    document.querySelectorAll('.btn-menu').forEach(b => b.addEventListener('click', () => {
+        document.getElementById('modal-victory').classList.add('hidden');
+        document.getElementById('modal-gameover').classList.add('hidden');
+        document.getElementById('modal-start').classList.remove('hidden');
+        refreshMenu();
+    }));
+    for (const [id, k] of [['btn-rep', 'repair'], ['btn-frz', 'freeze'], ['btn-sup', 'supply']]) {
+        document.getElementById(id).addEventListener('click', () => { sfx.init(); useAbility(k); });
+    }
+    refreshMenu();
     requestAnimationFrame(gameLoop);
 })();
 </script>
