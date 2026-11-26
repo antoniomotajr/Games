@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Garimpo Subterrâneo - Gold Miner HTML5</title>
+    <style>
+        /* ==========================================================================
+           ESTILOS GERAIS E TEMA DE MINA SUBTERRÂNEA
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #2c1e16 0%, #120b07 100%);
+            color: #f4e8d8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        /* Container principal centralizado e responsivo */
+        .game-wrapper {
+            width: 100%;
+            max-width: 660px;
+            background: #231710;
+            border: 4px solid #5c3c24;
+            border-radius: 16px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), inset 0 0 20px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ==========================================================================
+           PAINEL SUPERIOR (HUD)
+           ========================================================================== */
+        .hud-header {
+            background: linear-gradient(180deg, #3d281a 0%, #2a1b11 100%);
+            padding: 10px 14px;
+            border-bottom: 3px solid #5c3c24;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hud-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid #6b472b;
+            border-radius: 8px;
+            padding: 5px 10px;
+            display: flex;
+            flex-direction: column;
+            min-width: 78px;
+        }
+
+        .stat-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #c7a98c;
+            font-weight: 700;
+        }
+
+        .stat-value {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #ffd700;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .stat-value.goal { color: #6ee7b7; }
+        .stat-value.time { color: #ffffff; }
+        .stat-value.time.danger {
+            color: #ff4d4d;
+            animation: pulseText 0.6s infinite alternate;
+        }
+        .stat-value.level { color: #60a5fa; }
+
+        @keyframes pulseText {
+            from { transform: scale(1); }
+            to { transform: scale(1.12); }
+        }
+
+        /* Controles rápidos e Itens Ativos no HUD */
+        .hud-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .badge-item {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid #785032;
+            border-radius: 8px;
+            padding: 5px 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #fbbf24;
+        }
+
+        .badge-item.inactive {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .btn-icon {
+            background: linear-gradient(180deg, #5c3c24 0%, #3d2616 100%);
+            border: 2px solid #8c5d3c;
+            color: #fff;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.15s;
+            box-shadow: 0 3px 0 #1f1209;
+        }
+
+        .btn-icon:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #1f1209;
+        }
+
+        /* ==========================================================================
+           ÁREA DO CANVAS E BOTÕES DE AÇÃO MOBILE
+           ========================================================================== */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #1a110b;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none; /* Impede scroll/zoom no toque mobile */
+            cursor: pointer;
+        }
+
+        /* Botão flutuante de Dinamite (Mobile e Desktop) */
+        .dynamite-action-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+            border: 2px solid #fca5a5;
+            color: white;
+            font-weight: 800;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            z-index: 5;
+            animation: bounceIn 0.25s ease-out;
+        }
+
+        .dynamite-action-btn.visible {
+            display: flex;
+        }
+
+        .dynamite-action-btn:active {
+            transform: scale(0.95);
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ==========================================================================
+           MODAIS SOBREPOSTOS (INÍCIO, LOJA DO MINERADOR, GAME OVER)
+           ========================================================================== */
+        .overlay-modal {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 9, 5, 0.88);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .overlay-modal.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            background: linear-gradient(180deg, #362316 0%, #21140c 100%);
+            border: 3px solid #d97706;
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-title {
+            font-size: 1.65rem;
+            font-weight: 900;
+            color: #fbbf24;
+            text-shadow: 0 2px 4px #000;
+            margin-bottom: 8px;
+        }
+
+        .modal-subtitle {
+            font-size: 0.92rem;
+            color: #e5d3c0;
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+
+        /* Itens da Loja */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 480px) {
+            .shop-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-card {
+                padding: 14px;
+                max-height: 95%;
+                overflow-y: auto;
+            }
+        }
+
+        .shop-item {
+            background: rgba(0, 0, 0, 0.45);
+            border: 2px solid #6b472b;
+            border-radius: 12px;
+            padding: 10px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            transition: border-color 0.2s, transform 0.15s;
+        }
+
+        .shop-item:hover:not(.purchased):not(.disabled) {
+            border-color: #fbbf24;
+            transform: translateY(-2px);
+        }
+
+        .shop-item.purchased {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.12);
+        }
+
+        .shop-item-icon {
+            font-size: 1.8rem;
+            margin-bottom: 4px;
+        }
+
+        .shop-item-name {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #fde68a;
+            margin-bottom: 4px;
+        }
+
+        .shop-item-desc {
+            font-size: 0.72rem;
+            color: #cbb59d;
+            margin-bottom: 8px;
+            line-height: 1.25;
+        }
+
+        .btn-buy {
+            width: 100%;
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 8px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.82rem;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #064e3b;
+        }
+
+        .btn-buy:disabled {
+            background: #4b5563;
+            color: #9ca3af;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Botão Primário de Ação (Jogar, Próxima Fase, Jogar Novamente) */
+        .btn-primary {
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+            border: 2px solid #fef08a;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: #1f1209;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #78350f, 0 8px 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.1s;
+            width: 100%;
+        }
+
+        .btn-primary:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #78350f;
+        }
+
+        /* ==========================================================================
+           PAINEL INFERIOR: TOP 5 RECORDES (LOCALSTORAGE)
+           ========================================================================== */
+        .leaderboard-footer {
+            background: #1b110b;
+            border-top: 3px solid #5c3c24;
+            padding: 10px 16px;
+        }
+
+        .leaderboard-title {
+            font-size: 0.82rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #fbbf24;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .controls-hint {
+            font-size: 0.72rem;
+            color: #a88b70;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .records-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        @media (max-width: 540px) {
+            .records-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .controls-hint {
+                display: none;
+            }
+        }
+
+        .record-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #4a301d;
+            border-radius: 8px;
+            padding: 5px 8px;
+            text-align: center;
+            font-size: 0.78rem;
+        }
+
+        .record-item.top-1 {
+            border-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.12);
+        }
+
+        .record-rank {
+            font-weight: 800;
+            color: #c7a98c;
+            display: block;
+            font-size: 0.7rem;
+        }
+
+        .record-score {
+            font-weight: 900;
+            color: #ffd700;
+            font-size: 0.88rem;
+        }
+
+        .record-level {
+            display: block;
+            font-size: 0.65rem;
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-wrapper">
+    <!-- PAINEL SUPERIOR (HUD) -->
+    <header class="hud-header">
+        <div class="hud-stats">
+            <div class="stat-box">
+                <span class="stat-label">Dinheiro</span>
+                <span class="stat-value" id="hudMoney">$0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Meta</span>
+                <span class="stat-value goal" id="hudGoal">$650</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Tempo</span>
+                <span class="stat-value time" id="hudTime">60s</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Nível</span>
+                <span class="stat-value level" id="hudLevel">1</span>
+            </div>
+        </div>
+
+        <div class="hud-controls">
+            <div class="badge-item" id="hudDynamite" title="Dinamites (Seta p/ Cima ou Botão)">
+                🧨 <span id="hudDynamiteCount">1</span>
+            </div>
+            <div class="badge-item inactive" id="hudEnergy" title="Bebida Energética Ativa">
+                ⚡
+            </div>
+            <div class="badge-item inactive" id="hudClover" title="Trevo da Sorte Ativo">
+                🍀
+            </div>
+            <button class="btn-icon" id="btnMute" title="Ativar/Desativar Som">🔊</button>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL DO JOGO (CANVAS 640x480 PROPORCIONAL) -->
+    <main class="canvas-container">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+
+        <!-- Botão de ação rápida para usar dinamite quando um item estiver preso -->
+        <button class="dynamite-action-btn" id="btnUseDynamite">
+            🧨 EXPLODIR! (↑)
+        </button>
+
+        <!-- MODAL INICIAL -->
+        <div class="overlay-modal" id="startModal">
+            <div class="modal-card">
+                <h1 class="modal-title">⛏️ GARIMPO SUBTERRÂNEO</h1>
+                <p class="modal-subtitle">
+                    Mire com o gancho oscilante e colete ouro, diamantes e sacolas misteriosas antes que o tempo acabe!<br>
+                    <strong>Controles:</strong> Toque na tela, Clique, Espaço ou Seta para Baixo (↓) para lançar. Seta para Cima (↑) usa Dinamite.
+                </p>
+                <button class="btn-primary" id="btnStartGame">Iniciar Escavação</button>
+            </div>
+        </div>
+
+        <!-- MODAL DA LOJA DO MINERADOR (ENTRE FASES) -->
+        <div class="overlay-modal hidden" id="shopModal">
+            <div class="modal-card">
+                <h2 class="modal-title">🏪 LOJA DO MINERADOR</h2>
+                <p class="modal-subtitle">
+                    Meta atingida! Saldo disponível: <strong style="color:#ffd700;" id="shopBalance">$0</strong><br>
+                    Prepare-se para o <strong>Nível <span id="shopNextLevel">2</span></strong> (Nova Meta: <span style="color:#6ee7b7;" id="shopNextGoal">$1200</span>)
+                </p>
+
+                <div class="shop-grid">
+                    <!-- Item 1: Bebida Energética -->
+                    <div class="shop-item" id="cardEnergy">
+                        <div class="shop-item-icon">⚡</div>
+                        <div class="shop-item-name">Energético</div>
+                        <div class="shop-item-desc">Puxa itens 65% mais rápido na próxima fase.</div>
+                        <button class="btn-buy" id="buyEnergy">$250</button>
+                    </div>
+
+                    <!-- Item 2: Dinamite -->
+                    <div class="shop-item" id="cardDynamite">
+                        <div class="shop-item-icon">🧨</div>
+                        <div class="shop-item-name">Dinamite (+1)</div>
+                        <div class="shop-item-desc">Destrói pedras pesadas presas no gancho.</div>
+                        <button class="btn-buy" id="buyDynamite">$180</button>
+                    </div>
+
+                    <!-- Item 3: Trevo da Sorte -->
+                    <div class="shop-item" id="cardClover">
+                        <div class="shop-item-icon">🍀</div>
+                        <div class="shop-item-name">Trevo da Sorte</div>
+                        <div class="shop-item-desc">Aumenta prêmios das sacolas (?) e dobra valor das pedras.</div>
+                        <button class="btn-buy" id="buyClover">$200</button>
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="btnNextLevel">Descer para Próxima Fase ➔</button>
+            </div>
+        </div>
+
+        <!-- MODAL DE GAME OVER -->
+        <div class="overlay-modal hidden" id="gameOverModal">
+            <div class="modal-card">
+                <h2 class="modal-title" style="color:#f87171;">⏰ TEMPO ESGOTADO!</h2>
+                <p class="modal-subtitle" id="gameOverSummary">
+                    Você não atingiu a meta da fase.<br>
+                    Pontuação Final: <strong style="color:#ffd700; font-size:1.2rem;" id="finalScore">$0</strong>
+                </p>
+                <button class="btn-primary" id="btnRestartGame">Jogar Novamente</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- PAINEL INFERIOR: TOP 5 RECORDES -->
+    <footer class="leaderboard-footer">
+        <div class="leaderboard-title">
+            <span>🏆 Top 5 Recordes</span>
+            <span class="controls-hint">PC: Espaço / ↓ Lança | ↑ Dinamite • Mobile: Toque na Tela</span>
+        </div>
+        <ul class="records-list" id="recordsList">
+            <!-- Preenchido via JavaScript -->
+        </ul>
+    </footer>
+</div>
+
+<script>
+/**
+ * ============================================================================
+ * SISTEMA DE ÁUDIO SINTETIZADO (WEB AUDIO API - ZERO ARQUIVOS EXTERNOS)
+ * ============================================================================
+ */
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.muted = false;
+    }
+
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                this.ctx = new AudioContext();
+            }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+    }
+
+    // Disparo do gancho (assobio mecânico descendente)
+    playShoot() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(160, now + 0.18);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.19);
+    }
+
+    // Impacto ao agarrar item (metálico agudo para ouro/diamante, grave para pedra)
+    playGrab(type) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        if (type === 'diamond' || type.startsWith('gold')) {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(type === 'diamond' ? 1100 : 740, now);
+            osc.frequency.exponentialRampToValueAtTime(type === 'diamond' ? 1500 : 980, now + 0.12);
+            gain.gain.setValueAtTime(0.22, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        } else {
+            // Impacto pesado de pedra ou borda
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(130, now);
+            osc.frequency.exponentialRampToValueAtTime(55, now + 0.14);
+            gain.gain.setValueAtTime(0.16, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        }
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+    }
+
+    // Coleta de dinheiro no topo (acorde arpejado alegre)
+    playCollect(isBig = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const notes = isBig ? [523.25, 659.25, 783.99, 1046.50] : [587.33, 880];
+
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+
+            gain.gain.setValueAtTime(0.2, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.25);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.06);
+            osc.stop(now + idx * 0.06 + 0.26);
+        });
+    }
+
+    // Explosão da Dinamite (ruído branco filtrado)
+    playExplosion() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.45;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(900, now);
+        filter.frequency.exponentialRampToValueAtTime(90, now + 0.45);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.45, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+    }
+
+    // Contagem regressiva nos últimos 5 segundos
+    playTick(finalSecond = false) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(finalSecond ? 980 : 720, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.11);
+    }
+
+    // Som de vitória de fase ou Game Over
+    playStageEnd(victory) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        const notes = victory ? [523.25, 659.25, 783.99, 1046.50] : [392.00, 349.23, 311.13, 261.63];
+
+        notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = victory ? 'triangle' : 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + i * 0.14);
+
+            gain.gain.setValueAtTime(0.18, now + i * 0.14);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.35);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.14);
+            osc.stop(now + i * 0.14 + 0.36);
+        });
+    }
+}
+
+/**
+ * ============================================================================
+ * CONSTANTES E CONFIGURAÇÕES DO JOGO
+ * ============================================================================
+ */
+const CANVAS_WIDTH = 640;
+const CANVAS_HEIGHT = 480;
+const SURFACE_Y = 92; // Altura da superfície onde fica o minerador
+
+// Tipos de minérios/objetos do subsolo
+const ITEM_TYPES = {
+    gold_small: {
+        name: 'Pepita Pequena',
+        radius: 13,
+        weight: 1.4,
+        value: 50,
+        color: '#ffd700',
+        stroke: '#b45309'
+    },
+    gold_medium: {
+        name: 'Pepita Média',
+        radius: 22,
+        weight: 2.8,
+        value: 150,
+        color: '#fbbf24',
+        stroke: '#92400e'
+    },
+    gold_giant: {
+        name: 'Ouro Gigante',
+        radius: 35,
+        weight: 5.8,
+        value: 500,
+        color: '#f59e0b',
+        stroke: '#78350f'
+    },
+    diamond: {
+        name: 'Diamante',
+        radius: 11,
+        weight: 1.05,
+        value: 650,
+        color: '#38bdf8',
+        stroke: '#0369a1'
+    },
+    rock: {
+        name: 'Pedra Comum',
+        radius: 26,
+        weight: 5.2,
+        value: 15,
+        color: '#78716c',
+        stroke: '#44403c'
+    },
+    mystery_bag: {
+        name: 'Sacola Misteriosa',
+        radius: 17,
+        weight: 2.0, // será randomizado na geração
+        value: 0,    // recompensa calculada na coleta
+        color: '#c084fc',
+        stroke: '#6b21a8'
+    }
+};
+
+// Preços na Loja do Minerador
+const SHOP_PRICES = {
+    energy: 250,
+    dynamite: 180,
+    clover: 200
+};
+
+/**
+ * ============================================================================
+ * CLASSE PRINCIPAL DO JOGO
+ * ============================================================================
+ */
+class GoldMinerGame {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.sound = new SoundEngine();
+
+        // Estado Geral
+        this.state = 'START'; // START, PLAYING, SHOP, GAMEOVER
+        this.money = 0;
+        this.level = 1;
+        this.goal = 650;
+        this.timeLeft = 60;
+        this.lastTickSecond = 60;
+
+        // Melhorias / Inventário do Jogador
+        this.dynamites = 1;
+        this.hasEnergyDrink = false;
+        this.hasClover = false;
+
+        // Estado da Loja na fase atual
+        this.shopBought = { energy: false, dynamite: false, clover: false };
+
+        // Configuração do Guincho e Gancho
+        this.anchor = { x: CANVAS_WIDTH / 2, y: SURFACE_Y - 8 };
+        this.hook = {
+            angle: 0,               // Ângulo atual em radianos
+            angleDir: 1,            // Direção do pêndulo (1 ou -1)
+            swingSpeed: 1.45,       // Velocidade angular (rad/s)
+            maxAngle: (75 * Math.PI) / 180, // -75° a +75°
+            baseLength: 32,
+            length: 32,
+            state: 'SWINGING',      // SWINGING, EXTENDING, RETRACTING
+            extendSpeed: 420,       // px/s ao descer
+            baseRetractSpeed: 460,  // px/s ao subir vazio
+            grabbedItem: null,
+            clawOpen: 0.35          // Abertura das garras
+        };
+
+        // Entidades da fase
+        this.items = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.rocksTexture = []; // Detalhes visuais estáticos da terra
+        this.shakeTimer = 0;
+
+        // Controle de loop 60 FPS
+        this.lastTimestamp = 0;
+
+        this.bindEvents();
+        this.generateSoilDecorations();
+        this.renderLeaderboard();
+        this.updateHUD();
+
+        // Inicia o loop de renderização
+        requestAnimationFrame((ts) => this.loop(ts));
+    }
+
+    /**
+     * Vincula eventos de teclado, mouse, toque e botões da interface
+     */
+    bindEvents() {
+        // Disparo pelo Canvas (Mouse e Touch)
+        const handleLaunchInput = (e) => {
+            if (e.type === 'touchstart') {
+                e.preventDefault();
+            }
+            if (this.state === 'PLAYING') {
+                this.launchHook();
+            }
+        };
+
+        this.canvas.addEventListener('mousedown', handleLaunchInput);
+        this.canvas.addEventListener('touchstart', handleLaunchInput, { passive: false });
+
+        // Controles de Teclado (Seta Baixo / Espaço = Lança, Seta Cima = Dinamite)
+        window.addEventListener('keydown', (e) => {
+            if (this.state !== 'PLAYING') return;
+
+            if (e.code === 'ArrowDown' || e.code === 'Space') {
+                e.preventDefault();
+                this.launchHook();
+            } else if (e.code === 'ArrowUp') {
+                e.preventDefault();
+                this.useDynamite();
+            }
+        });
+
+        // Botão flutuante de Dinamite
+        document.getElementById('btnUseDynamite').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.useDynamite();
+        });
+
+        // Botão de Mudo
+        document.getElementById('btnMute').addEventListener('click', () => {
+            const isMuted = this.sound.toggleMute();
+            document.getElementById('btnMute').textContent = isMuted ? '🔇' : '🔊';
+        });
+
+        // Botões dos Modais
+        document.getElementById('btnStartGame').addEventListener('click', () => {
+            this.sound.init();
+            this.startNewGame();
+        });
+
+        document.getElementById('btnRestartGame').addEventListener('click', () => {
+            this.startNewGame();
+        });
+
+        document.getElementById('btnNextLevel').addEventListener('click', () => {
+            this.startLevel(this.level + 1);
+        });
+
+        // Botões da Loja
+        document.getElementById('buyEnergy').addEventListener('click', () => this.buyUpgrade('energy'));
+        document.getElementById('buyDynamite').addEventListener('click', () => this.buyUpgrade('dynamite'));
+        document.getElementById('buyClover').addEventListener('click', () => this.buyUpgrade('clover'));
+    }
+
+    /**
+     * Inicia uma nova campanha do zero
+     */
+    startNewGame() {
+        this.money = 0;
+        this.level = 1;
+        this.dynamites = 1;
+        this.hasEnergyDrink = false;
+        this.hasClover = false;
+
+        document.getElementById('startModal').classList.add('hidden');
+        document.getElementById('gameOverModal').classList.add('hidden');
+        document.getElementById('shopModal').classList.add('hidden');
+
+        this.startLevel(1);
+    }
+
+    /**
+     * Configura e inicia uma fase específica
+     */
+    startLevel(lvl) {
+        this.level = lvl;
+        // Meta progressiva equilibrada
+        this.goal = Math.round(650 + (lvl - 1) * 550 + Math.pow(lvl - 1, 1.45) * 220);
+        this.timeLeft = 60;
+        this.lastTickSecond = 60;
+        this.state = 'PLAYING';
+
+        // Reset do gancho
+        this.hook.angle = 0;
+        this.hook.length = this.hook.baseLength;
+        this.hook.state = 'SWINGING';
+        this.hook.grabbedItem = null;
+
+        // Limpa efeitos temporários e gera minérios
+        this.particles = [];
+        this.floatingTexts = [];
+        this.generateSoilDecorations();
+        this.generateLevelItems(lvl);
+
+        document.getElementById('shopModal').classList.add('hidden');
+        document.getElementById('btnUseDynamite').classList.remove('visible');
+        this.updateHUD();
+    }
+
+    /**
+     * Gera detalhes visuais nas camadas subterrâneas para dar profundidade
+     */
+    generateSoilDecorations() {
+        this.rocksTexture = [];
+        for (let i = 0; i < 65; i++) {
+            this.rocksTexture.push({
+                x: Math.random() * CANVAS_WIDTH,
+                y: SURFACE_Y + 15 + Math.random() * (CANVAS_HEIGHT - SURFACE_Y - 20),
+                r: 2 + Math.random() * 5,
+                alpha: 0.08 + Math.random() * 0.14
+            });
+        }
+    }
+
+    /**
+     * Gera proceduralmente os itens do subsolo sem sobreposição
+     */
+    generateLevelItems(lvl) {
+        this.items = [];
+
+        // Quantidade balanceada por nível
+        const plan = [
+            { type: 'gold_giant', count: Math.min(2 + Math.floor(lvl / 2), 4) },
+            { type: 'diamond', count: Math.min(1 + Math.floor(lvl / 2), 4) },
+            { type: 'gold_medium', count: 4 + Math.min(lvl, 3) },
+            { type: 'gold_small', count: 5 + Math.min(lvl, 4) },
+            { type: 'rock', count: Math.min(4 + lvl, 9) },
+            { type: 'mystery_bag', count: 2 }
+        ];
+
+        const marginX = 36;
+        const minY = SURFACE_Y + 68;
+        const maxY = CANVAS_HEIGHT - 36;
+
+        for (const group of plan) {
+            const spec = ITEM_TYPES[group.type];
+
+            for (let i = 0; i < group.count; i++) {
+                let placed = false;
+                let attempts = 0;
+
+                while (!placed && attempts < 120) {
+                    attempts++;
+                    const x = marginX + spec.radius + Math.random() * (CANVAS_WIDTH - (marginX + spec.radius) * 2);
+
+                    // Itens mais valiosos tendem a ficar mais fundos
+                    let depthBias = 0;
+                    if (group.type === 'gold_giant' || group.type === 'diamond') {
+                        depthBias = 90;
+                    }
+                    const y = (minY + depthBias) + Math.random() * (maxY - (minY + depthBias) - spec.radius);
+
+                    // Verifica colisão com itens já posicionados (garante zero sobreposição)
+                    const overlaps = this.items.some(existing => {
+                        const dx = existing.x - x;
+                        const dy = existing.y - y;
+                        const dist = Math.hypot(dx, dy);
+                        return dist < (existing.radius + spec.radius + 12);
+                    });
+
+                    if (!overlaps) {
+                        // Gera polígono irregular orgânico para pepitas e pedras
+                        const vertices = this.createPolygonVertices(spec.radius, group.type);
+                        const randomWeight = group.type === 'mystery_bag'
+                            ? (1.2 + Math.random() * 2.8)
+                            : spec.weight;
+
+                        this.items.push({
+                            type: group.type,
+                            x,
+                            y,
+                            radius: spec.radius,
+                            weight: randomWeight,
+                            value: spec.value,
+                            color: spec.color,
+                            stroke: spec.stroke,
+                            vertices,
+                            shimmerPhase: Math.random() * Math.PI * 2
+                        });
+                        placed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Cria vértices irregulares para desenhar pedras e pepitas de ouro naturais
+     */
+    createPolygonVertices(radius, type) {
+        const sides = type === 'rock' ? 7 : 8;
+        const pts = [];
+        for (let i = 0; i < sides; i++) {
+            const angle = (i / sides) * Math.PI * 2;
+            const variance = type === 'rock'
+                ? (0.78 + Math.random() * 0.28)
+                : (0.85 + Math.random() * 0.2);
+            pts.push({
+                x: Math.cos(angle) * radius * variance,
+                y: Math.sin(angle) * radius * variance
+            });
+        }
+        return pts;
+    }
+
+    /**
+     * Lança o gancho se ele estiver oscilando
+     */
+    launchHook() {
+        if (this.hook.state !== 'SWINGING') return;
+        this.hook.state = 'EXTENDING';
+        this.sound.playShoot();
+    }
+
+    /**
+     * Usa uma dinamite para destruir o item atualmente preso no gancho
+     */
+    useDynamite() {
+        if (this.state !== 'PLAYING') return;
+        if (this.hook.state !== 'RETRACTING' || !this.hook.grabbedItem) return;
+        if (this.dynamites <= 0) return;
+
+        const item = this.hook.grabbedItem;
+        const tip = this.getHookTipPosition();
+
+        this.dynamites--;
+        this.hook.grabbedItem = null;
+        this.shakeTimer = 0.28;
+
+        this.sound.playExplosion();
+        this.spawnExplosionParticles(tip.x, tip.y);
+        this.addFloatingText(tip.x, tip.y - 10, 'KABOOM! 💥', '#ff6b6b');
+
+        document.getElementById('btnUseDynamite').classList.remove('visible');
+        this.updateHUD();
+    }
+
+    /**
+     * Calcula a coordenada exata (x, y) da ponta do gancho
+     */
+    getHookTipPosition() {
+        return {
+            x: this.anchor.x + Math.sin(this.hook.angle) * this.hook.length,
+            y: this.anchor.y + Math.cos(this.hook.angle) * this.hook.length
+        };
+    }
+
+    /**
+     * Loop principal de atualização e renderização (60 FPS com delta time)
+     */
+    loop(timestamp) {
+        if (!this.lastTimestamp) this.lastTimestamp = timestamp;
+        const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.05); // Cap de 50ms
+        this.lastTimestamp = timestamp;
+
+        this.update(dt);
+        this.draw();
+
+        requestAnimationFrame((ts) => this.loop(ts));
+    }
+
+    /**
+     * Atualiza física, cronômetro, colisões e partículas
+     */
+    update(dt) {
+        if (this.shakeTimer > 0) {
+            this.shakeTimer = Math.max(0, this.shakeTimer - dt);
+        }
+
+        // Atualiza partículas e textos flutuantes mesmo fora do gameplay ativo
+        this.updateParticles(dt);
+        this.updateFloatingTexts(dt);
+
+        if (this.state !== 'PLAYING') return;
+
+        // 1. Atualiza Cronômetro da Fase
+        this.timeLeft -= dt;
+        const ceilSec = Math.ceil(this.timeLeft);
+        if (ceilSec <= 5 && ceilSec > 0 && ceilSec !== this.lastTickSecond) {
+            this.sound.playTick(ceilSec === 1);
+        }
+        this.lastTickSecond = ceilSec;
+
+        if (this.timeLeft <= 0) {
+            this.timeLeft = 0;
+            this.handleTimeUp();
+            return;
+        }
+
+        // 2. Atualiza Máquina de Estados do Gancho
+        if (this.hook.state === 'SWINGING') {
+            this.hook.angle += this.hook.swingSpeed * this.hook.angleDir * dt;
+            if (this.hook.angle >= this.hook.maxAngle) {
+                this.hook.angle = this.hook.maxAngle;
+                this.hook.angleDir = -1;
+            } else if (this.hook.angle <= -this.hook.maxAngle) {
+                this.hook.angle = -this.hook.maxAngle;
+                this.hook.angleDir = 1;
+            }
+            this.hook.clawOpen = 0.35;
+        }
+        else if (this.hook.state === 'EXTENDING') {
+            this.hook.length += this.hook.extendSpeed * dt;
+            this.hook.clawOpen = 0.48;
+            const tip = this.getHookTipPosition();
+
+            // Verifica colisão com paredes laterais ou fundo do canvas
+            if (tip.x <= 12 || tip.x >= CANVAS_WIDTH - 12 || tip.y >= CANVAS_HEIGHT - 12) {
+                this.hook.state = 'RETRACTING';
+                this.sound.playGrab('rock');
+            } else {
+                // Verifica colisão com itens do subsolo
+                for (let i = 0; i < this.items.length; i++) {
+                    const item = this.items[i];
+                    const dist = Math.hypot(tip.x - item.x, tip.y - item.y);
+                    if (dist <= item.radius + 7) {
+                        // Prende o item no gancho
+                        this.hook.grabbedItem = item;
+                        this.items.splice(i, 1);
+                        this.hook.state = 'RETRACTING';
+                        this.hook.clawOpen = 0.12;
+
+                        this.sound.playGrab(item.type);
+                        this.spawnGrabParticles(item);
+
+                        // Exibe botão de dinamite se o jogador tiver dinamites
+                        if (this.dynamites > 0) {
+                            document.getElementById('btnUseDynamite').classList.add('visible');
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        else if (this.hook.state === 'RETRACTING') {
+            let speed = this.hook.baseRetractSpeed;
+
+            if (this.hook.grabbedItem) {
+                // Velocidade inversamente proporcional ao peso do objeto
+                speed = this.hook.baseRetractSpeed / this.hook.grabbedItem.weight;
+                // Bônus da Bebida Energética (+65% força)
+                if (this.hasEnergyDrink) {
+                    speed *= 1.65;
+                }
+            }
+
+            this.hook.length -= speed * dt;
+
+            // Gancho chegou de volta ao guincho
+            if (this.hook.length <= this.hook.baseLength) {
+                this.hook.length = this.hook.baseLength;
+                this.hook.state = 'SWINGING';
+                document.getElementById('btnUseDynamite').classList.remove('visible');
+
+                if (this.hook.grabbedItem) {
+                    this.collectGrabbedItem(this.hook.grabbedItem);
+                    this.hook.grabbedItem = null;
+                }
+            }
+        }
+
+        this.updateHUD();
+    }
+
+    /**
+     * Processa a recompensa quando um item chega ao topo
+     */
+    collectGrabbedItem(item) {
+        if (item.type === 'mystery_bag') {
+            // Recompensa aleatória da Sacola Misteriosa (?)
+            const roll = Math.random();
+            if (roll < 0.55) {
+                // Bônus em dinheiro
+                const baseBonus = this.hasClover ? 450 : 250;
+                const bonus = baseBonus + Math.floor(Math.random() * 250);
+                this.money += bonus;
+                this.sound.playCollect(true);
+                this.spawnCollectParticles(this.anchor.x, this.anchor.y + 10, '#c084fc');
+                this.addFloatingText(this.anchor.x, this.anchor.y, `+$${bonus} 🎁`, '#e879f9');
+            } else if (roll < 0.85) {
+                // Tempo extra (+10s)
+                this.timeLeft = Math.min(99, this.timeLeft + 10);
+                this.sound.playCollect(false);
+                this.spawnCollectParticles(this.anchor.x, this.anchor.y + 10, '#34d399');
+                this.addFloatingText(this.anchor.x, this.anchor.y, '+10s ⏱️', '#6ee7b7');
+            } else {
+                // Dinamite grátis!
+                this.dynamites++;
+                this.sound.playCollect(false);
+                this.spawnCollectParticles(this.anchor.x, this.anchor.y + 10, '#f87171');
+                this.addFloatingText(this.anchor.x, this.anchor.y, '+1 Dinamite 🧨', '#fca5a5');
+            }
+        } else {
+            let earned = item.value;
+            // Trevo da sorte dobra valor das pedras
+            if (item.type === 'rock' && this.hasClover) {
+                earned *= 2;
+            }
+
+            this.money += earned;
+            const isBig = earned >= 500;
+            this.sound.playCollect(isBig);
+
+            const pColor = item.type === 'diamond' ? '#38bdf8' : (item.type === 'rock' ? '#a8a29e' : '#ffd700');
+            this.spawnCollectParticles(this.anchor.x, this.anchor.y + 10, pColor);
+            this.addFloatingText(this.anchor.x, this.anchor.y, `+$${earned}`, isBig ? '#38bdf8' : '#ffd700');
+        }
+
+        // Se limpou toda a mina antes do tempo acabar, gera uma nova leva bônus!
+        if (this.items.length === 0) {
+            this.addFloatingText(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 'MINA REABASTECIDA!', '#fbbf24');
+            this.generateLevelItems(this.level);
+        }
+
+        this.updateHUD();
+    }
+
+    /**
+     * Verifica resultado ao fim dos 60 segundos
+     */
+    handleTimeUp() {
+        document.getElementById('btnUseDynamite').classList.remove('visible');
+        this.hook.grabbedItem = null;
+        this.updateHUD();
+
+        // Consome melhorias de fase única
+        this.hasEnergyDrink = false;
+        this.hasClover = false;
+
+        if (this.money >= this.goal) {
+            // Vitória da Fase -> Abre Loja do Minerador
+            this.state = 'SHOP';
+            this.sound.playStageEnd(true);
+            this.openShopModal();
+        } else {
+            // Derrota -> Game Over e salva no Ranking
+            this.state = 'GAMEOVER';
+            this.sound.playStageEnd(false);
+            this.saveRecord(this.money, this.level);
+            this.renderLeaderboard();
+
+            document.getElementById('finalScore').textContent = `$${this.money}`;
+            document.getElementById('gameOverModal').classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Configura e exibe a Loja do Minerador entre fases
+     */
+    openShopModal() {
+        this.shopBought = { energy: false, dynamite: false, clover: false };
+        const nextLevel = this.level + 1;
+        const nextGoal = Math.round(650 + (nextLevel - 1) * 550 + Math.pow(nextLevel - 1, 1.45) * 220);
+
+        document.getElementById('shopNextLevel').textContent = nextLevel;
+        document.getElementById('shopNextGoal').textContent = `$${nextGoal}`;
+
+        this.refreshShopUI();
+        document.getElementById('shopModal').classList.remove('hidden');
+    }
+
+    /**
+     * Atualiza botões e saldos da Loja
+     */
+    refreshShopUI() {
+        document.getElementById('shopBalance').textContent = `$${this.money}`;
+
+        // Energético
+        const btnEnergy = document.getElementById('buyEnergy');
+        const cardEnergy = document.getElementById('cardEnergy');
+        if (this.shopBought.energy) {
+            btnEnergy.textContent = 'Comprado ✓';
+            btnEnergy.disabled = true;
+            cardEnergy.classList.add('purchased');
+        } else {
+            btnEnergy.textContent = `$${SHOP_PRICES.energy}`;
+            btnEnergy.disabled = this.money < SHOP_PRICES.energy;
+            cardEnergy.classList.remove('purchased');
+        }
+
+        // Dinamite (pode comprar múltiplas vezes se tiver dinheiro)
+        const btnDyn = document.getElementById('buyDynamite');
+        btnDyn.textContent = `$${SHOP_PRICES.dynamite} (Possui: ${this.dynamites})`;
+        btnDyn.disabled = this.money < SHOP_PRICES.dynamite;
+
+        // Trevo da Sorte
+        const btnClover = document.getElementById('buyClover');
+        const cardClover = document.getElementById('cardClover');
+        if (this.shopBought.clover) {
+            btnClover.textContent = 'Comprado ✓';
+            btnClover.disabled = true;
+            cardClover.classList.add('purchased');
+        } else {
+            btnClover.textContent = `$${SHOP_PRICES.clover}`;
+            btnClover.disabled = this.money < SHOP_PRICES.clover;
+            cardClover.classList.remove('purchased');
+        }
+
+        this.updateHUD();
+    }
+
+    /**
+     * Compra um item na Loja do Minerador
+     */
+    buyUpgrade(type) {
+        const price = SHOP_PRICES[type];
+        if (this.money < price) return;
+
+        if (type === 'energy' && !this.shopBought.energy) {
+            this.money -= price;
+            this.hasEnergyDrink = true;
+            this.shopBought.energy = true;
+            this.sound.playCollect(false);
+        } else if (type === 'dynamite') {
+            this.money -= price;
+            this.dynamites++;
+            this.sound.playCollect(false);
+        } else if (type === 'clover' && !this.shopBought.clover) {
+            this.money -= price;
+            this.hasClover = true;
+            this.shopBought.clover = true;
+            this.sound.playCollect(false);
+        }
+
+        this.refreshShopUI();
+    }
+
+    /**
+     * ========================================================================
+     * SISTEMA DE PARTÍCULAS E TEXTOS FLUTUANTES
+     * ========================================================================
+     */
+    spawnGrabParticles(item) {
+        const isDust = item.type === 'rock';
+        const color = isDust ? '#a8a29e' : (item.type === 'diamond' ? '#7dd3fc' : '#fde047');
+        const count = isDust ? 12 : 16;
+
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 30 + Math.random() * 85;
+            this.particles.push({
+                x: item.x,
+                y: item.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: isDust ? (3 + Math.random() * 4) : (2 + Math.random() * 3),
+                color,
+                life: 0.45 + Math.random() * 0.25,
+                maxLife: 0.7
+            });
+        }
+    }
+
+    spawnCollectParticles(x, y, color) {
+        for (let i = 0; i < 22; i++) {
+            const angle = -Math.PI + Math.random() * Math.PI;
+            const speed = 50 + Math.random() * 140;
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 30,
+                size: 2.5 + Math.random() * 3.5,
+                color,
+                life: 0.6 + Math.random() * 0.3,
+                maxLife: 0.9
+            });
+        }
+    }
+
+    spawnExplosionParticles(x, y) {
+        const colors = ['#ef4444', '#f97316', '#facc15', '#57534e'];
+        for (let i = 0; i < 32; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 60 + Math.random() * 190;
+            this.particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 4 + Math.random() * 5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                life: 0.5 + Math.random() * 0.35,
+                maxLife: 0.85
+            });
+        }
+    }
+
+    addFloatingText(x, y, text, color) {
+        this.floatingTexts.push({
+            x,
+            y,
+            text,
+            color,
+            life: 1.25,
+            maxLife: 1.25
+        });
+    }
+
+    updateParticles(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 120 * dt; // Gravidade suave
+            p.life -= dt;
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+
+    updateFloatingTexts(dt) {
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.y -= 38 * dt;
+            ft.life -= dt;
+            if (ft.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
+    }
+
+    /**
+     * ========================================================================
+     * RENDERIZAÇÃO NO CANVAS 2D
+     * ========================================================================
+     */
+    draw() {
+        const ctx = this.ctx;
+        ctx.save();
+
+        // Tremor de câmera ao explodir dinamite
+        if (this.shakeTimer > 0) {
+            const mag = this.shakeTimer * 24;
+            ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+        }
+
+        // 1. Céu / Caverna Superior
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, SURFACE_Y);
+        skyGrad.addColorStop(0, '#1e293b');
+        skyGrad.addColorStop(1, '#334155');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, SURFACE_Y);
+
+        // Vigas de madeira da entrada da mina
+        ctx.fillStyle = '#451a03';
+        ctx.fillRect(0, 0, 26, SURFACE_Y);
+        ctx.fillRect(CANVAS_WIDTH - 26, 0, 26, SURFACE_Y);
+        ctx.fillRect(0, 0, CANVAS_WIDTH, 14);
+
+        // 2. Camadas Subterrâneas (Terra Escura em Degradê)
+        const earthGrad = ctx.createLinearGradient(0, SURFACE_Y, 0, CANVAS_HEIGHT);
+        earthGrad.addColorStop(0, '#5c3a21');
+        earthGrad.addColorStop(0.35, '#3f2512');
+        earthGrad.addColorStop(0.75, '#29170b');
+        earthGrad.addColorStop(1, '#170c05');
+        ctx.fillStyle = earthGrad;
+        ctx.fillRect(0, SURFACE_Y, CANVAS_WIDTH, CANVAS_HEIGHT - SURFACE_Y);
+
+        // Linha de grama/superfície
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(0, SURFACE_Y - 4, CANVAS_WIDTH, 8);
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(0, SURFACE_Y + 4, CANVAS_WIDTH, 5);
+
+        // Textura estática do subsolo
+        for (const dot of this.rocksTexture) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${dot.alpha})`;
+            ctx.beginPath();
+            ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 3. Desenha o Minerador e o Guincho no Topo Central
+        this.drawMinerAndWinch(ctx);
+
+        // 4. Desenha os Itens no Subsolo
+        for (const item of this.items) {
+            this.drawItem(ctx, item);
+        }
+
+        // 5. Desenha a Corda, o Gancho e o Item Preso (se houver)
+        this.drawHookAndRope(ctx);
+
+        // 6. Desenha Partículas
+        for (const p of this.particles) {
+            ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        // 7. Desenha Textos Flutuantes
+        for (const ft of this.floatingTexts) {
+            ctx.globalAlpha = Math.min(1, ft.life * 1.4);
+            ctx.font = '900 18px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.strokeText(ft.text, ft.x, ft.y);
+            ctx.fillStyle = ft.color;
+            ctx.fillText(ft.text, ft.x, ft.y);
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.restore();
+    }
+
+    /**
+     * Desenha o personagem minerador animado e o mecanismo do guincho
+     */
+    drawMinerAndWinch(ctx) {
+        const cx = this.anchor.x;
+        const cy = this.anchor.y;
+
+        // Base de madeira do guincho
+        ctx.fillStyle = '#78350f';
+        ctx.strokeStyle = '#291509';
+        ctx.lineWidth = 2;
+        ctx.fillRect(cx - 34, SURFACE_Y - 22, 68, 18);
+        ctx.strokeRect(cx - 34, SURFACE_Y - 22, 68, 18);
+
+        // Minerador ao lado esquerdo do guincho
+        const mx = cx - 46;
+        const my = SURFACE_Y - 4;
+        // Esforço ao puxar item pesado
+        const effortBounce = (this.hook.state === 'RETRACTING' && this.hook.grabbedItem)
+            ? Math.sin(performance.now() * 0.03) * 2
+            : 0;
+
+        // Corpo (macacão azul)
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.roundRect(mx - 11, my - 28 + effortBounce, 22, 24, 5);
+        ctx.fill();
+
+        // Cabeça
+        ctx.fillStyle = '#fed7aa';
+        ctx.beginPath();
+        ctx.arc(mx, my - 35 + effortBounce, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Barba branca
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.arc(mx + 2, my - 32 + effortBounce, 7, 0, Math.PI);
+        ctx.fill();
+
+        // Capacete amarelo com lanterna
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(mx, my - 38 + effortBounce, 10, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(mx - 12, my - 39 + effortBounce, 24, 3);
+
+        // Luz da lanterna do capacete
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(mx + 9, my - 39 + effortBounce, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Roldana / Carretel do guincho
+        ctx.fillStyle = '#94a3b8';
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#475569';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    /**
+     * Desenha cada tipo de minério com identidade visual única
+     */
+    drawItem(ctx, item) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+
+        if (item.type === 'diamond') {
+            // Diamante facetado azul brilhante
+            const r = item.radius;
+            ctx.fillStyle = item.color;
+            ctx.strokeStyle = item.stroke;
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.6, -r * 0.8);
+            ctx.lineTo(r * 0.6, -r * 0.8);
+            ctx.lineTo(r * 1.1, -r * 0.15);
+            ctx.lineTo(0, r * 1.05);
+            ctx.lineTo(-r * 1.1, -r * 0.15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Brilho interno do diamante
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.3, -r * 0.6);
+            ctx.lineTo(r * 0.2, -r * 0.6);
+            ctx.lineTo(0, r * 0.3);
+            ctx.closePath();
+            ctx.fill();
+        }
+        else if (item.type === 'mystery_bag') {
+            // Sacola Misteriosa roxa com '?' dourado
+            const r = item.radius;
+            ctx.fillStyle = item.color;
+            ctx.strokeStyle = item.stroke;
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.arc(0, 3, r * 0.88, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Topo amarrado da sacola
+            ctx.beginPath();
+            ctx.moveTo(-6, -r * 0.75);
+            ctx.lineTo(6, -r * 0.75);
+            ctx.lineTo(3, -r * 0.35);
+            ctx.lineTo(-3, -r * 0.35);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Símbolo '?'
+            ctx.fillStyle = '#fef08a';
+            ctx.font = '900 17px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', 0, 4);
+        }
+        else {
+            // Pepitas de Ouro (Pequena, Média, Gigante) ou Pedra Comum
+            ctx.fillStyle = item.color;
+            ctx.strokeStyle = item.stroke;
+            ctx.lineWidth = item.type === 'gold_giant' ? 3 : 2;
+
+            ctx.beginPath();
+            item.vertices.forEach((v, idx) => {
+                if (idx === 0) ctx.moveTo(v.x, v.y);
+                else ctx.lineTo(v.x, v.y);
+            });
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Reflexo metálico nas pepitas de ouro
+            if (item.type.startsWith('gold')) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+                ctx.beginPath();
+                ctx.arc(-item.radius * 0.28, -item.radius * 0.28, item.radius * 0.28, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Rachadura na pedra comum
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(-item.radius * 0.3, -item.radius * 0.1);
+                ctx.lineTo(item.radius * 0.1, item.radius * 0.2);
+                ctx.lineTo(item.radius * 0.35, 0);
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Desenha a corda tensionada, a garra metálica e o objeto capturado
+     */
+    drawHookAndRope(ctx) {
+        const tip = this.getHookTipPosition();
+
+        // Corda
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(this.anchor.x, this.anchor.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.stroke();
+
+        // Se houver um item preso, desenha ele na ponta do gancho
+        if (this.hook.grabbedItem) {
+            const item = this.hook.grabbedItem;
+            item.x = tip.x + Math.sin(this.hook.angle) * (item.radius * 0.75);
+            item.y = tip.y + Math.cos(this.hook.angle) * (item.radius * 0.75);
+            this.drawItem(ctx, item);
+        }
+
+        // Desenha a Garra articulada na ponta da corda
+        ctx.save();
+        ctx.translate(tip.x, tip.y);
+        ctx.rotate(-this.hook.angle);
+
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+
+        const spread = this.hook.clawOpen;
+
+        // Garra Esquerda
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-13 * (1 + spread), 6, -7 * (1 + spread * 0.5), 16);
+        ctx.stroke();
+
+        // Garra Direita
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(13 * (1 + spread), 6, 7 * (1 + spread * 0.5), 16);
+        ctx.stroke();
+
+        // Pino central do gancho
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /**
+     * ========================================================================
+     * ATUALIZAÇÃO DO HUD E RANKING LOCALSTORAGE
+     * ========================================================================
+     */
+    updateHUD() {
+        document.getElementById('hudMoney').textContent = `$${this.money}`;
+        document.getElementById('hudGoal').textContent = `$${this.goal}`;
+        document.getElementById('hudLevel').textContent = this.level;
+        document.getElementById('hudDynamiteCount').textContent = this.dynamites;
+
+        const sec = Math.max(0, Math.ceil(this.timeLeft));
+        const timeEl = document.getElementById('hudTime');
+        timeEl.textContent = `${sec}s`;
+        if (sec <= 10 && this.state === 'PLAYING') {
+            timeEl.classList.add('danger');
+        } else {
+            timeEl.classList.remove('danger');
+        }
+
+        // Indicadores visuais de itens ativos
+        document.getElementById('hudDynamite').classList.toggle('inactive', this.dynamites <= 0);
+        document.getElementById('hudEnergy').classList.toggle('inactive', !this.hasEnergyDrink);
+        document.getElementById('hudClover').classList.toggle('inactive', !this.hasClover);
+    }
+
+    /**
+     * Salva pontuação no Top 5 do localStorage
+     */
+    saveRecord(score, level) {
+        if (score <= 0) return;
+        const key = 'gold_miner_top5_v1';
+        let records = [];
+        try {
+            records = JSON.parse(localStorage.getItem(key)) || [];
+        } catch (e) {
+            records = [];
+        }
+
+        records.push({
+            score,
+            level,
+            date: new Date().toLocaleDateString('pt-BR')
+        });
+
+        // Ordena do maior para o menor e mantém apenas os 5 melhores
+        records.sort((a, b) => b.score - a.score);
+        records = records.slice(0, 5);
+
+        try {
+            localStorage.setItem(key, JSON.stringify(records));
+        } catch (e) {
+            // Ignora erro caso armazenamento esteja bloqueado
+        }
+    }
+
+    /**
+     * Renderiza a lista do Top 5 Recordes no painel inferior
+     */
+    renderLeaderboard() {
+        const key = 'gold_miner_top5_v1';
+        let records = [];
+        try {
+            records = JSON.parse(localStorage.getItem(key)) || [];
+        } catch (e) {
+            records = [];
+        }
+
+        const listEl = document.getElementById('recordsList');
+        listEl.innerHTML = '';
+
+        for (let i = 0; i < 5; i++) {
+            const rec = records[i];
+            const li = document.createElement('li');
+            li.className = `record-item ${i === 0 && rec ? 'top-1' : ''}`;
+
+            if (rec) {
+                li.innerHTML = `
+                    <span class="record-rank">#${i + 1} Lugar</span>
+                    <span class="record-score">$${rec.score}</span>
+                    <span class="record-level">Nível ${rec.level}</span>
+                `;
+            } else {
+                li.innerHTML = `
+                    <span class="record-rank">#${i + 1} Lugar</span>
+                    <span class="record-score" style="color:#6b5340;">---</span>
+                    <span class="record-level">-</span>
+                `;
+            }
+            listEl.appendChild(li);
+        }
+    }
+}
+
+// Inicializa o jogo quando o DOM estiver pronto
+window.addEventListener('DOMContentLoaded', () => {
+    window.game = new GoldMinerGame();
+});
+</script>
+</body>
+</html>

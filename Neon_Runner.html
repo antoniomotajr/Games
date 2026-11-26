@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Neon Runner — Endless Runner HTML5 Canvas</title>
+  <style>
+    /* ==========================================================================
+       ESTILOS GERAIS E LAYOUT RESPONSIVO (DARK MODE)
+       ========================================================================== */
+    :root {
+      --bg-color: #0b0e17;
+      --panel-bg: #131826;
+      --border-color: #242e47;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent-cyan: #00f0ff;
+      --accent-gold: #ffd700;
+      --accent-pink: #ff2a85;
+      --accent-blue: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-x: hidden;
+      touch-action: manipulation;
+    }
+
+    /* Ampliado horizontalmente (widescreen) */
+    .game-wrapper {
+      width: 100%;
+      max-width: 1040px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Cabeçalho / Título */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+
+    .header h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      background: linear-gradient(90deg, var(--accent-cyan), #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+
+    .audio-btn {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .audio-btn:hover {
+      border-color: var(--accent-cyan);
+    }
+
+    /* Painel Superior (HUD) */
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hud-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .hud-value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #hud-score { color: var(--text-primary); }
+    #hud-coins { color: var(--accent-gold); }
+    #hud-speed { color: var(--accent-cyan); }
+
+    .shield-badge {
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: all 0.25s ease;
+    }
+
+    .shield-off {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text-secondary);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .shield-on {
+      background: rgba(59, 130, 246, 0.25);
+      color: #60a5fa;
+      border: 1px solid #3b82f6;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+      animation: pulseShield 1.2s infinite alternate;
+    }
+
+    @keyframes pulseShield {
+      from { transform: scale(1); }
+      to { transform: scale(1.06); }
+    }
+
+    /* Container do Canvas Widescreen (960x320 -> proporção 3:1) */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      background: #090d16;
+      aspect-ratio: 960 / 320;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Dicas de Controle */
+    .controls-hint {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: rgba(19, 24, 38, 0.6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(36, 46, 71, 0.6);
+    }
+
+    .controls-hint kbd {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+
+    /* Painel Inferior: Top 5 Recordes */
+    .leaderboard {
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+
+    .leaderboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .leaderboard-header h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-gold);
+    }
+
+    .clear-scores-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .clear-scores-btn:hover {
+      color: var(--accent-pink);
+    }
+
+    .scores-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .scores-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.88rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .scores-list li.top-1 {
+      background: rgba(255, 215, 0, 0.08);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      font-weight: 700;
+    }
+
+    .rank-badge {
+      display: inline-block;
+      width: 24px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .top-1 .rank-badge { color: var(--accent-gold); }
+
+    .score-meta {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 600px) {
+      .hud {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .header h1 { font-size: 1.1rem; }
+      .canvas-container { aspect-ratio: 960 / 380; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-wrapper">
+    <!-- Cabeçalho -->
+    <div class="header">
+      <h1>⚡ Neon Runner</h1>
+      <button id="toggle-audio" class="audio-btn" title="Ativar/Desativar Som">🔊 Som: ON</button>
+    </div>
+
+    <!-- Painel Superior (HUD) -->
+    <div class="hud">
+      <div class="hud-item">
+        <span class="hud-label">Pontuação</span>
+        <span id="hud-score" class="hud-value">00000</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Moedas</span>
+        <span id="hud-coins" class="hud-value">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Velocidade</span>
+        <span id="hud-speed" class="hud-value">1.0x</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Escudo</span>
+        <span id="hud-shield" class="shield-badge shield-off">Inativo</span>
+      </div>
+    </div>
+
+    <!-- Área Principal do Jogo Ampliada Horizontalmente (960x320) -->
+    <div class="canvas-container">
+      <canvas id="gameCanvas" width="960" height="320"></canvas>
+    </div>
+
+    <!-- Instruções Rápidas -->
+    <div class="controls-hint">
+      <strong>DESKTOP:</strong> <kbd>Espaço</kbd> / <kbd>↑</kbd> / <kbd>W</kbd> Pular &nbsp;|&nbsp; <kbd>↓ (Seta pra baixo)</kbd> / <kbd>S</kbd> Abaixar
+      &nbsp;&nbsp;•&nbsp;&nbsp;
+      <strong>MOBILE:</strong> Toque / Deslize ↑ Pular ou ↓ Abaixar
+    </div>
+
+    <!-- Painel Inferior: Top 5 Recordes -->
+    <div class="leaderboard">
+      <div class="leaderboard-header">
+        <h2>🏆 Top 5 Recordes Locais</h2>
+        <button id="clear-scores" class="clear-scores-btn">Limpar</button>
+      </div>
+      <ul id="scores-list" class="scores-list">
+        <!-- Preenchido via JavaScript -->
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * NEON RUNNER — ENGINE COMPLETA EM VANILLA JS (WIDESCREEN 960x320)
+     * ============================================================================
+     */
+
+    // 1. SINTETIZADOR DE ÁUDIO (WEB AUDIO API)
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggle() {
+        this.enabled = !this.enabled;
+        return this.enabled;
+      }
+
+      playJump() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.16);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+
+      playSlide() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(95, now + 0.14);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      }
+
+      playCoin() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.setValueAtTime(1318.51, now + 0.06);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+
+      playShieldPickup() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const freqs = [440, 554.37, 659.25, 880];
+        freqs.forEach((f, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, now + idx * 0.045);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.045);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.045);
+          osc.stop(now + idx * 0.045 + 0.2);
+        });
+      }
+
+      playShieldBreak() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.28);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      }
+
+      playGameOver() {
+        if (!this.enabled) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const notes = [330, 293.66, 261.63, 196];
+        notes.forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + i * 0.11);
+          gain.gain.setValueAtTime(0.16, now + i * 0.11);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.11 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + i * 0.11);
+          osc.stop(now + i * 0.11 + 0.25);
+        });
+      }
+    }
+
+    // 2. GERENCIADOR DE RECORDES (LOCALSTORAGE)
+    class LeaderboardManager {
+      constructor(storageKey = 'neon_runner_top5_v1') {
+        this.storageKey = storageKey;
+        this.listElement = document.getElementById('scores-list');
+      }
+
+      getScores() {
+        try {
+          const raw = localStorage.getItem(this.storageKey);
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      saveScore(score, coins) {
+        const finalScore = Math.floor(score);
+        if (finalScore <= 0) return;
+        const scores = this.getScores();
+        const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        scores.push({ score: finalScore, coins, date: dateStr });
+        scores.sort((a, b) => b.score - a.score);
+        const top5 = scores.slice(0, 5);
+        localStorage.setItem(this.storageKey, JSON.stringify(top5));
+        this.render();
+      }
+
+      clear() {
+        localStorage.removeItem(this.storageKey);
+        this.render();
+      }
+
+      render() {
+        const scores = this.getScores();
+        this.listElement.innerHTML = '';
+
+        if (scores.length === 0) {
+          const empty = document.createElement('li');
+          empty.style.color = '#64748b';
+          empty.style.justifyContent = 'center';
+          empty.textContent = 'Nenhum recorde registrado ainda. Corra para marcar pontos!';
+          this.listElement.appendChild(empty);
+          return;
+        }
+
+        scores.forEach((entry, index) => {
+          const li = document.createElement('li');
+          if (index === 0) li.classList.add('top-1');
+          li.innerHTML = `
+            <div>
+              <span class="rank-badge">#${index + 1}</span>
+              <strong>${String(entry.score).padStart(5, '0')} pts</strong>
+            </div>
+            <div class="score-meta">
+              🪙 ${entry.coins} &nbsp;•&nbsp; ${entry.date}
+            </div>
+          `;
+          this.listElement.appendChild(li);
+        });
+      }
+    }
+
+    // 3. SISTEMA DE PARTÍCULAS
+    class Particle {
+      constructor(x, y, vx, vy, size, color, life, gravity = 0) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.size = size;
+        this.color = color;
+        this.life = life;
+        this.maxLife = life;
+        this.gravity = gravity;
+      }
+
+      update(dt) {
+        this.vy += this.gravity * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+      }
+
+      draw(ctx) {
+        const alpha = Math.max(0, this.life / this.maxLife);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 4. CENÁRIO PARALLAX PROCEDURAL (2 CAMADAS DISTINTAS)
+    class ParallaxBackground {
+      constructor(width, groundY) {
+        this.width = width;
+        this.groundY = groundY;
+
+        // Camada 1 (Distante - 20% da velocidade)
+        this.farBuildings = [];
+        let fx = 0;
+        while (fx < width * 2) {
+          const w = 55 + Math.random() * 65;
+          const h = 75 + Math.random() * 115;
+          this.farBuildings.push({ x: fx, w, h });
+          fx += w + 10;
+        }
+
+        // Camada 2 (Média - 50% da velocidade)
+        this.midBuildings = [];
+        let mx = 0;
+        while (mx < width * 2) {
+          const w = 45 + Math.random() * 50;
+          const h = 50 + Math.random() * 90;
+          const hasAntenna = Math.random() > 0.55;
+          this.midBuildings.push({ x: mx, w, h, hasAntenna });
+          mx += w + 22;
+        }
+      }
+
+      update(dt, baseSpeed) {
+        const farSpeed = baseSpeed * 0.2;
+        this.farBuildings.forEach(b => {
+          b.x -= farSpeed * dt;
+        });
+        if (this.farBuildings[0].x + this.farBuildings[0].w < 0) {
+          const first = this.farBuildings.shift();
+          const last = this.farBuildings[this.farBuildings.length - 1];
+          first.x = last.x + last.w + 10;
+          this.farBuildings.push(first);
+        }
+
+        const midSpeed = baseSpeed * 0.5;
+        this.midBuildings.forEach(b => {
+          b.x -= midSpeed * dt;
+        });
+        if (this.midBuildings[0].x + this.midBuildings[0].w < 0) {
+          const first = this.midBuildings.shift();
+          const last = this.midBuildings[this.midBuildings.length - 1];
+          first.x = last.x + last.w + 22;
+          this.midBuildings.push(first);
+        }
+      }
+
+      draw(ctx) {
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, this.groundY);
+        skyGrad.addColorStop(0, '#070a12');
+        skyGrad.addColorStop(1, '#121a2f');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, this.width, this.groundY);
+
+        // Lua / Sol Neon distante
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+        ctx.beginPath();
+        ctx.arc(this.width * 0.78, 76, 44, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.16)';
+        ctx.beginPath();
+        ctx.arc(this.width * 0.78, 76, 28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Camada 1 (Distante - 20% vel)
+        ctx.fillStyle = '#0e1526';
+        this.farBuildings.forEach(b => {
+          ctx.fillRect(b.x, this.groundY - b.h, b.w, b.h);
+        });
+
+        // Camada 2 (Média - 50% vel)
+        this.midBuildings.forEach(b => {
+          const topY = this.groundY - b.h;
+          ctx.fillStyle = '#17223b';
+          ctx.fillRect(b.x, topY, b.w, b.h);
+
+          ctx.fillStyle = '#26385e';
+          ctx.fillRect(b.x, topY, b.w, 2);
+
+          if (b.hasAntenna) {
+            ctx.strokeStyle = '#26385e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(b.x + b.w * 0.5, topY);
+            ctx.lineTo(b.x + b.w * 0.5, topY - 16);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ff2a85';
+            ctx.fillRect(b.x + b.w * 0.5 - 1.5, topY - 18, 3, 3);
+          }
+
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.22)';
+          for (let wy = topY + 10; wy < this.groundY - 12; wy += 14) {
+            for (let wx = b.x + 8; wx < b.x + b.w - 10; wx += 13) {
+              ctx.fillRect(wx, wy, 5, 6);
+            }
+          }
+        });
+      }
+    }
+
+    // 5. JOGADOR (FÍSICA, PULO, ABAIXAR/SLIDE E ESCUDO)
+    class Player {
+      constructor(groundY) {
+        this.x = 110; // Posição mais confortável na tela ampla
+        this.groundY = groundY;
+        this.width = 32;
+        this.standHeight = 48;
+        this.slideHeight = 24; // Metade da altura ao abaixar
+        this.height = this.standHeight;
+        this.y = this.groundY - this.height;
+
+        this.vy = 0;
+        this.gravity = 2000;
+        this.jumpForce = -680;
+        this.isGrounded = true;
+        this.isSliding = false;
+        this.slideTimer = 0;
+
+        this.hasShield = false;
+        this.shieldPulse = 0;
+        this.runAnimTimer = 0;
+      }
+
+      reset() {
+        this.height = this.standHeight;
+        this.y = this.groundY - this.height;
+        this.vy = 0;
+        this.isGrounded = true;
+        this.isSliding = false;
+        this.slideTimer = 0;
+        this.hasShield = false;
+      }
+
+      jump(sfx, spawnParticles) {
+        if (this.isGrounded) {
+          if (this.isSliding) {
+            this.endSlide();
+          }
+          this.vy = this.jumpForce;
+          this.isGrounded = false;
+          sfx.playJump();
+          spawnParticles(this.x + this.width / 2, this.groundY, 8, '#94a3b8', 'dust');
+        }
+      }
+
+      startSlide(sfx, fixedDuration = 0) {
+        // Se estiver no ar, força queda rápida (fast-fall) e prepara para abaixar
+        if (!this.isGrounded) {
+          this.vy = Math.max(this.vy, 620);
+        }
+        if (!this.isSliding) {
+          sfx.playSlide();
+        }
+        this.isSliding = true;
+        if (fixedDuration > 0) {
+          this.slideTimer = fixedDuration;
+        }
+        const prevBottom = this.y + this.height;
+        this.height = this.slideHeight;
+        this.y = prevBottom - this.height;
+      }
+
+      endSlide() {
+        if (!this.isSliding) return;
+        this.isSliding = false;
+        this.slideTimer = 0;
+        const prevBottom = this.y + this.height;
+        this.height = this.standHeight;
+        this.y = prevBottom - this.height;
+      }
+
+      update(dt, spawnParticles, isDownHeld = false) {
+        this.runAnimTimer += dt * 14;
+        this.shieldPulse += dt * 5;
+
+        // Garante que se a seta pra baixo / S estiver segurada no desktop, permanece abaixado
+        if (isDownHeld && !this.isSliding) {
+          this.isSliding = true;
+          const prevBottom = this.y + this.height;
+          this.height = this.slideHeight;
+          this.y = prevBottom - this.height;
+        }
+
+        // Temporizador de slide automático (para gestos touch no celular)
+        if (this.slideTimer > 0) {
+          this.slideTimer -= dt;
+          if (this.slideTimer <= 0 && !isDownHeld) {
+            this.endSlide();
+          }
+        }
+
+        // Aplica gravidade
+        this.vy += this.gravity * dt;
+        this.y += this.vy * dt;
+
+        // Colisão com o chão
+        const floorLevel = this.groundY - this.height;
+        if (this.y >= floorLevel) {
+          if (!this.isGrounded && this.vy > 180) {
+            spawnParticles(this.x + this.width / 2, this.groundY, 7, '#cbd5e1', 'dust');
+          }
+          this.y = floorLevel;
+          this.vy = 0;
+          this.isGrounded = true;
+        }
+
+        // Partículas contínuas enquanto desliza/abaixa no chão
+        if (this.isSliding && this.isGrounded && Math.random() < 0.45) {
+          spawnParticles(this.x + 4, this.groundY - 2, 1, '#00f0ff', 'slide');
+        }
+      }
+
+      getHitbox() {
+        const margin = 4;
+        return {
+          x: this.x + margin,
+          y: this.y + margin,
+          w: this.width - margin * 2,
+          h: this.height - margin * 2
+        };
+      }
+
+      draw(ctx) {
+        ctx.save();
+
+        // Aura protetora do Escudo
+        if (this.hasShield) {
+          const cx = this.x + this.width / 2;
+          const cy = this.y + this.height / 2;
+          const radius = Math.max(this.width, this.height) * 0.78 + Math.sin(this.shieldPulse) * 2.5;
+
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 2.5;
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.18)';
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        const legOffset = this.isGrounded && !this.isSliding ? Math.sin(this.runAnimTimer) * 4 : 0;
+
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+
+        if (this.isSliding) {
+          // Desenho abaixado / deslizando
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.roundRect(this.x - 4, this.y, this.width + 10, this.height, 6);
+          ctx.fill();
+
+          // Visor
+          ctx.fillStyle = '#0b0e17';
+          ctx.fillRect(this.x + this.width - 5, this.y + 5, 11, 6);
+        } else {
+          // Tronco / Cabeça
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.roundRect(this.x, this.y, this.width, this.height - 8, 7);
+          ctx.fill();
+
+          // Visor futurista
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = '#0b0e17';
+          ctx.fillRect(this.x + 15, this.y + 8, 14, 8);
+          ctx.fillStyle = '#ff2a85';
+          ctx.fillRect(this.x + 19, this.y + 10, 8, 4);
+
+          // Pernas animadas
+          ctx.fillStyle = '#0284c7';
+          ctx.fillRect(this.x + 5, this.y + this.height - 9 + legOffset, 7, 9 - legOffset);
+          ctx.fillRect(this.x + 19, this.y + this.height - 9 - legOffset, 7, 9 + legOffset);
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // 6. MOTOR PRINCIPAL DO JOGO
+    class EndlessRunnerGame {
+      constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = this.canvas.width;   // 960px (ampliado horizontalmente)
+        this.height = this.canvas.height; // 320px
+        this.groundY = 268;
+
+        // Elementos de UI
+        this.hudScore = document.getElementById('hud-score');
+        this.hudCoins = document.getElementById('hud-coins');
+        this.hudSpeed = document.getElementById('hud-speed');
+        this.hudShield = document.getElementById('hud-shield');
+
+        // Instâncias auxiliares
+        this.sfx = new SoundEffects();
+        this.leaderboard = new LeaderboardManager();
+        this.background = new ParallaxBackground(this.width, this.groundY);
+        this.player = new Player(this.groundY);
+
+        // Estado do jogo
+        this.state = 'START';
+        this.baseSpeed = 360; // Ajustado proporcionalmente à largura maior
+        this.currentSpeed = this.baseSpeed;
+        this.speedMultiplier = 1.0;
+
+        this.distanceScore = 0;
+        this.coinsCount = 0;
+        this.groundScroll = 0;
+
+        // Entidades dinâmicas
+        this.obstacles = [];
+        this.coins = [];
+        this.powerups = [];
+        this.particles = [];
+
+        this.nextSpawnTimer = 1.0;
+        this.lastTime = 0;
+
+        // Controles
+        this.keys = {};
+        this.touchStartY = null;
+
+        this.bindEvents();
+        this.leaderboard.render();
+        requestAnimationFrame((ts) => this.loop(ts));
+      }
+
+      bindEvents() {
+        // Botão de Áudio
+        const audioBtn = document.getElementById('toggle-audio');
+        audioBtn.addEventListener('click', () => {
+          const isOn = this.sfx.toggle();
+          audioBtn.textContent = isOn ? '🔊 Som: ON' : '🔇 Som: OFF';
+        });
+
+        // Botão Limpar Recordes
+        document.getElementById('clear-scores').addEventListener('click', () => {
+          this.leaderboard.clear();
+        });
+
+        // Teclado Desktop (Seta pra baixo / S para abaixar; Espaço / Seta pra cima / W para pular)
+        window.addEventListener('keydown', (e) => {
+          if (['Space', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code) || e.key === 'ArrowDown') {
+            e.preventDefault();
+          }
+          this.keys[e.code] = true;
+
+          if (this.state === 'START' || this.state === 'GAMEOVER') {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+              this.startNewGame();
+            }
+            return;
+          }
+
+          if (this.state === 'PLAYING') {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+              this.player.jump(this.sfx, this.spawnParticles.bind(this));
+            } else if (e.code === 'ArrowDown' || e.key === 'ArrowDown' || e.code === 'KeyS') {
+              this.player.startSlide(this.sfx);
+            }
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.keys[e.code] = false;
+          if (e.code === 'ArrowDown' || e.key === 'ArrowDown' || e.code === 'KeyS') {
+            if (this.state === 'PLAYING' && !this.keys['ArrowDown'] && !this.keys['KeyS']) {
+              this.player.endSlide();
+            }
+          }
+        });
+
+        // Garante que ao perder foco da janela não fique travado abaixado
+        window.addEventListener('blur', () => {
+          this.keys = {};
+          if (this.state === 'PLAYING') {
+            this.player.endSlide();
+          }
+        });
+
+        // Controles Touch / Mobile
+        this.canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.sfx.init();
+          if (this.state === 'START' || this.state === 'GAMEOVER') {
+            this.startNewGame();
+            return;
+          }
+          if (e.touches.length > 0) {
+            this.touchStartY = e.touches[0].clientY;
+          }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          if (this.state !== 'PLAYING' || this.touchStartY === null) return;
+          const currentY = e.touches[0].clientY;
+          const deltaY = currentY - this.touchStartY;
+
+          if (deltaY < -24) {
+            this.player.jump(this.sfx, this.spawnParticles.bind(this));
+            this.touchStartY = null;
+          } else if (deltaY > 24) {
+            this.player.startSlide(this.sfx, 0.65);
+            this.touchStartY = null;
+          }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          if (this.state === 'PLAYING' && this.touchStartY !== null) {
+            this.player.jump(this.sfx, this.spawnParticles.bind(this));
+          }
+          this.touchStartY = null;
+        }, { passive: false });
+
+        // Clique com mouse no canvas
+        this.canvas.addEventListener('mousedown', () => {
+          if (this.state === 'START' || this.state === 'GAMEOVER') {
+            this.startNewGame();
+          } else if (this.state === 'PLAYING') {
+            this.player.jump(this.sfx, this.spawnParticles.bind(this));
+          }
+        });
+      }
+
+      startNewGame() {
+        this.sfx.init();
+        this.state = 'PLAYING';
+        this.currentSpeed = this.baseSpeed;
+        this.speedMultiplier = 1.0;
+        this.distanceScore = 0;
+        this.coinsCount = 0;
+        this.obstacles = [];
+        this.coins = [];
+        this.powerups = [];
+        this.particles = [];
+        this.nextSpawnTimer = 0.8;
+        this.player.reset();
+        this.updateHUD();
+      }
+
+      spawnParticles(x, y, count, color, type = 'burst') {
+        for (let i = 0; i < count; i++) {
+          let vx, vy, size, life, gravity;
+          if (type === 'dust') {
+            vx = (Math.random() - 0.7) * 110;
+            vy = -Math.random() * 90 - 20;
+            size = 2 + Math.random() * 2.5;
+            life = 0.25 + Math.random() * 0.2;
+            gravity = 250;
+          } else if (type === 'slide') {
+            vx = -80 - Math.random() * 60;
+            vy = -Math.random() * 45;
+            size = 1.8 + Math.random() * 1.5;
+            life = 0.2 + Math.random() * 0.15;
+            gravity = 50;
+          } else {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 60 + Math.random() * 180;
+            vx = Math.cos(angle) * speed;
+            vy = Math.sin(angle) * speed;
+            size = 2.5 + Math.random() * 3;
+            life = 0.35 + Math.random() * 0.25;
+            gravity = 320;
+          }
+          this.particles.push(new Particle(x, y, vx, vy, size, color, life, gravity));
+        }
+      }
+
+      spawnWave() {
+        const spawnX = this.width + 40;
+        const rand = Math.random();
+
+        if (rand < 0.28) {
+          // 1. Bloco Baixo
+          this.obstacles.push({
+            type: 'block_low',
+            x: spawnX,
+            y: this.groundY - 36,
+            w: 30,
+            h: 36,
+            color: '#ff2a85'
+          });
+          this.spawnCoinArc(spawnX - 25, this.groundY - 82, 3);
+        } else if (rand < 0.54) {
+          // 2. Bloco Largo
+          this.obstacles.push({
+            type: 'block_wide',
+            x: spawnX,
+            y: this.groundY - 32,
+            w: 58,
+            h: 32,
+            color: '#f97316'
+          });
+          this.spawnCoinArc(spawnX - 10, this.groundY - 86, 4);
+        } else if (rand < 0.78) {
+          // 3. Drone Médio
+          this.obstacles.push({
+            type: 'drone_mid',
+            x: spawnX,
+            y: this.groundY - 48,
+            w: 38,
+            h: 24,
+            color: '#a855f7',
+            oscOffset: Math.random() * Math.PI * 2
+          });
+        } else {
+          // 4. Drone Alto (Passar abaixado por baixo!)
+          this.obstacles.push({
+            type: 'drone_high',
+            x: spawnX,
+            y: this.groundY - 54,
+            w: 48,
+            h: 24,
+            color: '#ec4899',
+            oscOffset: Math.random() * Math.PI * 2
+          });
+          this.spawnCoinLine(spawnX - 10, this.groundY - 14, 4);
+        }
+
+        // Power-up de Escudo Azul
+        if (!this.player.hasShield && Math.random() < 0.14) {
+          this.powerups.push({
+            x: spawnX + 150,
+            y: this.groundY - 72,
+            radius: 13,
+            pulse: 0
+          });
+        }
+
+        const minGapTime = 0.85;
+        const maxGapTime = Math.max(1.1, 1.6 - (this.speedMultiplier - 1) * 0.25);
+        this.nextSpawnTimer = minGapTime + Math.random() * (maxGapTime - minGapTime);
+      }
+
+      spawnCoinLine(startX, y, count) {
+        for (let i = 0; i < count; i++) {
+          this.coins.push({
+            x: startX + i * 28,
+            y: y,
+            radius: 7,
+            anim: i * 0.5
+          });
+        }
+      }
+
+      spawnCoinArc(startX, peakY, count) {
+        for (let i = 0; i < count; i++) {
+          const norm = (i / (count - 1 || 1)) * 2 - 1;
+          const arcOffset = (norm * norm) * 26;
+          this.coins.push({
+            x: startX + i * 30,
+            y: peakY + arcOffset,
+            radius: 7,
+            anim: i * 0.5
+          });
+        }
+      }
+
+      checkAABB(rectA, rectB) {
+        return (
+          rectA.x < rectB.x + rectB.w &&
+          rectA.x + rectA.w > rectB.x &&
+          rectA.y < rectB.y + rectB.h &&
+          rectA.y + rectA.h > rectB.y
+        );
+      }
+
+      update(dt) {
+        if (this.state !== 'PLAYING') {
+          this.particles.forEach(p => p.update(dt));
+          this.particles = this.particles.filter(p => p.life > 0);
+          return;
+        }
+
+        this.distanceScore += (this.currentSpeed * dt) * 0.045;
+        this.speedMultiplier = Math.min(2.5, 1.0 + Math.floor(this.distanceScore) / 650);
+        this.currentSpeed = this.baseSpeed * this.speedMultiplier;
+
+        this.background.update(dt, this.currentSpeed);
+        this.groundScroll = (this.groundScroll + this.currentSpeed * dt) % 40;
+
+        // Verifica se a seta para baixo ou S está pressionada no desktop
+        const isDownHeld = Boolean(this.keys['ArrowDown'] || this.keys['KeyS']);
+        this.player.update(dt, this.spawnParticles.bind(this), isDownHeld);
+        const playerBox = this.player.getHitbox();
+
+        this.nextSpawnTimer -= dt;
+        if (this.nextSpawnTimer <= 0) {
+          this.spawnWave();
+        }
+
+        // Obstáculos
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+          const obs = this.obstacles[i];
+          obs.x -= this.currentSpeed * dt;
+
+          let drawY = obs.y;
+          if (obs.type.startsWith('drone')) {
+            obs.oscOffset += dt * 7;
+            drawY += Math.sin(obs.oscOffset) * 2.5;
+          }
+
+          const obsBox = {
+            x: obs.x + 2,
+            y: drawY + 2,
+            w: obs.w - 4,
+            h: obs.h - 4
+          };
+
+          if (this.checkAABB(playerBox, obsBox)) {
+            if (this.player.hasShield) {
+              this.player.hasShield = false;
+              this.sfx.playShieldBreak();
+              this.spawnParticles(obs.x + obs.w / 2, drawY + obs.h / 2, 22, '#3b82f6', 'burst');
+              this.spawnParticles(obs.x + obs.w / 2, drawY + obs.h / 2, 14, obs.color, 'burst');
+              this.obstacles.splice(i, 1);
+              continue;
+            } else {
+              this.triggerGameOver();
+              return;
+            }
+          }
+
+          if (obs.x + obs.w < -20) {
+            this.obstacles.splice(i, 1);
+          }
+        }
+
+        // Moedas
+        for (let i = this.coins.length - 1; i >= 0; i--) {
+          const c = this.coins[i];
+          c.x -= this.currentSpeed * dt;
+          c.anim += dt * 6;
+
+          const coinBox = {
+            x: c.x - c.radius,
+            y: c.y - c.radius,
+            w: c.radius * 2,
+            h: c.radius * 2
+          };
+
+          if (this.checkAABB(playerBox, coinBox)) {
+            this.coinsCount += 1;
+            this.distanceScore += 25;
+            this.sfx.playCoin();
+            this.spawnParticles(c.x, c.y, 10, '#ffd700', 'burst');
+            this.coins.splice(i, 1);
+            continue;
+          }
+
+          if (c.x + c.radius < -20) {
+            this.coins.splice(i, 1);
+          }
+        }
+
+        // Power-up de Escudo
+        for (let i = this.powerups.length - 1; i >= 0; i--) {
+          const p = this.powerups[i];
+          p.x -= this.currentSpeed * dt;
+          p.pulse += dt * 6;
+
+          const pBox = {
+            x: p.x - p.radius,
+            y: p.y - p.radius,
+            w: p.radius * 2,
+            h: p.radius * 2
+          };
+
+          if (this.checkAABB(playerBox, pBox)) {
+            this.player.hasShield = true;
+            this.sfx.playShieldPickup();
+            this.spawnParticles(p.x, p.y, 16, '#3b82f6', 'burst');
+            this.powerups.splice(i, 1);
+            continue;
+          }
+
+          if (p.x + p.radius < -20) {
+            this.powerups.splice(i, 1);
+          }
+        }
+
+        this.particles.forEach(p => p.update(dt));
+        this.particles = this.particles.filter(p => p.life > 0);
+
+        this.updateHUD();
+      }
+
+      triggerGameOver() {
+        this.state = 'GAMEOVER';
+        this.sfx.playGameOver();
+        this.spawnParticles(
+          this.player.x + this.player.width / 2,
+          this.player.y + this.player.height / 2,
+          30,
+          '#ff2a85',
+          'burst'
+        );
+        this.leaderboard.saveScore(this.distanceScore, this.coinsCount);
+        this.updateHUD();
+      }
+
+      updateHUD() {
+        this.hudScore.textContent = String(Math.floor(this.distanceScore)).padStart(5, '0');
+        this.hudCoins.textContent = this.coinsCount;
+        this.hudSpeed.textContent = `${this.speedMultiplier.toFixed(1)}x`;
+
+        if (this.player.hasShield) {
+          this.hudShield.textContent = 'Ativo';
+          this.hudShield.className = 'shield-badge shield-on';
+        } else {
+          this.hudShield.textContent = 'Inativo';
+          this.hudShield.className = 'shield-badge shield-off';
+        }
+      }
+
+      drawGround() {
+        const ctx = this.ctx;
+        ctx.fillStyle = '#0d1322';
+        ctx.fillRect(0, this.groundY, this.width, this.height - this.groundY);
+
+        ctx.save();
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(0, this.groundY);
+        ctx.lineTo(this.width, this.groundY);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.14)';
+        ctx.lineWidth = 1.5;
+        for (let x = -this.groundScroll; x < this.width; x += 40) {
+          ctx.beginPath();
+          ctx.moveTo(x, this.groundY);
+          ctx.lineTo(x - 18, this.height);
+          ctx.stroke();
+        }
+      }
+
+      drawEntities() {
+        const ctx = this.ctx;
+
+        // Moedas douradas
+        this.coins.forEach(c => {
+          const scaleX = Math.abs(Math.cos(c.anim)) * 0.6 + 0.4;
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.scale(scaleX, 1);
+          ctx.fillStyle = '#ffd700';
+          ctx.shadowColor = '#ffd700';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#fffbeb';
+          ctx.fillRect(-1.5, -3.5, 3, 7);
+          ctx.restore();
+        });
+
+        // Power-up de Escudo Azul
+        this.powerups.forEach(p => {
+          const r = p.radius + Math.sin(p.pulse) * 2;
+          ctx.save();
+          ctx.strokeStyle = '#60a5fa';
+          ctx.fillStyle = 'rgba(59, 130, 246, 0.35)';
+          ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#3b82f6';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🛡️', p.x, p.y + 0.5);
+          ctx.restore();
+        });
+
+        // Obstáculos
+        this.obstacles.forEach(obs => {
+          ctx.save();
+          ctx.shadowColor = obs.color;
+          ctx.shadowBlur = 10;
+
+          if (obs.type.startsWith('drone')) {
+            const drawY = obs.y + Math.sin(obs.oscOffset) * 2.5;
+            ctx.fillStyle = obs.color;
+            ctx.beginPath();
+            ctx.roundRect(obs.x, drawY + 5, obs.w, obs.h - 5, 8);
+            ctx.fill();
+
+            ctx.fillStyle = '#e2e8f0';
+            const propW = 14 + Math.sin(obs.oscOffset * 4) * 5;
+            ctx.fillRect(obs.x + 8 - propW / 2, drawY, propW, 2.5);
+            ctx.fillRect(obs.x + obs.w - 8 - propW / 2, drawY, propW, 2.5);
+
+            ctx.fillStyle = '#0b0e17';
+            ctx.fillRect(obs.x + 4, drawY + 10, 12, 5);
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(obs.x + 6, drawY + 11, 5, 3);
+          } else {
+            ctx.fillStyle = obs.color;
+            ctx.beginPath();
+            ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 4);
+            ctx.fill();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(obs.x + 4, obs.y + 4, obs.w - 8, obs.h - 8);
+          }
+          ctx.restore();
+        });
+      }
+
+      drawOverlay() {
+        const ctx = this.ctx;
+
+        if (this.state === 'START') {
+          ctx.save();
+          ctx.fillStyle = 'rgba(9, 13, 22, 0.68)';
+          ctx.fillRect(0, 0, this.width, this.height);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = 'bold 30px Segoe UI, sans-serif';
+          ctx.fillText('NEON RUNNER', this.width / 2, this.height / 2 - 22);
+
+          ctx.fillStyle = '#f1f5f9';
+          ctx.font = '16px Segoe UI, sans-serif';
+          ctx.fillText('Pressione ESPAÇO ou TOQUE na tela para iniciar', this.width / 2, this.height / 2 + 14);
+          ctx.restore();
+        } else if (this.state === 'GAMEOVER') {
+          ctx.save();
+          ctx.fillStyle = 'rgba(9, 13, 22, 0.78)';
+          ctx.fillRect(0, 0, this.width, this.height);
+
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ff2a85';
+          ctx.font = 'bold 34px Segoe UI, sans-serif';
+          ctx.fillText('GAME OVER', this.width / 2, this.height / 2 - 34);
+
+          ctx.fillStyle = '#f1f5f9';
+          ctx.font = 'bold 17px Segoe UI, sans-serif';
+          ctx.fillText(
+            `Pontuação Final: ${Math.floor(this.distanceScore)} pts  |  Moedas: ${this.coinsCount}`,
+            this.width / 2,
+            this.height / 2 + 2
+          );
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.font = '15px Segoe UI, sans-serif';
+          ctx.fillText('Pressione ESPAÇO ou TOQUE para jogar novamente', this.width / 2, this.height / 2 + 36);
+          ctx.restore();
+        }
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.background.draw(this.ctx);
+        this.drawGround();
+        this.drawEntities();
+        this.player.draw(this.ctx);
+        this.particles.forEach(p => p.draw(this.ctx));
+        this.drawOverlay();
+      }
+
+      loop(timestamp) {
+        if (!this.lastTime) this.lastTime = timestamp;
+        const dt = Math.min(0.05, (timestamp - this.lastTime) / 1000);
+        this.lastTime = timestamp;
+
+        this.update(dt);
+        this.draw();
+
+        requestAnimationFrame((ts) => this.loop(ts));
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      new EndlessRunnerGame();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>UMBRA — Labirinto no Escuro</title>
+  <style>
+    /* ==========================================================================
+       ESTILOS GERAIS E TEMA ESCURO ATMOSFÉRICO
+       ========================================================================== */
+    :root {
+      --bg-void: #050508;
+      --bg-panel: #0d0f17;
+      --bg-panel-alt: #131622;
+      --border-subtle: #1f2436;
+      --text-main: #e2e8f0;
+      --text-muted: #7c859e;
+      --accent-gold: #fbbf24;
+      --accent-cyan: #38bdf8;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --font-sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100dvh;
+      background-color: var(--bg-void);
+      background-image: radial-gradient(circle at 50% 35%, #0e121f 0%, #050508 75%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      padding: 10px;
+    }
+
+    /* Container Principal Centralizado */
+    .game-wrapper {
+      width: 100%;
+      max-width: 940px;
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      grid-template-areas:
+        "records hud"
+        "records stage";
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .hud-header { grid-area: hud; }
+    .canvas-stage { grid-area: stage; }
+    .records-panel { grid-area: records; }
+
+    /* ==========================================================================
+       PAINEL SUPERIOR (HUD)
+       ========================================================================== */
+    .hud-header {
+      background: linear-gradient(180deg, var(--bg-panel-alt) 0%, var(--bg-panel) 100%);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: 1.4fr repeat(4, auto);
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    }
+
+    .hud-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hud-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .hud-value {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Barra de Bateria */
+    .battery-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .battery-track {
+      flex: 1;
+      height: 14px;
+      background: #07080d;
+      border: 1px solid #282e44;
+      border-radius: 7px;
+      overflow: hidden;
+      position: relative;
+      min-width: 90px;
+    }
+
+    .battery-fill {
+      height: 100%;
+      width: 100%;
+      background: var(--accent-green);
+      border-radius: 6px;
+      transition: width 0.1s linear, background-color 0.3s ease;
+      box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    }
+
+    .battery-fill.warning {
+      background: var(--accent-gold);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+    }
+
+    .battery-fill.critical {
+      background: var(--accent-red);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.8);
+      animation: pulseCritical 0.6s infinite alternate;
+    }
+
+    @keyframes pulseCritical {
+      from { opacity: 0.55; }
+      to { opacity: 1; }
+    }
+
+    .battery-pct {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .keys-value { color: var(--accent-gold); }
+    .level-value { color: var(--accent-cyan); }
+
+    /* ==========================================================================
+       ÁREA DO CANVAS E OVERLAYS
+       ========================================================================== */
+    .canvas-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #050508;
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), inset 0 0 30px rgba(0, 0, 0, 0.9);
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none; /* Impede scroll/zoom durante toque no celular */
+      cursor: crosshair;
+    }
+
+    /* Botões Flutuantes no Canto do Canvas (Áudio e Foco Mobile) */
+    .stage-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 15;
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: rgba(13, 15, 23, 0.78);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: var(--text-main);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: rgba(30, 36, 54, 0.92);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Botão dedicado de Foco Intenso (útil em mobile e desktop) */
+    .focus-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 15;
+      background: rgba(14, 18, 30, 0.82);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--accent-cyan);
+      border-radius: 50px;
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease;
+      touch-action: none;
+    }
+
+    .focus-btn.active, .focus-btn:active {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.55);
+      transform: scale(0.96);
+    }
+
+    /* Telas Sobrepostas (Início, Transição de Nível, Game Over) */
+    .overlay-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(5, 5, 8, 0.88);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      transition: opacity 0.25s ease;
+    }
+
+    .overlay-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .game-title {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #f8fafc;
+      text-shadow: 0 0 24px rgba(251, 191, 36, 0.45);
+      margin-bottom: 6px;
+    }
+
+    .game-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 460px;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    .controls-hint {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      width: 100%;
+      max-width: 460px;
+      margin-bottom: 22px;
+      text-align: left;
+    }
+
+    .hint-card {
+      background: rgba(19, 22, 34, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.76rem;
+      color: #cbd5e1;
+      line-height: 1.35;
+    }
+
+    .hint-card strong {
+      color: var(--accent-gold);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .stats-summary {
+      background: rgba(19, 22, 34, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+    }
+
+    .stat-item span {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stat-item strong {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      color: var(--accent-gold);
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #050508;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 30px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(245, 158, 11, 0.55);
+      filter: brightness(1.06);
+    }
+
+    .primary-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ==========================================================================
+       PAINEL INFERIOR: TOP 5 RECORDES
+       ========================================================================== */
+    .records-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .records-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 2px 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 6px;
+    }
+
+    .records-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-gold);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .records-list {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .record-item {
+      background: var(--bg-panel-alt);
+      border: 1px solid #1b2030;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .record-rank {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--text-muted);
+    }
+
+    .record-item:first-child .record-rank {
+      color: var(--accent-gold);
+    }
+
+    .record-score {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 2px 0;
+    }
+
+    .record-lvl {
+      font-size: 0.68rem;
+      color: var(--accent-cyan);
+    }
+
+    /* ==========================================================================
+       RESPONSIVIDADE MOBILE
+       ========================================================================== */
+    @media (max-width: 640px) {
+      body {
+        padding: 6px;
+        justify-content: flex-start;
+      }
+
+      .hud-header {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 8px 10px;
+      }
+
+      .hud-block.battery-block {
+        grid-column: 1 / -1;
+      }
+
+      .game-wrapper {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+          "hud"
+          "stage"
+          "records";
+        grid-template-rows: auto;
+      }
+
+      .records-list {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .record-item:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .controls-hint {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="game-wrapper">
+    <!-- PAINEL SUPERIOR (HUD) -->
+    <header class="hud-header" aria-label="Status do Jogo">
+      <div class="hud-block battery-block">
+        <span class="hud-label">Bateria da Lanterna</span>
+        <div class="battery-container">
+          <div class="battery-track">
+            <div id="batteryFill" class="battery-fill"></div>
+          </div>
+          <span id="batteryText" class="battery-pct">100%</span>
+        </div>
+      </div>
+
+      <div class="hud-block">
+        <span class="hud-label">Chaves</span>
+        <span id="hudKeys" class="hud-value keys-value">0/2</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="hud-label">Nível</span>
+        <span id="hudLevel" class="hud-value level-value">1</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="hud-label">Pontos</span>
+        <span id="hudScore" class="hud-value">0</span>
+      </div>
+
+      <div class="hud-block">
+        <span class="hud-label">Tempo</span>
+        <span id="hudTime" class="hud-value">00:00</span>
+      </div>
+    </header>
+
+    <!-- PALCO DO JOGO (CANVAS + OVERLAYS) -->
+    <section class="canvas-stage">
+      <canvas id="gameCanvas" width="640" height="480"></canvas>
+
+      <!-- Botão de Som -->
+      <div class="stage-controls">
+        <button id="btnMute" class="icon-btn" type="button" title="Alternar Áudio">
+          <span id="muteIcon">🔊</span> <span id="muteLabel">Som</span>
+        </button>
+      </div>
+
+      <!-- Botão de Foco Intenso (Mobile e Desktop) -->
+      <button id="btnFocus" class="focus-btn" type="button">
+        🔦 Foco Intenso
+      </button>
+
+      <!-- TELA INICIAL -->
+      <div id="startOverlay" class="overlay-screen">
+        <h1 class="game-title">UMBRA</h1>
+        <p class="game-subtitle">
+          Explore labirintos mergulhados na escuridão absoluta. Colete todas as chaves douradas, economize bateria e alcance a saída antes que a luz se apague.
+        </p>
+        <div class="controls-hint">
+          <div class="hint-card">
+            <strong>💻 Computador (PC)</strong>
+            Segure WASD ou as Setas para se movimentar continuamente. Mouse para mirar a lanterna. Espaço ou Botão Direito para Foco Intenso.
+          </div>
+          <div class="hint-card">
+            <strong>📱 Celular / Touch</strong>
+            Toque e arraste na tela para mover e direcionar o feixe. Segure "Foco Intenso" para ampliar a luz.
+          </div>
+        </div>
+        <button id="btnStart" class="primary-btn" type="button">Entrar na Escuridão</button>
+      </div>
+
+      <!-- TELA DE GAME OVER -->
+      <div id="gameOverOverlay" class="overlay-screen hidden">
+        <h2 class="game-title" style="color: #ef4444; text-shadow: 0 0 24px rgba(239,68,68,0.5);">
+          A LUZ SE APAGOU
+        </h2>
+        <p class="game-subtitle">
+          Sua bateria chegou a 0% e as sombras tomaram conta do labirinto.
+        </p>
+        <div class="stats-summary">
+          <div class="stat-item">
+            <span>Nível Alcançado</span>
+            <strong id="finalLevel">1</strong>
+          </div>
+          <div class="stat-item">
+            <span>Pontuação Final</span>
+            <strong id="finalScore">0</strong>
+          </div>
+        </div>
+        <button id="btnRestart" class="primary-btn" type="button">Tentar Novamente</button>
+      </div>
+    </section>
+
+    <!-- PAINEL INFERIOR: TOP 5 RECORDES -->
+    <footer class="records-panel" aria-label="Top 5 Recordes">
+      <div class="records-header">
+        <span class="records-title">🏆 Top 5 Recordes Locais</span>
+        <span style="font-size: 0.7rem; color: var(--text-muted);">Salvo automaticamente</span>
+      </div>
+      <ul id="recordsList" class="records-list">
+        <!-- Preenchido via JavaScript -->
+      </ul>
+    </footer>
+  </main>
+
+  <script>
+    /**
+     * ============================================================================
+     * UMBRA — LABIRINTO NO ESCURO COM LANTERNA
+     * Arquitetura em Vanilla JS puro (60 FPS, DFS Procedural, Offscreen Lighting,
+     * Colisão com Deslizamento, Partículas e Sintetizador Web Audio API).
+     * ============================================================================
+     */
+
+    (() => {
+      'use strict';
+
+      /* --------------------------------------------------------------------------
+         1. REFERÊNCIAS DO DOM E CONFIGURAÇÕES GLOBAIS
+         -------------------------------------------------------------------------- */
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Canvas Offscreen dedicado à máscara de escuridão e recortes de luz
+      const shadowCanvas = document.createElement('canvas');
+      shadowCanvas.width = canvas.width;
+      shadowCanvas.height = canvas.height;
+      const shadowCtx = shadowCanvas.getContext('2d');
+
+      // Elementos da HUD
+      const batteryFill = document.getElementById('batteryFill');
+      const batteryText = document.getElementById('batteryText');
+      const hudKeys = document.getElementById('hudKeys');
+      const hudLevel = document.getElementById('hudLevel');
+      const hudScore = document.getElementById('hudScore');
+      const hudTime = document.getElementById('hudTime');
+
+      // Overlays e Botões
+      const startOverlay = document.getElementById('startOverlay');
+      const gameOverOverlay = document.getElementById('gameOverOverlay');
+      const finalLevelEl = document.getElementById('finalLevel');
+      const finalScoreEl = document.getElementById('finalScore');
+      const recordsListEl = document.getElementById('recordsList');
+
+      const btnStart = document.getElementById('btnStart');
+      const btnRestart = document.getElementById('btnRestart');
+      const btnMute = document.getElementById('btnMute');
+      const muteIcon = document.getElementById('muteIcon');
+      const muteLabel = document.getElementById('muteLabel');
+      const btnFocus = document.getElementById('btnFocus');
+
+      const STORAGE_KEY = 'umbra_maze_top5_v1';
+
+      /* --------------------------------------------------------------------------
+         2. SISTEMA DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+         -------------------------------------------------------------------------- */
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.stepTimer = 0;
+        }
+
+        // Inicializa o contexto de áudio sem bloquear o jogo em caso de erro
+        init() {
+          try {
+            if (!this.ctx) {
+              const AudioCtx = window.AudioContext || window.webkitAudioContext;
+              if (AudioCtx) {
+                this.ctx = new AudioCtx();
+              }
+            }
+            if (this.ctx && this.ctx.state === 'suspended') {
+              const resumePromise = this.ctx.resume();
+              if (resumePromise && typeof resumePromise.catch === 'function') {
+                resumePromise.catch(() => {});
+              }
+            }
+          } catch (err) {
+            // Falha de áudio não deve impedir a jogabilidade
+          }
+        }
+
+        toggleMute() {
+          this.muted = !this.muted;
+          muteIcon.textContent = this.muted ? '🔇' : '🔊';
+          muteLabel.textContent = this.muted ? 'Mudo' : 'Som';
+          return this.muted;
+        }
+
+        canPlay() {
+          return !this.muted && this.ctx && this.ctx.state === 'running';
+        }
+
+        // Passo sutil abafado
+        playStep(dt) {
+          if (!this.canPlay()) return;
+          this.stepTimer -= dt;
+          if (this.stepTimer > 0) return;
+          this.stepTimer = 0.28;
+
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(95 + Math.random() * 25, now);
+          osc.frequency.exponentialRampToValueAtTime(42, now + 0.06);
+
+          gain.gain.setValueAtTime(0.045, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.07);
+        }
+
+        // Som metálico cristalino ao coletar chave
+        playKeyPickup() {
+          if (!this.canPlay()) return;
+          const now = this.ctx.currentTime;
+          const freqs = [1174.66, 1567.98, 2349.32]; // D6, G6, D7
+          freqs.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, now + idx * 0.045);
+
+            gain.gain.setValueAtTime(0.09, now + idx * 0.045);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.35);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.045);
+            osc.stop(now + idx * 0.045 + 0.36);
+          });
+        }
+
+        // Som elétrico ascendente ao coletar bateria
+        playBatteryPickup() {
+          if (!this.canPlay()) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+
+          // Filtro passa-baixa para suavizar
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1400, now);
+
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        }
+
+        // Estalo elétrico de falha da lanterna (< 20% bateria)
+        playFlickerSpark() {
+          if (!this.canPlay()) return;
+          const now = this.ctx.currentTime;
+          const bufferSize = this.ctx.sampleRate * 0.04;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(2400, now);
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        }
+
+        // Som grave mecânico ao destrancar a porta
+        playDoorUnlock() {
+          if (!this.canPlay()) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(110, now);
+          osc.frequency.linearRampToValueAtTime(165, now + 0.15);
+          osc.frequency.linearRampToValueAtTime(220, now + 0.38);
+
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.45);
+        }
+
+        // Som dramático descendente de Game Over
+        playGameOver() {
+          if (!this.canPlay()) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.exponentialRampToValueAtTime(38, now + 0.9);
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(600, now);
+          filter.frequency.linearRampToValueAtTime(120, now + 0.9);
+
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 1.0);
+        }
+      }
+
+      const sound = new SoundEngine();
+
+      /* --------------------------------------------------------------------------
+         3. RANKING LOCAL (LOCALSTORAGE TOP 5)
+         -------------------------------------------------------------------------- */
+      function loadRecords() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveRecord(score, level) {
+        if (score <= 0) return;
+        const records = loadRecords();
+        records.push({
+          score: Math.floor(score),
+          level: level,
+          date: Date.now()
+        });
+        // Ordena por maior pontuação e depois por maior nível
+        records.sort((a, b) => b.score - a.score || b.level - a.level);
+        const top5 = records.slice(0, 5);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(top5));
+        } catch (e) {
+          // Ignora erro caso armazenamento esteja cheio/bloqueado
+        }
+        renderRecords();
+      }
+
+      function renderRecords() {
+        const records = loadRecords();
+        recordsListEl.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+          const rec = records[i];
+          const li = document.createElement('li');
+          li.className = 'record-item';
+          if (rec) {
+            li.innerHTML = `
+              <span class="record-rank">#${i + 1}</span>
+              <span class="record-score">${rec.score.toLocaleString('pt-BR')}</span>
+              <span class="record-lvl">Nível ${rec.level}</span>
+            `;
+          } else {
+            li.innerHTML = `
+              <span class="record-rank">#${i + 1}</span>
+              <span class="record-score" style="color: #475569;">---</span>
+              <span class="record-lvl" style="color: #475569;">Nível -</span>
+            `;
+          }
+          recordsListEl.appendChild(li);
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         4. ESTADO DO JOGO E ENTIDADES
+         -------------------------------------------------------------------------- */
+      const state = {
+        running: false,
+        gameOver: false,
+        level: 1,
+        score: 0,
+        levelTime: 0,
+        totalTime: 0,
+
+        // Labirinto (grade de células: 1 = parede, 0 = corredor)
+        cols: 15,
+        rows: 11,
+        grid: [],
+        tileSize: 40,
+        offsetX: 0,
+        offsetY: 0,
+
+        // Jogador
+        player: {
+          x: 0,
+          y: 0,
+          radius: 10,
+          speed: 190,
+          vx: 0,
+          vy: 0,
+          walkPhase: 0,
+          angle: 0,
+          battery: 100,
+          focusActive: false,
+          flickerMultiplier: 1,
+          flickerTimer: 0
+        },
+
+        // Itens e Saída
+        keys: [],
+        keysCollected: 0,
+        keysRequired: 2,
+        batteries: [],
+        exit: {
+          col: 1,
+          row: 1,
+          x: 0,
+          y: 0,
+          unlocked: false,
+          pulsePhase: 0
+        },
+
+        // Efeitos visuais
+        particles: [],
+        shockwaves: [],
+        floatingTexts: []
+      };
+
+      // Estado bruto das teclas: keydown=true, keyup=false.
+      const keys = Object.create(null);
+
+      // Ordem de pressionamento: se duas direções opostas estão seguradas
+      // (ex.: ← e →), vence a que foi pressionada por último. Isso permite
+      // inverter o sentido sem soltar a tecla anterior, sem "travar" o personagem.
+      const pressStamp = { up: 0, down: 0, left: 0, right: 0 };
+      let pressCounter = 0;
+
+      // Controles de Entrada
+      const input = {
+        focusKey: false,
+        focusBtn: false,
+        mouseX: canvas.width / 2,
+        mouseY: canvas.height / 2,
+        hasMouseMoved: false,
+        lastMouseMove: 0,
+        touch: {
+          active: false,
+          id: null,
+          startX: 0,
+          startY: 0,
+          currX: 0,
+          currY: 0,
+          dx: 0,
+          dy: 0
+        }
+      };
+
+      /* --------------------------------------------------------------------------
+         5. GERAÇÃO PROCEDURAL DO LABIRINTO (DFS BACKTRACKING)
+         -------------------------------------------------------------------------- */
+      function generateMaze(cols, rows) {
+        // Garante dimensões ímpares para paredes externas sólidas
+        if (cols % 2 === 0) cols++;
+        if (rows % 2 === 0) rows++;
+
+        const grid = Array.from({ length: rows }, () => Array(cols).fill(1));
+        const stack = [];
+        const startR = 1;
+        const startC = 1;
+        grid[startR][startC] = 0;
+        stack.push([startR, startC]);
+
+        const dirs = [
+          [-2, 0],
+          [2, 0],
+          [0, -2],
+          [0, 2]
+        ];
+
+        while (stack.length > 0) {
+          const [r, c] = stack[stack.length - 1];
+          const neighbors = [];
+
+          for (const [dr, dc] of dirs) {
+            const nr = r + dr;
+            const nc = c + dc;
+            if (nr > 0 && nr < rows - 1 && nc > 0 && nc < cols - 1 && grid[nr][nc] === 1) {
+              neighbors.push([nr, nc, r + dr / 2, c + dc / 2]);
+            }
+          }
+
+          if (neighbors.length > 0) {
+            const [nr, nc, wallR, wallC] = neighbors[Math.floor(Math.random() * neighbors.length)];
+            grid[wallR][wallC] = 0;
+            grid[nr][nc] = 0;
+            stack.push([nr, nc]);
+          } else {
+            stack.pop();
+          }
+        }
+
+        // Abre 1 ou 2 loops extras leves em níveis mais altos para dinamismo tático
+        const extraPassages = levelConfig(state.level).loops;
+        for (let i = 0; i < extraPassages; i++) {
+          const rr = 2 + Math.floor(Math.random() * (rows - 4));
+          const cc = 2 + Math.floor(Math.random() * (cols - 4));
+          if (grid[rr][cc] === 1) {
+            const horizontalOpen = grid[rr][cc - 1] === 0 && grid[rr][cc + 1] === 0;
+            const verticalOpen = grid[rr - 1][cc] === 0 && grid[rr + 1][cc] === 0;
+            if (horizontalOpen || verticalOpen) {
+              grid[rr][cc] = 0;
+            }
+          }
+        }
+
+        return { grid, cols, rows };
+      }
+
+      /* --------------------------------------------------------------------------
+         6. INICIALIZAÇÃO DE NÍVEL E POSICIONAMENTO DE ITENS
+         -------------------------------------------------------------------------- */
+      // Progressão infinita: o labirinto cresce até um tamanho máximo legível no
+      // canvas; depois disso a dificuldade segue subindo por chaves, consumo de
+      // bateria, alcance da luz e passagens extras, cada um com teto próprio.
+      function levelConfig(lv) {
+        const level = Math.max(1, Math.floor(lv));
+        const n = level - 1;
+        return {
+          cols: Math.min(39, 15 + n * 2),
+          rows: Math.min(29, 11 + n * 2),
+          keys: Math.min(6, 2 + Math.floor(n / 2)),
+          batteries: Math.min(10, 2 + Math.floor(level / 2)),
+          drain: 1.77 + Math.min(n, 16) * 0.04,
+          light: Math.max(0.72, 1 - n * 0.02),
+          loops: Math.min(14, Math.floor(level / 2))
+        };
+      }
+
+      function setupLevel(levelNum) {
+        state.level = levelNum;
+        state.levelTime = 0;
+        state.particles = [];
+        state.shockwaves = [];
+        state.floatingTexts = [];
+
+        // Aumenta gradualmente a grade a cada nível (máximo confortável para a tela)
+        const cfg = levelConfig(levelNum);
+        state.lightScale = cfg.light;
+        const baseCols = cfg.cols;
+        const baseRows = cfg.rows;
+
+        const mazeData = generateMaze(baseCols, baseRows);
+        state.grid = mazeData.grid;
+        state.cols = mazeData.cols;
+        state.rows = mazeData.rows;
+
+        // Calcula tamanho do tile para preencher perfeitamente o canvas 640x480
+        const pad = 16;
+        const availW = canvas.width - pad * 2;
+        const availH = canvas.height - pad * 2;
+        state.tileSize = Math.floor(Math.min(availW / state.cols, availH / state.rows));
+        state.offsetX = Math.floor((canvas.width - state.cols * state.tileSize) / 2);
+        state.offsetY = Math.floor((canvas.height - state.rows * state.tileSize) / 2);
+
+        // Helper para centro em pixels de uma célula (col, row)
+        const cellCenter = (c, r) => ({
+          x: state.offsetX + (c + 0.5) * state.tileSize,
+          y: state.offsetY + (r + 0.5) * state.tileSize
+        });
+
+        // Posiciona Jogador no início (1, 1) com folga ampla em relação à célula
+        const startPos = cellCenter(1, 1);
+        state.player.x = startPos.x;
+        state.player.y = startPos.y;
+        state.player.radius = Math.max(4.5, Math.min(9.5, state.tileSize * 0.21));
+        state.player.speed = Math.max(130, state.tileSize * 4.8);
+        state.player.angle = 0;
+        state.player.vx = 0;
+        state.player.vy = 0;
+
+        // Coleta todas as células livres (exceto início)
+        const freeCells = [];
+        for (let r = 1; r < state.rows - 1; r++) {
+          for (let c = 1; c < state.cols - 1; c++) {
+            if (state.grid[r][c] === 0 && !(r === 1 && c === 1)) {
+              const distFromStart = Math.hypot(c - 1, r - 1);
+              freeCells.push({ c, r, distFromStart });
+            }
+          }
+        }
+
+        // Ordena por distância do início para colocar a Saída bem longe
+        freeCells.sort((a, b) => b.distFromStart - a.distFromStart);
+        const exitCell = freeCells.shift();
+        const exitPos = cellCenter(exitCell.c, exitCell.r);
+        state.exit = {
+          col: exitCell.c,
+          row: exitCell.r,
+          x: exitPos.x,
+          y: exitPos.y,
+          unlocked: false,
+          pulsePhase: 0
+        };
+
+        // Embaralha células restantes garantindo espaçamento mínimo
+        const usedCells = [{ c: 1, r: 1 }, { c: exitCell.c, r: exitCell.r }];
+        const pickSpacedCell = (minDist) => {
+          // Embaralha cópia
+          const shuffled = [...freeCells].sort(() => Math.random() - 0.5);
+          for (const candidate of shuffled) {
+            const ok = usedCells.every(
+              (u) => Math.hypot(u.c - candidate.c, u.r - candidate.r) >= minDist
+            );
+            if (ok) {
+              usedCells.push(candidate);
+              const idx = freeCells.indexOf(candidate);
+              if (idx > -1) freeCells.splice(idx, 1);
+              return candidate;
+            }
+          }
+          // Fallback caso o mapa seja pequeno
+          const fallback = freeCells.pop();
+          if (fallback) usedCells.push(fallback);
+          return fallback;
+        };
+
+        // Quantidade de chaves (2 nos níveis 1-2, 3 a partir do nível 3)
+        state.keysRequired = cfg.keys;
+        state.keysCollected = 0;
+        state.keys = [];
+
+        for (let i = 0; i < state.keysRequired; i++) {
+          const cell = pickSpacedCell(4);
+          if (cell) {
+            const pos = cellCenter(cell.c, cell.r);
+            state.keys.push({
+              x: pos.x,
+              y: pos.y,
+              collected: false,
+              bobPhase: Math.random() * Math.PI * 2
+            });
+          }
+        }
+
+        // Quantidade de pilhas/baterias espalhadas (2 a 4 dependendo do tamanho do labirinto)
+        const batteryCount = cfg.batteries;
+        state.batteries = [];
+        for (let i = 0; i < batteryCount; i++) {
+          const cell = pickSpacedCell(3);
+          if (cell) {
+            const pos = cellCenter(cell.c, cell.r);
+            state.batteries.push({
+              x: pos.x,
+              y: pos.y,
+              collected: false,
+              pulsePhase: Math.random() * Math.PI * 2
+            });
+          }
+        }
+
+        // Popula poeira atmosférica inicial no ambiente
+        for (let i = 0; i < 45; i++) {
+          state.particles.push(createDustParticle());
+        }
+
+        updateHUD();
+      }
+
+      function formatTime(seconds) {
+        const totalSecs = Math.max(0, Math.floor(seconds));
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      }
+
+      function updateHUD() {
+        const bat = Math.max(0, Math.min(100, state.player.battery));
+        const batRounded = Math.ceil(bat);
+
+        if (batteryFill) {
+          batteryFill.style.width = `${bat}%`;
+          batteryFill.classList.remove('warning', 'critical');
+          if (bat < 20) {
+            batteryFill.classList.add('critical');
+          } else if (bat < 50) {
+            batteryFill.classList.add('warning');
+          }
+        }
+
+        if (batteryText) {
+          batteryText.textContent = `${batRounded}%`;
+        }
+
+        if (hudKeys) {
+          hudKeys.textContent = `${state.keysCollected}/${state.keysRequired}`;
+        }
+
+        if (hudLevel) {
+          hudLevel.textContent = `${state.level}`;
+        }
+
+        if (hudScore) {
+          hudScore.textContent = `${Math.floor(state.score).toLocaleString('pt-BR')}`;
+        }
+
+        if (hudTime) {
+          hudTime.textContent = formatTime(state.totalTime);
+        }
+      }
+
+      function startNewGame() {
+        try {
+          sound.init();
+        } catch (err) {
+          // Ignora erro de áudio para garantir início imediato
+        }
+
+        resetInputStates();
+        state.mode = 'playing';
+        state.score = 0;
+        state.totalTime = 0;
+        state.gameOver = false;
+        state.running = true;
+        state.player.battery = 100;
+        state.player.flickerMultiplier = 1;
+        state.player.flickerTimer = 0;
+
+        if (startOverlay) {
+          startOverlay.classList.add('hidden');
+          startOverlay.style.display = 'none';
+        }
+        if (gameOverOverlay) {
+          gameOverOverlay.classList.add('hidden');
+          gameOverOverlay.style.display = 'none';
+        }
+
+        setupLevel(1);
+        if (canvas && typeof canvas.focus === 'function') {
+          canvas.setAttribute('tabindex', '-1');
+          canvas.focus({ preventScroll: true });
+        }
+        ensureLoopRunning();
+      }
+
+      function resetInputStates() {
+        // O evento apenas limpa o estado das teclas; nunca altera a posição do jogador.
+        for (const key of Object.keys(keys)) keys[key] = false;
+        if (state.player) {
+          state.player.vx = 0;
+          state.player.vy = 0;
+        }
+        input.focusKey = false;
+        input.focusBtn = false;
+        btnFocus.classList.remove('active');
+        input.touch.active = false;
+        input.touch.id = null;
+        input.touch.dx = 0;
+        input.touch.dy = 0;
+      }
+
+      function applyDirectionKey(keyOrCode, isPressed) {
+        const k = (keyOrCode || '').toLowerCase();
+        let direction = null;
+        if (k === 'keyw' || k === 'arrowup' || k === 'w') direction = 'up';
+        else if (k === 'keys' || k === 'arrowdown' || k === 's') direction = 'down';
+        else if (k === 'keya' || k === 'arrowleft' || k === 'a') direction = 'left';
+        else if (k === 'keyd' || k === 'arrowright' || k === 'd') direction = 'right';
+        if (!direction) return false;
+        // Entrada pura: registra pressionamento/soltura. O movimento ocorre somente em update(dt).
+        if (isPressed && !keys[direction]) pressStamp[direction] = ++pressCounter;
+        keys[direction] = isPressed;
+        return true;
+      }
+
+      /* --------------------------------------------------------------------------
+         7. SISTEMA DE PARTÍCULAS E TEXTOS FLUTUANTES
+         -------------------------------------------------------------------------- */
+      function createDustParticle() {
+        return {
+          type: 'dust',
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 10,
+          vy: (Math.random() - 0.5) * 10 - 3,
+          size: 0.8 + Math.random() * 1.4,
+          alpha: 0.25 + Math.random() * 0.45,
+          life: 999
+        };
+      }
+
+      function spawnBurst(x, y, color, count = 18) {
+        for (let i = 0; i < count; i++) {
+          const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+          const spd = 40 + Math.random() * 95;
+          state.particles.push({
+            type: 'spark',
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            size: 1.8 + Math.random() * 2.2,
+            color,
+            alpha: 1,
+            life: 0.45 + Math.random() * 0.35,
+            maxLife: 0.8
+          });
+        }
+      }
+
+      function spawnShockwave(x, y, color) {
+        state.shockwaves.push({
+          x,
+          y,
+          radius: 6,
+          maxRadius: 110,
+          color,
+          alpha: 0.95
+        });
+      }
+
+      function spawnFloatingText(x, y, text, color) {
+        state.floatingTexts.push({
+          x,
+          y,
+          text,
+          color,
+          alpha: 1,
+          life: 1.1
+        });
+      }
+
+      /* --------------------------------------------------------------------------
+         8. COLISÃO ESTÁVEL COM A GRADE DO LABIRINTO
+         -------------------------------------------------------------------------- */
+      // Verifica se o círculo do jogador cabe na posição proposta.
+      // A colisão é calculada contra os retângulos das paredes, sem correções
+      // de posição acumuladas que possam empurrar o jogador para fora do corredor.
+      function canOccupy(px, py, radius) {
+        const r = Math.max(1, radius - 0.35);
+        const minC = Math.floor((px - r - state.offsetX) / state.tileSize);
+        const maxC = Math.floor((px + r - state.offsetX) / state.tileSize);
+        const minR = Math.floor((py - r - state.offsetY) / state.tileSize);
+        const maxR = Math.floor((py + r - state.offsetY) / state.tileSize);
+
+        for (let row = minR; row <= maxR; row++) {
+          for (let col = minC; col <= maxC; col++) {
+            if (row < 0 || row >= state.rows || col < 0 || col >= state.cols || state.grid[row][col] === 1) {
+              const left = state.offsetX + col * state.tileSize;
+              const top = state.offsetY + row * state.tileSize;
+              const nearestX = Math.max(left, Math.min(px, left + state.tileSize));
+              const nearestY = Math.max(top, Math.min(py, top + state.tileSize));
+              const dx = px - nearestX;
+              const dy = py - nearestY;
+              if (dx * dx + dy * dy < r * r) return false;
+            }
+          }
+        }
+        return true;
+      }
+
+      // Deslocamento em micro-passos: mantém a colisão estável sem teletransportes.
+      // Primeiro tenta o vetor completo; se houver parede, permite deslizar no eixo livre.
+      function movePlayerSmooth(p, dx, dy) {
+        const distance = Math.max(Math.abs(dx), Math.abs(dy));
+        const steps = Math.max(1, Math.ceil(distance / 2));
+        const sx = dx / steps;
+        const sy = dy / steps;
+        let blockedX = false;
+        let blockedY = false;
+        for (let i = 0; i < steps; i++) {
+          const nx = p.x + (blockedX ? 0 : sx);
+          const ny = p.y + (blockedY ? 0 : sy);
+          if (canOccupy(nx, ny, p.radius)) {
+            p.x = nx; p.y = ny;
+            continue;
+          }
+          // Tenta cada eixo separadamente para contornar quinas sem saltos.
+          if (!blockedX && canOccupy(p.x + sx, p.y, p.radius)) p.x += sx;
+          else if (!blockedX) blockedX = true;
+          if (!blockedY && canOccupy(p.x, p.y + sy, p.radius)) p.y += sy;
+          else if (!blockedY) blockedY = true;
+        }
+        return { blockedX, blockedY };
+      }
+
+      /* --------------------------------------------------------------------------
+         8b. AUXILIARES DE MOVIMENTO FLUIDO
+         -------------------------------------------------------------------------- */
+      // Resolve um eixo (-1, 0, +1). Em teclas opostas, vence a mais recente.
+      function resolveAxis(negHeld, posHeld, negStamp, posStamp) {
+        if (negHeld && posHeld) return posStamp > negStamp ? 1 : -1;
+        if (posHeld) return 1;
+        if (negHeld) return -1;
+        return 0;
+      }
+
+      // Há parede imediatamente à frente nessa direção?
+      function isBlockedDir(p, dx, dy) {
+        const probe = Math.max(2, p.radius * 0.45);
+        return !canOccupy(p.x + dx * probe, p.y + dy * probe, p.radius);
+      }
+
+      function isOpenCell(c, r) {
+        return r >= 0 && r < state.rows && c >= 0 && c < state.cols && state.grid[r][c] === 0;
+      }
+
+      // Aproxima a velocidade do alvo com respostas diferentes para acelerar,
+      // frear (soltar a tecla) e inverter o sentido.
+      function approachVelocity(v, target, maxSpeed, dt) {
+        let response;
+        if (Math.abs(target) < 0.001) response = 22;           // soltou: freia rápido
+        else if (v * target < 0) response = 30;                // inverteu: vira na hora
+        else response = 17;                                    // acelerando
+        let nv = v + (target - v) * (1 - Math.exp(-response * dt));
+        if (Math.abs(target) < 0.001 && Math.abs(nv) < 4) nv = 0;
+        // Pequeno impulso inicial: sai do repouso sem sensação de "peso".
+        if (Math.abs(target) > 0.001 && Math.abs(v) < maxSpeed * 0.18 && Math.abs(nv) < maxSpeed * 0.18) {
+          nv = Math.sign(target) * Math.min(Math.abs(target), maxSpeed * 0.18);
+        }
+        return nv;
+      }
+
+      // Guia o jogador ao centro do corredor quando ele pede uma direção pura e
+      // a quina impede a passagem, mesmo estando levemente fora do eixo.
+      function applyCornerAssist(p, moveX, moveY, dt) {
+        const horizontal = Math.abs(moveX) > 0.2 && Math.abs(moveY) < 0.2;
+        const vertical = Math.abs(moveY) > 0.2 && Math.abs(moveX) < 0.2;
+        if (!horizontal && !vertical) return;
+
+        const ts = state.tileSize;
+        const col = Math.floor((p.x - state.offsetX) / ts);
+        const row = Math.floor((p.y - state.offsetY) / ts);
+        const cx = state.offsetX + (col + 0.5) * ts;
+        const cy = state.offsetY + (row + 0.5) * ts;
+        const tolerance = ts * 0.48;
+        const maxNudge = Math.max(0.4, p.speed * 1.2 * dt);
+
+        if (vertical) {
+          const sy = Math.sign(moveY);
+          if (!isBlockedDir(p, 0, sy)) return;
+          if (!isOpenCell(col, row + sy)) return;
+          const off = cx - p.x;
+          if (Math.abs(off) > tolerance) return;
+          const step = Math.max(-maxNudge, Math.min(maxNudge, off));
+          if (canOccupy(p.x + step, p.y, p.radius)) p.x += step;
+        } else {
+          const sx = Math.sign(moveX);
+          if (!isBlockedDir(p, sx, 0)) return;
+          if (!isOpenCell(col + sx, row)) return;
+          const off = cy - p.y;
+          if (Math.abs(off) > tolerance) return;
+          const step = Math.max(-maxNudge, Math.min(maxNudge, off));
+          if (canOccupy(p.x, p.y + step, p.radius)) p.y += step;
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         9. ATUALIZAÇÃO LÓGICA (UPDATE LOOP)
+         -------------------------------------------------------------------------- */
+      function update(dt) {
+        if (!state.running || state.gameOver) return;
+
+        state.levelTime += dt;
+        state.totalTime += dt;
+
+        const p = state.player;
+        p.focusActive = (input.focusKey || input.focusBtn) && p.battery > 0;
+
+        // 1. Entrada: o último sentido pressionado vence em eixos opostos.
+        const isTouch = input.touch.active;
+        let moveX, moveY;
+        if (isTouch) {
+          moveX = input.touch.dx;
+          moveY = input.touch.dy;
+        } else {
+          moveX = resolveAxis(keys.left, keys.right, pressStamp.left, pressStamp.right);
+          moveY = resolveAxis(keys.up, keys.down, pressStamp.up, pressStamp.down);
+
+          // Diagonal contra parede: o eixo bloqueado é descartado e o eixo livre
+          // mantém velocidade total (sem o "freio" de 0.707 ao roçar na parede).
+          if (moveX !== 0 && moveY !== 0) {
+            const blockX = isBlockedDir(p, moveX, 0);
+            const blockY = isBlockedDir(p, 0, moveY);
+            if (blockX && !blockY) moveX = 0;
+            else if (blockY && !blockX) moveY = 0;
+          }
+        }
+        const magnitude = Math.hypot(moveX, moveY);
+        if (magnitude > 1) { moveX /= magnitude; moveY /= magnitude; }
+
+        // Ajuda de quina: ao pedir uma direção pura e ficar "agarrado" na quina de
+        // um corredor/cruzamento, o personagem é guiado suavemente ao centro da célula.
+        if (!isTouch) applyCornerAssist(p, moveX, moveY, dt);
+
+        // Aceleração por eixo, independente de FPS. Parada e inversões são mais
+        // rápidas que a aceleração, deixando curvas e paradas nítidas.
+        p.vx = approachVelocity(p.vx, moveX * p.speed, p.speed, dt);
+        p.vy = approachVelocity(p.vy, moveY * p.speed, p.speed, dt);
+
+        const moved = movePlayerSmooth(p, p.vx * dt, p.vy * dt);
+        if (moved.blockedX) p.vx = 0;
+        if (moved.blockedY) p.vy = 0;
+
+        const actualSpeed = Math.hypot(p.vx, p.vy);
+        const mouseRecentlyUsed = input.hasMouseMoved && (performance.now() - input.lastMouseMove) < 1500;
+        if (actualSpeed > 5) {
+          p.walkPhase += dt * (7 + actualSpeed / 24);
+          sound.playStep(dt);
+          // Sem mouse ativo (teclado/touch), a lanterna acompanha a direção do movimento.
+          if (isTouch || !mouseRecentlyUsed) {
+            const targetAngle = Math.atan2(p.vy, p.vx);
+            p.angle = lerpAngle(p.angle, targetAngle, 1 - Math.exp(-16 * dt));
+          }
+        } else {
+          p.walkPhase = 0;
+        }
+
+        // Mira pelo mouse no Desktop (enquanto o mouse estiver sendo usado)
+        if (!isTouch && mouseRecentlyUsed) {
+          p.angle = Math.atan2(input.mouseY - p.y, input.mouseX - p.x);
+        }
+
+        // 2. Consumo de Bateria
+        const baseDrain = levelConfig(state.level).drain; // consumo cresce com o nível, com teto
+        const drainRate = p.focusActive ? baseDrain * 2.35 : baseDrain;
+        p.battery = Math.max(0, p.battery - drainRate * dt);
+
+        // Efeito de mau contato quando bateria < 20%
+        if (p.battery > 0 && p.battery < 20) {
+          p.flickerTimer -= dt;
+          if (p.flickerTimer <= 0) {
+            if (Math.random() < 0.25) {
+              p.flickerMultiplier = 0.25 + Math.random() * 0.35;
+              p.flickerTimer = 0.06 + Math.random() * 0.09;
+              if (Math.random() < 0.45) sound.playFlickerSpark();
+            } else {
+              p.flickerMultiplier = 1;
+              p.flickerTimer = 0.15 + Math.random() * 0.45;
+            }
+          }
+        } else {
+          p.flickerMultiplier = 1;
+        }
+
+        // Verifica Game Over por falta de bateria
+        if (p.battery <= 0) {
+          triggerGameOver();
+          return;
+        }
+
+        // 3. Coleta de Chaves
+        const pickupDist = p.radius + state.tileSize * 0.35;
+        for (const k of state.keys) {
+          if (k.collected) continue;
+          k.bobPhase += dt * 4;
+          if (Math.hypot(p.x - k.x, p.y - k.y) < pickupDist) {
+            k.collected = true;
+            state.keysCollected++;
+            state.score += 150 * state.level;
+            sound.playKeyPickup();
+            spawnBurst(k.x, k.y, '#fbbf24', 22);
+            spawnFloatingText(k.x, k.y - 10, `+${150 * state.level}`, '#fbbf24');
+
+            // Verifica se destrancou a saída
+            if (state.keysCollected >= state.keysRequired && !state.exit.unlocked) {
+              state.exit.unlocked = true;
+              sound.playDoorUnlock();
+              spawnShockwave(state.exit.x, state.exit.y, '#22c55e');
+              spawnFloatingText(p.x, p.y - 18, 'SAÍDA ABERTA!', '#22c55e');
+            }
+          }
+        }
+
+        // 4. Coleta de Pilhas / Baterias
+        for (const b of state.batteries) {
+          if (b.collected) continue;
+          b.pulsePhase += dt * 3.5;
+          if (Math.hypot(p.x - b.x, p.y - b.y) < pickupDist) {
+            b.collected = true;
+            const prevBat = p.battery;
+            p.battery = Math.min(100, p.battery + 25);
+            const gained = Math.round(p.battery - prevBat);
+            state.score += 75;
+            sound.playBatteryPickup();
+            spawnBurst(b.x, b.y, '#38bdf8', 18);
+            spawnFloatingText(b.x, b.y - 10, `+${gained}% Bateria`, '#38bdf8');
+          }
+        }
+
+        // 5. Saída do Labirinto (Vitória da Fase)
+        state.exit.pulsePhase += dt * 4;
+        if (state.exit.unlocked) {
+          if (Math.hypot(p.x - state.exit.x, p.y - state.exit.y) < p.radius + state.tileSize * 0.35) {
+            completeLevel();
+            return;
+          }
+        }
+
+        // 6. Atualização de Partículas, Ondas e Textos
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const pt = state.particles[i];
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+
+          if (pt.type === 'dust') {
+            if (pt.x < 0) pt.x = canvas.width;
+            if (pt.x > canvas.width) pt.x = 0;
+            if (pt.y < 0) pt.y = canvas.height;
+            if (pt.y > canvas.height) pt.y = 0;
+          } else {
+            pt.life -= dt;
+            pt.alpha = Math.max(0, pt.life / pt.maxLife);
+            if (pt.life <= 0) state.particles.splice(i, 1);
+          }
+        }
+
+        for (let i = state.shockwaves.length - 1; i >= 0; i--) {
+          const sw = state.shockwaves[i];
+          sw.radius += 130 * dt;
+          sw.alpha = Math.max(0, 1 - sw.radius / sw.maxRadius);
+          if (sw.radius >= sw.maxRadius) state.shockwaves.splice(i, 1);
+        }
+
+        for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+          const ft = state.floatingTexts[i];
+          ft.y -= 26 * dt;
+          ft.life -= dt;
+          ft.alpha = Math.max(0, ft.life);
+          if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+        }
+
+        updateHUD();
+      }
+
+      function lerpAngle(a, b, t) {
+        const diff = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        return a + diff * Math.min(1, t);
+      }
+
+      function completeLevel() {
+        // Bônus por bateria restante e rapidez
+        const batteryBonus = Math.round(state.player.battery * 8);
+        const timeBonus = Math.max(50, Math.round(450 - state.levelTime * 6));
+        state.score += batteryBonus + timeBonus;
+
+        // Pequena recarga de cortesia ao passar de nível (+15%)
+        state.player.battery = Math.min(100, state.player.battery + 15);
+        sound.playDoorUnlock();
+
+        resetInputStates();
+        const nextLevel = state.level + 1;
+        setupLevel(nextLevel);
+        spawnShockwave(state.player.x, state.player.y, '#38bdf8');
+        spawnFloatingText(
+          state.player.x,
+          state.player.y - 16,
+          `NÍVEL ${nextLevel}! +${batteryBonus + timeBonus} PTS`,
+          '#fbbf24'
+        );
+      }
+
+      function triggerGameOver() {
+        state.mode = 'gameover';
+        state.gameOver = true;
+        state.running = false;
+        resetInputStates();
+        try {
+          sound.playGameOver();
+        } catch (err) {
+          // Ignora erro de áudio
+        }
+
+        finalLevelEl.textContent = state.level;
+        finalScoreEl.textContent = Math.floor(state.score).toLocaleString('pt-BR');
+        saveRecord(state.score, state.level);
+
+        updateHUD();
+        if (gameOverOverlay) {
+          gameOverOverlay.style.display = 'flex';
+          gameOverOverlay.classList.remove('hidden');
+        }
+      }
+
+      /* --------------------------------------------------------------------------
+         10. RENDERIZAÇÃO DO LABIRINTO, ENTIDADES E ILUMINAÇÃO
+         -------------------------------------------------------------------------- */
+      function renderMaze() {
+        const ts = state.tileSize;
+        for (let r = 0; r < state.rows; r++) {
+          for (let c = 0; c < state.cols; c++) {
+            const x = state.offsetX + c * ts;
+            const y = state.offsetY + r * ts;
+
+            if (state.grid[r][c] === 1) {
+              ctx.fillStyle = '#181c2a';
+              ctx.fillRect(x, y, ts, ts);
+              ctx.strokeStyle = '#252b40';
+              ctx.lineWidth = 1;
+              ctx.strokeRect(x + 0.5, y + 0.5, ts - 1, ts - 1);
+            } else {
+              ctx.fillStyle = '#0a0c12';
+              ctx.fillRect(x, y, ts, ts);
+            }
+          }
+        }
+      }
+
+      function renderParticlesAndEffects() {
+        for (const pt of state.particles) {
+          ctx.save();
+          ctx.globalAlpha = pt.alpha;
+          ctx.fillStyle = pt.type === 'dust' ? '#cbd5e1' : pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        for (const sw of state.shockwaves) {
+          ctx.save();
+          ctx.globalAlpha = sw.alpha;
+          ctx.strokeStyle = sw.color;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        for (const ft of state.floatingTexts) {
+          ctx.save();
+          ctx.globalAlpha = ft.alpha;
+          ctx.font = 'bold 13px Consolas, monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = ft.color;
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.restore();
+        }
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        renderMaze();
+        renderExit();
+
+        for (const k of state.keys) {
+          if (!k.collected) renderKey(k);
+        }
+
+        for (const b of state.batteries) {
+          if (!b.collected) renderBattery(b);
+        }
+
+        renderPlayer();
+        renderLightingLayer();
+        renderParticlesAndEffects();
+
+        if (input.touch.active) {
+          renderTouchJoystick();
+        }
+      }
+
+      function renderExit() {
+        const ex = state.exit;
+        const size = state.tileSize * 0.68;
+        const pulse = 0.7 + 0.3 * Math.sin(ex.pulsePhase);
+
+        ctx.save();
+        ctx.translate(ex.x, ex.y);
+
+        // Brilho de fundo
+        const glowColor = ex.unlocked ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.28)';
+        const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, size * 0.9);
+        grad.addColorStop(0, glowColor);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Moldura da porta
+        ctx.fillStyle = ex.unlocked ? '#15803d' : '#7f1d1d';
+        ctx.strokeStyle = ex.unlocked ? '#4ade80' : '#f87171';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.roundRect(-size / 2, -size / 2, size, size, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        // Ícone interno (cadeado ou portal aberto)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(10, Math.floor(size * 0.45))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ex.unlocked ? '▲' : '✖', 0, 1);
+
+        ctx.restore();
+      }
+
+      function renderKey(k) {
+        const bobY = Math.sin(k.bobPhase) * 2.5;
+        const r = Math.max(5, state.tileSize * 0.18);
+
+        ctx.save();
+        ctx.translate(k.x, k.y + bobY);
+
+        // Aura dourada
+        const grad = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 2.4);
+        grad.addColorStop(0, 'rgba(251, 191, 36, 0.55)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cabeça da chave
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(-r * 0.4, 0, r * 0.55, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Haste e dentes
+        ctx.beginPath();
+        ctx.moveTo(r * 0.15, 0);
+        ctx.lineTo(r * 1.1, 0);
+        ctx.lineTo(r * 1.1, r * 0.45);
+        ctx.moveTo(r * 0.7, 0);
+        ctx.lineTo(r * 0.7, r * 0.35);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      function renderBattery(b) {
+        const scale = 1 + 0.08 * Math.sin(b.pulsePhase);
+        const w = Math.max(10, state.tileSize * 0.32);
+        const h = Math.max(14, state.tileSize * 0.46);
+
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.scale(scale, scale);
+
+        // Aura ciano
+        const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, h * 1.3);
+        grad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, h * 1.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Corpo da pilha
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.roundRect(-w / 2, -h / 2, w, h, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        // Polo positivo
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(-w * 0.25, -h / 2 - 2.5, w * 0.5, 2.5);
+
+        // Carga interna
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(-w / 2 + 2.5, -h / 2 + 3, w - 5, h - 6);
+
+        ctx.restore();
+      }
+
+      function renderPlayer() {
+        const p = state.player;
+        const moving = Math.hypot(p.vx || 0, p.vy || 0) > 1;
+        const gait = moving ? Math.sin(p.walkPhase) : 0;
+        const bob = moving ? Math.abs(Math.sin(p.walkPhase * 2)) * p.radius * 0.08 : 0;
+        ctx.save();
+        ctx.translate(p.x, p.y - bob);
+        ctx.rotate(p.angle);
+
+        // Pequenos passos alternados dão leitura visual de caminhada contínua.
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = Math.max(2, p.radius * 0.28);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-p.radius * 0.25, p.radius * 0.35);
+        ctx.lineTo(-p.radius * 0.25 + gait * p.radius * 0.32, p.radius * 0.82);
+        ctx.moveTo(-p.radius * 0.25, -p.radius * 0.35);
+        ctx.lineTo(-p.radius * 0.25 - gait * p.radius * 0.32, -p.radius * 0.82);
+        ctx.stroke();
+
+        // Corpo do explorador
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lanterna na mão direita
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(p.radius * 0.3, p.radius * 0.35, p.radius * 0.9, p.radius * 0.45);
+
+        // Lente brilhante da lanterna
+        ctx.fillStyle = p.battery > 0 ? '#fef08a' : '#1e293b';
+        ctx.beginPath();
+        ctx.arc(p.radius * 1.2, p.radius * 0.57, p.radius * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function renderLightingLayer() {
+        const p = state.player;
+
+        // 1. Preenche toda a camada offscreen com escuridão absoluta (#050508)
+        shadowCtx.globalCompositeOperation = 'source-over';
+        shadowCtx.fillStyle = '#050508';
+        shadowCtx.fillRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+
+        if (p.battery > 0) {
+          shadowCtx.globalCompositeOperation = 'destination-out';
+
+          // Fator proporcional à bateria restante (0.25 a 1.0)
+          const batRatio = 0.25 + (p.battery / 100) * 0.75;
+          const flicker = p.flickerMultiplier;
+
+          // A) Pequeno halo circular fraco ao redor do jogador (evita cegueira total nas paredes)
+          const haloRadius = (p.radius * 3.4) * (0.7 + 0.3 * batRatio) * flicker;
+          const haloGrad = shadowCtx.createRadialGradient(p.x, p.y, p.radius * 0.5, p.x, p.y, haloRadius);
+          haloGrad.addColorStop(0, 'rgba(0, 0, 0, 0.88)');
+          haloGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.42)');
+          haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+          shadowCtx.fillStyle = haloGrad;
+          shadowCtx.beginPath();
+          shadowCtx.arc(p.x, p.y, haloRadius, 0, Math.PI * 2);
+          shadowCtx.fill();
+
+          // B) Cone de luz direcional da lanterna
+          const baseRange = (p.focusActive ? 295 : 205) * (state.lightScale || 1);
+          const coneRange = Math.max(65, baseRange * batRatio * flicker);
+          const halfSpread = p.focusActive ? 0.34 : 0.48; // Foco intenso concentra e alonga o feixe
+
+          shadowCtx.save();
+          shadowCtx.translate(p.x, p.y);
+          shadowCtx.rotate(p.angle);
+
+          // Máscara em formato de cone com ponta suavemente arredondada
+          shadowCtx.beginPath();
+          shadowCtx.moveTo(-4, 0);
+          shadowCtx.arc(0, 0, coneRange, -halfSpread, halfSpread);
+          shadowCtx.closePath();
+          shadowCtx.clip();
+
+          // Gradiente radial suave dentro do cone
+          const coneGrad = shadowCtx.createRadialGradient(0, 0, 4, 0, 0, coneRange);
+          coneGrad.addColorStop(0, `rgba(0, 0, 0, ${0.98 * flicker})`);
+          coneGrad.addColorStop(0.55, `rgba(0, 0, 0, ${0.82 * flicker})`);
+          coneGrad.addColorStop(0.85, `rgba(0, 0, 0, ${0.32 * flicker})`);
+          coneGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+          shadowCtx.fillStyle = coneGrad;
+          shadowCtx.fillRect(-10, -coneRange, coneRange + 20, coneRange * 2);
+          shadowCtx.restore();
+        }
+
+        // Projeta a camada de sombra no canvas principal
+        ctx.drawImage(shadowCanvas, 0, 0);
+
+        // Adiciona um leve matiz cálido volumétrico no feixe de luz
+        if (p.battery > 0) {
+          const batRatio = 0.25 + (p.battery / 100) * 0.75;
+          const baseRange = (p.focusActive ? 295 : 205) * (state.lightScale || 1);
+          const coneRange = Math.max(65, baseRange * batRatio * p.flickerMultiplier);
+          const halfSpread = p.focusActive ? 0.34 : 0.48;
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.angle);
+
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.arc(0, 0, coneRange * 0.92, -halfSpread * 0.85, halfSpread * 0.85);
+          ctx.closePath();
+
+          const tintGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, coneRange * 0.92);
+          tintGrad.addColorStop(
+            0,
+            p.focusActive ? 'rgba(186, 230, 253, 0.14)' : 'rgba(254, 243, 199, 0.11)'
+          );
+          tintGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+          ctx.fillStyle = tintGrad;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function renderTouchJoystick() {
+        const t = input.touch;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(t.startX, t.startY, 34, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.45)';
+        ctx.beginPath();
+        ctx.arc(t.startX + t.dx * 26, t.startY + t.dy * 26, 14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      /* --------------------------------------------------------------------------
+         11. EVENTOS DE ENTRADA (TECLADO, MOUSE E TOUCH RESPONSIVO)
+         -------------------------------------------------------------------------- */
+      function getCanvasCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      }
+
+      // Teclado
+      function handleKeyDown(e) {
+        // IMPORTANTE: keydown não move o personagem. Apenas atualiza o estado da tecla.
+        const isDir = applyDirectionKey(e.code, true) || applyDirectionKey(e.key, true);
+        if (isDir) {
+          e.preventDefault();
+          return;
+        }
+        if (e.code === 'Space' || e.key === ' ') {
+          input.focusKey = true;
+          btnFocus.classList.add('active');
+          if (state.running) e.preventDefault();
+        }
+      }
+
+      function handleKeyUp(e) {
+        // A posição e a velocidade são atualizadas exclusivamente pelo loop update(dt).
+        applyDirectionKey(e.code, false);
+        applyDirectionKey(e.key, false);
+        if (e.code === 'Space' || e.key === ' ') {
+          input.focusKey = false;
+          btnFocus.classList.remove('active');
+        }
+      }
+
+      window.addEventListener('keydown', handleKeyDown, { capture: true });
+      window.addEventListener('keyup', handleKeyUp, { capture: true });
+      // Soltar automaticamente as teclas ao perder o foco evita personagem preso andando.
+      window.addEventListener('blur', resetInputStates);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) resetInputStates();
+      });
+
+      // Mouse (Mira e Botão Direito para Foco Intenso)
+      canvas.addEventListener('mousemove', (e) => {
+        const pos = getCanvasCoords(e.clientX, e.clientY);
+        input.mouseX = pos.x;
+        input.mouseY = pos.y;
+        input.hasMouseMoved = true;
+        input.lastMouseMove = performance.now();
+      });
+
+      canvas.addEventListener('mousedown', (e) => {
+        sound.init();
+        if (e.button === 2) {
+          input.focusKey = true;
+          btnFocus.classList.add('active');
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === 2) {
+          input.focusKey = false;
+          btnFocus.classList.remove('active');
+        }
+      });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      // Touch (Joystick Virtual Suave no Canvas)
+      canvas.addEventListener(
+        'touchstart',
+        (e) => {
+          e.preventDefault();
+          sound.init();
+          const touch = e.changedTouches[0];
+          const pos = getCanvasCoords(touch.clientX, touch.clientY);
+          input.touch.active = true;
+          input.touch.id = touch.identifier;
+          input.touch.startX = pos.x;
+          input.touch.startY = pos.y;
+          input.touch.currX = pos.x;
+          input.touch.currY = pos.y;
+          input.touch.dx = 0;
+          input.touch.dy = 0;
+        },
+        { passive: false }
+      );
+
+      canvas.addEventListener(
+        'touchmove',
+        (e) => {
+          e.preventDefault();
+          if (!input.touch.active) return;
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            if (touch.identifier === input.touch.id) {
+              const pos = getCanvasCoords(touch.clientX, touch.clientY);
+              input.touch.currX = pos.x;
+              input.touch.currY = pos.y;
+              const rawDx = pos.x - input.touch.startX;
+              const rawDy = pos.y - input.touch.startY;
+              const dist = Math.hypot(rawDx, rawDy);
+              const deadZone = 8;
+              const maxRadius = 34;
+
+              if (dist > deadZone) {
+                const effectiveDist = dist - deadZone;
+                const clamped = Math.min(1, effectiveDist / maxRadius);
+                // Resposta levemente suavizada para controle preciso em curvas estreitas
+                const smoothFactor = Math.pow(clamped, 0.85);
+                input.touch.dx = (rawDx / dist) * smoothFactor;
+                input.touch.dy = (rawDy / dist) * smoothFactor;
+              } else {
+                input.touch.dx = 0;
+                input.touch.dy = 0;
+              }
+            }
+          }
+        },
+        { passive: false }
+      );
+
+      const endTouch = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === input.touch.id || e.touches.length === 0) {
+            input.touch.active = false;
+            input.touch.id = null;
+            input.touch.dx = 0;
+            input.touch.dy = 0;
+          }
+        }
+      };
+
+      canvas.addEventListener('touchend', endTouch, { passive: false });
+      canvas.addEventListener('touchcancel', endTouch, { passive: false });
+
+      // Limpa apenas o foco intenso em blur, mantendo teclas direcionais livres ao soltar
+      window.addEventListener('blur', () => {
+        input.focusKey = false;
+        input.focusBtn = false;
+        btnFocus.classList.remove('active');
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          resetInputStates();
+        }
+      });
+
+      // Listeners diretos + delegação de eventos para os botões de controle e início
+      function handleStartTrigger(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        startNewGame();
+      }
+
+      if (btnStart) {
+        btnStart.addEventListener('click', handleStartTrigger);
+        btnStart.addEventListener('touchend', handleStartTrigger, { passive: false });
+      }
+
+      if (btnRestart) {
+        btnRestart.addEventListener('click', handleStartTrigger);
+        btnRestart.addEventListener('touchend', handleStartTrigger, { passive: false });
+      }
+
+      if (btnMute) {
+        btnMute.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          sound.init();
+          sound.toggleMute();
+        });
+      }
+
+      if (btnFocus) {
+        const setFocusBtn = (active) => {
+          input.focusBtn = active;
+          btnFocus.classList.toggle('active', active);
+        };
+        btnFocus.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          sound.init();
+          setFocusBtn(true);
+        });
+        window.addEventListener('mouseup', () => setFocusBtn(false));
+        btnFocus.addEventListener(
+          'touchstart',
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            sound.init();
+            setFocusBtn(true);
+          },
+          { passive: false }
+        );
+        btnFocus.addEventListener(
+          'touchend',
+          (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setFocusBtn(false);
+          },
+          { passive: false }
+        );
+        btnFocus.addEventListener('touchcancel', () => setFocusBtn(false));
+      }
+
+      // Delegação no documento como fallback caso o overlay ou botão seja manipulado
+      document.addEventListener('click', (e) => {
+        const target = e.target.closest('#btnStart, #btnRestart');
+        if (target) {
+          handleStartTrigger(e);
+        }
+      });
+
+      /* --------------------------------------------------------------------------
+         12. LOOP PRINCIPAL (60 FPS COM REQUESTANIMATIONFRAME)
+         -------------------------------------------------------------------------- */
+      let lastTimestamp = 0;
+      let rafId = null;
+
+      function gameLoop(timestamp) {
+        try {
+          if (!lastTimestamp) lastTimestamp = timestamp;
+          // Limita delta time a 50ms para evitar saltos de colisão se trocar de aba
+          const dt = Math.min(1 / 30, Math.max(0, (timestamp - lastTimestamp) / 1000));
+          lastTimestamp = timestamp;
+
+          update(dt);
+          render();
+        } catch (err) {
+          // Mantém o loop vivo mesmo se ocorrer algum erro pontual
+        }
+
+        rafId = requestAnimationFrame(gameLoop);
+      }
+
+      function ensureLoopRunning() {
+        if (!rafId) {
+          rafId = requestAnimationFrame(gameLoop);
+        }
+      }
+
+      // Inicialização na carga da página
+      renderRecords();
+      setupLevel(1);
+      ensureLoopRunning();
+    })();
+  </script>
+</body>
+</html>
