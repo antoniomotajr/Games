@@ -1,0 +1,3301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Defesa Tática — Tower Defense Militar (Layout Esquerdo & Ondas Infinitas)</title>
+    <style>
+        /* ==========================================================================
+           ESTILOS GERAIS E VARIÁVEIS DE DESIGN (TEMA TÁTICO MILITAR MODERNO)
+           ========================================================================== */
+        :root {
+            --bg-dark: #0b1215;
+            --bg-panel: #141e24;
+            --bg-card: #1c2932;
+            --border-subtle: #2b3e4a;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+
+            /* Cores de destaque */
+            --gold: #fbbf24;
+            --health: #f43f5e;
+            --wave: #38bdf8;
+            --score: #a7f3d0;
+            --tower-mg: #38bdf8;      /* Metralhadora */
+            --tower-cannon: #f97316;  /* Canhão Sniper */
+            --tower-cryo: #a855f7;    /* Criogênica */
+            --tower-missile: #ef4444; /* Lança-Mísseis */
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 50% 0%, #16242b 0%, #0b1215 75%);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100dvh;
+            max-height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+            overflow: hidden;
+        }
+
+        /* ==========================================================================
+           CONTAINER PRINCIPAL DO JOGO (LAYOUT COMPACTO COM BARRA LATERAL ESQUERDA)
+           ========================================================================== */
+        .app-shell {
+            width: 100%;
+            height: 100%;
+            max-width: 1480px;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 6px;
+            overflow: hidden;
+        }
+
+        .main-workspace {
+            display: grid;
+            grid-template-columns: minmax(225px, 275px) minmax(0, 1fr);
+            gap: 8px;
+            min-height: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        @media (max-width: 780px) {
+            .main-workspace {
+                grid-template-columns: minmax(175px, 215px) minmax(0, 1fr);
+                gap: 6px;
+            }
+        }
+
+        /* ==========================================================================
+           BARRA SUPERIOR (HUD DE RECURSOS E CONTROLES DE FLUXO)
+           ========================================================================== */
+        .hud-top {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 5px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.45);
+            flex-shrink: 0;
+        }
+
+        .stats-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: var(--bg-dark);
+            padding: 4px 9px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            font-weight: 700;
+            font-size: 0.84rem;
+            letter-spacing: 0.2px;
+        }
+
+        .stat-badge span.label {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .stat-gold { color: var(--gold); }
+        .stat-lives { color: var(--health); }
+        .stat-wave { color: var(--wave); }
+        .stat-score { color: var(--score); }
+        .stat-level { color: #c084fc; }
+
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        /* Botões estilizados */
+        .btn {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.14s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            line-height: 1.2;
+        }
+
+        .btn:hover:not(:disabled) {
+            background-color: #263844;
+            transform: translateY(-1px);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            border-color: #38bdf8;
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(37, 99, 235, 0.32);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: linear-gradient(135deg, #0369a1, #1d4ed8);
+        }
+
+        .btn-active {
+            background-color: #0ea5e9;
+            border-color: #7dd3fc;
+            color: #0f172a;
+        }
+
+        .btn-warning-active {
+            background-color: var(--gold);
+            border-color: #fde68a;
+            color: #0f172a;
+        }
+
+        .btn-muted {
+            color: var(--text-secondary);
+            border-color: #334155;
+        }
+
+        .btn-airstrike {
+            background: linear-gradient(135deg, #b91c1c, #ea580c);
+            border-color: #fca5a5;
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(234, 88, 12, 0.3);
+        }
+
+        .btn-airstrike:hover:not(:disabled) {
+            background: linear-gradient(135deg, #991b1b, #c2410c);
+        }
+
+        .btn-airstrike.armed {
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            border-color: #fef08a;
+            color: #0f172a;
+            box-shadow: 0 0 14px rgba(251, 191, 36, 0.55);
+        }
+
+        /* ==========================================================================
+           BARRA LATERAL ESQUERDA (NÍVEL, ARTILHARIAS & DEFESAS, UNIDADE SELECIONADA)
+           ========================================================================== */
+        .hud-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+            height: 100%;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 2px;
+        }
+
+        .panel-box {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 7px 9px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 5px;
+            min-width: 0;
+            flex-shrink: 0;
+        }
+
+        .level-box {
+            background: linear-gradient(145deg, rgba(25, 37, 44, 0.98), rgba(16, 24, 30, 0.98));
+            border-color: rgba(192, 132, 252, 0.35);
+        }
+
+        .level-summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .level-title-val {
+            font-size: 0.94rem;
+            font-weight: 800;
+            color: #e9d5ff;
+        }
+
+        .level-mult-val {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--gold);
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            padding: 1px 6px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .level-progress-track {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-dark);
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .level-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #38bdf8, #a855f7, #fbbf24);
+            transition: width 0.25s ease;
+        }
+
+        .level-subtext {
+            font-size: 0.67rem;
+            color: var(--text-secondary);
+            line-height: 1.25;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.67rem;
+            text-transform: uppercase;
+            letter-spacing: 0.55px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            min-width: 0;
+        }
+
+        .panel-header > span:first-child {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #build-hint,
+        #inspector-level,
+        #level-badge-tag {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .towers-shop {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .tower-card {
+            background-color: var(--bg-dark);
+            border: 1.5px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 5px 8px;
+            cursor: pointer;
+            transition: all 0.14s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            position: relative;
+            min-width: 0;
+        }
+
+        .tower-card:hover {
+            border-color: #64748b;
+            transform: translateY(-1px);
+        }
+
+        .tower-card[data-type="mg"].selected {
+            border-color: var(--tower-mg);
+            background-color: rgba(56, 189, 248, 0.14);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+        }
+
+        .tower-card[data-type="cannon"].selected {
+            border-color: var(--tower-cannon);
+            background-color: rgba(249, 115, 22, 0.14);
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.2);
+        }
+
+        .tower-card[data-type="cryo"].selected {
+            border-color: var(--tower-cryo);
+            background-color: rgba(168, 85, 247, 0.14);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+        }
+
+        .tower-card[data-type="missile"].selected {
+            border-color: var(--tower-missile);
+            background-color: rgba(239, 68, 68, 0.14);
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .tower-card.too-expensive {
+            opacity: 0.55;
+        }
+
+        .tower-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .tower-name {
+            font-weight: 700;
+            font-size: 0.76rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hotkey {
+            font-size: 0.6rem;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            padding: 0 4px;
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .tower-cost {
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .tower-desc {
+            font-size: 0.66rem;
+            color: var(--text-secondary);
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Painel de Inspeção da Torre Construída (Unidade Selecionada) */
+        .inspector-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 52px;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .inspector-empty {
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            text-align: center;
+            padding: 4px 0;
+            line-height: 1.3;
+        }
+
+        .inspector-details {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .inspector-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .inspector-info h4 {
+            font-size: 0.78rem;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .inspector-info p {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .inspector-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .inspector-actions .btn {
+            padding: 4px 6px;
+            font-size: 0.68rem;
+            white-space: nowrap;
+            border-radius: 6px;
+        }
+
+        .btn-upgrade {
+            background-color: rgba(16, 185, 129, 0.15);
+            border-color: var(--success);
+            color: #34d399;
+        }
+
+        .btn-upgrade:hover:not(:disabled) {
+            background-color: var(--success);
+            color: #0f172a;
+        }
+
+        .btn-sell {
+            background-color: rgba(239, 68, 68, 0.15);
+            border-color: var(--danger);
+            color: #f87171;
+        }
+
+        .btn-sell:hover:not(:disabled) {
+            background-color: var(--danger);
+            color: #fff;
+        }
+
+        /* ==========================================================================
+           ÁREA AMPLIADA DO CANVAS + RADAR + MODAIS SOBREPOSTOS
+           ========================================================================== */
+        .canvas-wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(11, 18, 21, 0.45);
+            border-radius: 12px;
+            border: 1px solid rgba(43, 62, 74, 0.55);
+        }
+
+        canvas#gameCanvas {
+            display: block;
+            background-color: #16221b;
+            border-radius: 10px;
+            border: 2px solid var(--border-subtle);
+            cursor: crosshair;
+            touch-action: none;
+            box-shadow: 0 14px 28px -8px rgba(0, 0, 0, 0.65);
+        }
+
+        /* Radar Tático no canto superior direito do mapa */
+        .radar-box {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background: rgba(11, 18, 21, 0.88);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 4px 6px 5px;
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+        }
+
+        .radar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.58rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 3px;
+        }
+
+        #radar-count {
+            color: #38bdf8;
+        }
+
+        canvas#radarCanvas {
+            display: block;
+            border-radius: 4px;
+            background: #101914;
+            border: 1px solid rgba(71, 85, 105, 0.45);
+        }
+
+        /* Telas de Estado (Início, Vitória, Game Over) */
+        .overlay-modal {
+            position: absolute;
+            inset: 0;
+            background: rgba(11, 18, 21, 0.84);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            text-align: center;
+            z-index: 20;
+            overflow: auto;
+            transition: opacity 0.2s ease;
+        }
+
+        .overlay-modal.hidden {
+            display: none;
+        }
+
+        .modal-card {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 16px 20px;
+            max-width: 490px;
+            width: 100%;
+            max-height: 100%;
+            overflow: auto;
+            margin: auto;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.75);
+        }
+
+        .modal-title {
+            font-size: 1.38rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            letter-spacing: -0.4px;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 14px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 540px) {
+            .legend-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .legend-item {
+            background: var(--bg-dark);
+            padding: 6px 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .legend-item strong {
+            display: block;
+            color: var(--text-primary);
+            margin-top: 2px;
+            font-size: 0.75rem;
+        }
+
+        /* Toast de Feedback Rápido */
+        .feedback-banner {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(11, 18, 21, 0.92);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 15;
+            max-width: 92%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .feedback-banner.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 700px) {
+            .btn { padding: 4px 6px; font-size: 0.7rem; }
+            .stat-badge { padding: 3px 6px; font-size: 0.76rem; }
+            .stat-badge span.label { font-size: 0.6rem; }
+        }
+
+        @media (max-width: 600px) {
+            .towers-shop { grid-template-columns: repeat(2, 1fr); }
+            .tower-desc { display: none; }
+            .tower-name { font-size: 0.66rem; flex-wrap: wrap; }
+            .tower-cost { font-size: 0.68rem; }
+            .radar-box { display: none; }
+        }
+
+        @media (max-height: 560px) {
+            .tower-desc { display: none; }
+            .modal-card { padding: 10px 14px; }
+            .modal-subtitle { font-size: 0.74rem; margin-bottom: 6px; }
+            .legend-grid { margin-bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <!-- ======================================================================
+         HUD SUPERIOR: OURO, VIDAS, ONDA, NÍVEL, PONTUAÇÃO E CONTROLES
+         ====================================================================== -->
+    <header class="hud-top">
+        <div class="stats-group">
+            <div class="stat-badge stat-gold" title="Ouro disponível para construir e evoluir torres">
+                <span class="label">Ouro</span>
+                <span id="ui-gold">160</span>
+            </div>
+            <div class="stat-badge stat-lives" title="Integridade do Bunker Defensivo">
+                <span class="label">Vidas</span>
+                <span id="ui-lives">20</span>
+            </div>
+            <div class="stat-badge stat-wave" title="Progresso das Ondas Infinitas">
+                <span class="label">Onda</span>
+                <span id="ui-wave">0 / ∞</span>
+            </div>
+            <div class="stat-badge stat-level" title="Nível Tático Progressivo">
+                <span class="label">Nível</span>
+                <span id="ui-level">1</span>
+            </div>
+            <div class="stat-badge stat-score" title="Pontuação Tática">
+                <span class="label">Pontos</span>
+                <span id="ui-score">0</span>
+            </div>
+        </div>
+
+        <div class="controls-group">
+            <button id="btn-next-wave" class="btn btn-primary" title="Iniciar próxima onda (bônus se antecipada)">
+                ▶ Iniciar Onda 1
+            </button>
+            <button id="btn-airstrike" class="btn btn-airstrike" title="Solicitar Ataque Aéreo de Bombardeio (Tecla A)">
+                ✈️ Ataque Aéreo
+            </button>
+            <button id="btn-pause" class="btn" title="Pausar ou Continuar (Espaço)">
+                ⏸ Pausar
+            </button>
+            <button id="btn-speed" class="btn" title="Alternar velocidade 1x / 2x (F)">
+                ⏩ 1x
+            </button>
+            <button id="btn-sound" class="btn" title="Ativar ou Silenciar Efeitos Sonoros">
+                🔊 Som
+            </button>
+        </div>
+    </header>
+
+    <!-- ======================================================================
+         ÁREA DE TRABALHO: PAINEL ESQUERDO + MAPA AMPLIADO
+         ====================================================================== -->
+    <div class="main-workspace">
+        <!-- BARRA LATERAL ESQUERDA: NÍVEL, ARTILHARIAS & DEFESAS, UNIDADE SELECIONADA -->
+        <aside class="hud-sidebar">
+            <!-- 1. Nível -->
+            <div class="panel-box level-box" id="level-panel">
+                <div class="panel-header">
+                    <span>Nível</span>
+                    <span id="level-badge-tag" style="color: #c084fc;">Setor 1</span>
+                </div>
+                <div class="level-summary-row">
+                    <span class="level-title-val" id="level-main-title">Nível 1</span>
+                    <span class="level-mult-val" id="level-threat-mult">Ameaça 1.00x</span>
+                </div>
+                <div class="level-progress-track" title="Progresso do nível atual (cada 2 ondas eleva o nível)">
+                    <div class="level-progress-fill" id="level-progress-bar"></div>
+                </div>
+                <div class="level-subtext" id="level-scale-info">
+                    Fases infinitas e progressivas: inimigos e recompensas escalam a cada onda.
+                </div>
+            </div>
+
+            <!-- 2. Artilharias & Defesas -->
+            <div class="panel-box">
+                <div class="panel-header">
+                    <span>Artilharias &amp; Defesas</span>
+                    <span id="build-hint" style="color: #38bdf8;">Teclas 1-4</span>
+                </div>
+                <div class="towers-shop" id="towers-shop">
+                    <!-- 1. Metralhadora Pesada -->
+                    <div class="tower-card" data-type="mg">
+                        <div class="tower-card-top">
+                            <span class="tower-name" style="color: var(--tower-mg);">
+                                Metralhadora <span class="hotkey">1</span>
+                            </span>
+                            <span class="tower-cost">50g</span>
+                        </div>
+                        <p class="tower-desc">Torreta dupla com alta cadência e balas traçantes.</p>
+                    </div>
+
+                    <!-- 2. Canhão Pesado Sniper -->
+                    <div class="tower-card" data-type="cannon">
+                        <div class="tower-card-top">
+                            <span class="tower-name" style="color: var(--tower-cannon);">
+                                Canhão <span class="hotkey">2</span>
+                            </span>
+                            <span class="tower-cost">100g</span>
+                        </div>
+                        <p class="tower-desc">Mira laser, longo alcance e disparo perfurante.</p>
+                    </div>
+
+                    <!-- 3. Torre Criogênica -->
+                    <div class="tower-card" data-type="cryo">
+                        <div class="tower-card-top">
+                            <span class="tower-name" style="color: var(--tower-cryo);">
+                                Criogênica <span class="hotkey">3</span>
+                            </span>
+                            <span class="tower-cost">80g</span>
+                        </div>
+                        <p class="tower-desc">Feixe de plasma gelado que desacelera veículos.</p>
+                    </div>
+
+                    <!-- 4. Bateria Lança-Mísseis -->
+                    <div class="tower-card" data-type="missile">
+                        <div class="tower-card-top">
+                            <span class="tower-name" style="color: var(--tower-missile);">
+                                Mísseis <span class="hotkey">4</span>
+                            </span>
+                            <span class="tower-cost">130g</span>
+                        </div>
+                        <p class="tower-desc">Mísseis guiados com explosão de dano em área.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Unidade Selecionada -->
+            <div class="panel-box">
+                <div class="panel-header">
+                    <span>Unidade Selecionada</span>
+                    <span id="inspector-level"></span>
+                </div>
+                <div class="inspector-content" id="inspector-content">
+                    <div class="inspector-empty">
+                        Clique em uma torre no mapa para evoluir ou vender.
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ÁREA AMPLIADA DO MAPA (CANVAS + RADAR + MODAIS) -->
+        <main class="canvas-wrap" id="canvas-wrap">
+            <canvas id="gameCanvas"></canvas>
+
+            <div class="radar-box" aria-hidden="true">
+                <div class="radar-header">
+                    <span>Radar Tático</span>
+                    <span id="radar-count">0 ALVOS</span>
+                </div>
+                <canvas id="radarCanvas" width="128" height="80"></canvas>
+            </div>
+
+            <div id="feedback-banner" class="feedback-banner">Aviso</div>
+
+            <!-- Modal de Início -->
+            <div id="modal-start" class="overlay-modal">
+                <div class="modal-card">
+                    <h1 class="modal-title" style="color: #38bdf8;">DEFESA TÁTICA</h1>
+                    <p class="modal-subtitle">
+                        Comande a artilharia defensiva em fases infinitas e progressivas! Cada onda aumenta a resistência inimiga e traz Colossos a cada 5 ondas. Atalhos: 1-4 torres, T alvo, U evoluir, X vender, F velocidade, Espaço pausar.
+                    </p>
+                    <div class="legend-grid">
+                        <div class="legend-item">
+                            <span style="color: #facc15; font-size: 1rem;">🚙</span>
+                            <strong>Jipe 4x4</strong>
+                            Rápido e leve
+                        </div>
+                        <div class="legend-item">
+                            <span style="color: #38bdf8; font-size: 1rem;">🚛</span>
+                            <strong>Caminhão</strong>
+                            Blindagem média
+                        </div>
+                        <div class="legend-item">
+                            <span style="color: #f43f5e; font-size: 1rem;">🛡️</span>
+                            <strong>Tanque</strong>
+                            Pesado e resistente
+                        </div>
+                        <div class="legend-item">
+                            <span style="color: #a855f7; font-size: 1rem;">☣️</span>
+                            <strong>Colosso</strong>
+                            Chefe (A cada 5 ondas)
+                        </div>
+                    </div>
+                    <button id="btn-start-game" class="btn btn-primary" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                        Iniciar Operação
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal de Vitória -->
+            <div id="modal-victory" class="overlay-modal hidden">
+                <div class="modal-card">
+                    <h1 class="modal-title" style="color: #10b981;">OPERAÇÃO CONCLUÍDA!</h1>
+                    <p class="modal-subtitle" id="victory-stats">
+                        Você resistiu às ondas do comboio inimigo!
+                    </p>
+                    <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                        Jogar Novamente
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal de Game Over -->
+            <div id="modal-gameover" class="overlay-modal hidden">
+                <div class="modal-card">
+                    <h1 class="modal-title" style="color: #f43f5e;">BUNKER DESTRUÍDO</h1>
+                    <p class="modal-subtitle" id="gameover-stats">
+                        O comboio inimigo rompeu suas defesas.
+                    </p>
+                    <button class="btn btn-primary btn-restart" style="width: 100%; padding: 9px; font-size: 0.9rem;">
+                        Tentar Novamente
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+/**
+ * ============================================================================
+ * DEFESA TÁTICA - TOWER DEFENSE MILITAR (HTML5 CANVAS + WEB AUDIO API)
+ * ============================================================================
+ */
+
+(() => {
+    'use strict';
+
+    // ========================================================================
+    // 1. SINTETIZADOR DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+    // ========================================================================
+    class SoundEngine {
+        constructor() {
+            this.ctx = null;
+            this.muted = false;
+            this.noiseBuffer = null;
+        }
+
+        init() {
+            if (!this.ctx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) {
+                    this.ctx = new AudioCtx();
+                    this.createNoiseBuffer();
+                }
+            }
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume();
+            }
+        }
+
+        createNoiseBuffer() {
+            if (!this.ctx) return;
+            const bufferSize = this.ctx.sampleRate * 1.5;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            this.noiseBuffer = buffer;
+        }
+
+        toggleMute() {
+            this.muted = !this.muted;
+            return this.muted;
+        }
+
+        playMG() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(320 + Math.random() * 60, now);
+            osc.frequency.exponentialRampToValueAtTime(75, now + 0.055);
+
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.065);
+        }
+
+        playCannon() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(170, now);
+            osc.frequency.exponentialRampToValueAtTime(32, now + 0.28);
+
+            gain.gain.setValueAtTime(0.24, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.31);
+
+            if (this.noiseBuffer) {
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = this.noiseBuffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(900, now);
+                filter.frequency.exponentialRampToValueAtTime(150, now + 0.22);
+
+                const nGain = this.ctx.createGain();
+                nGain.gain.setValueAtTime(0.18, now);
+                nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+                noise.connect(filter);
+                filter.connect(nGain);
+                nGain.connect(this.ctx.destination);
+                noise.start(now);
+                noise.stop(now + 0.25);
+            }
+        }
+
+        playCryo() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1150, now);
+            osc.frequency.exponentialRampToValueAtTime(420, now + 0.11);
+
+            gain.gain.setValueAtTime(0.075, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        }
+
+        playMissileLaunch() {
+            if (this.muted || !this.ctx || !this.noiseBuffer) return;
+            const now = this.ctx.currentTime;
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseBuffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(700, now);
+            filter.frequency.exponentialRampToValueAtTime(1800, now + 0.18);
+            filter.Q.value = 2.0;
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start(now);
+            noise.stop(now + 0.23);
+        }
+
+        playExplosion(heavy = false) {
+            if (this.muted || !this.ctx || !this.noiseBuffer) return;
+            const now = this.ctx.currentTime;
+            const duration = heavy ? 0.55 : 0.32;
+
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseBuffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(heavy ? 650 : 800, now);
+            filter.frequency.exponentialRampToValueAtTime(55, now + duration);
+
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(heavy ? 0.28 : 0.16, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start(now);
+            noise.stop(now + duration + 0.02);
+        }
+
+        playBuild(isUpgrade = false) {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const freqs = isUpgrade ? [440, 587.33, 880] : [330, 493.88];
+            freqs.forEach((f, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(f, now + idx * 0.055);
+                gain.gain.setValueAtTime(0.1, now + idx * 0.055);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now + idx * 0.055);
+                osc.stop(now + idx * 0.055 + 0.13);
+            });
+        }
+
+        playSell() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            [987.77, 1318.5].forEach((f, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(f, now + idx * 0.06);
+                gain.gain.setValueAtTime(0.09, now + idx * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now + idx * 0.06);
+                osc.stop(now + idx * 0.06 + 0.16);
+            });
+        }
+
+        playBaseHit() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.linearRampToValueAtTime(95, now + 0.25);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.29);
+        }
+
+        playWaveStart() {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.35);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.41);
+        }
+
+        playEndGame(victory) {
+            if (this.muted || !this.ctx) return;
+            const now = this.ctx.currentTime;
+            const notes = victory ? [523.25, 659.25, 783.99, 1046.5] : [311.13, 277.18, 233.08, 174.61];
+            notes.forEach((f, idx) => {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = victory ? 'triangle' : 'sawtooth';
+                osc.frequency.setValueAtTime(f, now + idx * 0.14);
+                gain.gain.setValueAtTime(0.13, now + idx * 0.14);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.32);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now + idx * 0.14);
+                osc.stop(now + idx * 0.14 + 0.34);
+            });
+        }
+    }
+
+    const sfx = new SoundEngine();
+
+    // ========================================================================
+    // 2. CONFIGURAÇÕES E CONSTANTES TÁTICAS
+    // ========================================================================
+    const COLS = 16;
+    const ROWS = 10;
+    const INITIAL_GOLD = 160;
+    const INITIAL_LIVES = 20;
+    const MAX_TOWER_LEVEL = 4;
+    const TARGET_MODES = ['Avançado', 'Forte', 'Próximo'];
+
+    const AIRSTRIKE_CONFIG = {
+        cost: 75,
+        cooldown: 30.0,
+        radius: 1.95,
+        baseDamage: 145,
+        waveDamageScale: 28,
+        bombCount: 5
+    };
+
+    const TOWER_TYPES = {
+        mg: {
+            id: 'mg',
+            name: 'Metralhadora Pesada',
+            shortName: 'Metralhadora',
+            cost: 50,
+            color: '#38bdf8',
+            range: 2.75,
+            damage: 14,
+            fireRate: 2.35,
+            projectileSpeed: 13.0,
+            slowFactor: 0,
+            slowDuration: 0,
+            splashRadius: 0
+        },
+        cannon: {
+            id: 'cannon',
+            name: 'Canhão de Artilharia',
+            shortName: 'Canhão',
+            cost: 100,
+            color: '#f97316',
+            range: 5.2,
+            damage: 98,
+            fireRate: 0.45,
+            projectileSpeed: 19.5,
+            slowFactor: 0,
+            slowDuration: 0,
+            splashRadius: 0
+        },
+        cryo: {
+            id: 'cryo',
+            name: 'Emissor Criogênico',
+            shortName: 'Criogênica',
+            cost: 80,
+            color: '#a855f7',
+            range: 2.35,
+            damage: 10,
+            fireRate: 2.5,
+            projectileSpeed: 14.0,
+            slowFactor: 0.50,
+            slowDuration: 2.2,
+            splashRadius: 0
+        },
+        missile: {
+            id: 'missile',
+            name: 'Bateria Lança-Mísseis',
+            shortName: 'Mísseis',
+            cost: 130,
+            color: '#ef4444',
+            range: 3.9,
+            damage: 58,
+            fireRate: 0.72,
+            projectileSpeed: 11.5,
+            slowFactor: 0,
+            slowDuration: 0,
+            splashRadius: 1.45
+        }
+    };
+
+    const ENEMY_TYPES = {
+        jeep: {
+            id: 'jeep',
+            name: 'Jipe de Reconhecimento',
+            baseHp: 46,
+            speed: 3.45,
+            reward: 13,
+            score: 25,
+            color: '#eab308',
+            accent: '#fef08a',
+            sizeRatio: 0.29,
+            lifeDamage: 1
+        },
+        truck: {
+            id: 'truck',
+            name: 'Caminhão Blindado',
+            baseHp: 95,
+            speed: 2.15,
+            reward: 16,
+            score: 40,
+            color: '#3b82f6',
+            accent: '#93c5fd',
+            sizeRatio: 0.34,
+            lifeDamage: 1
+        },
+        tank: {
+            id: 'tank',
+            name: 'Tanque de Guerra',
+            baseHp: 280,
+            speed: 1.25,
+            reward: 32,
+            score: 90,
+            color: '#dc2626',
+            accent: '#fca5a5',
+            sizeRatio: 0.38,
+            lifeDamage: 2
+        },
+        boss: {
+            id: 'boss',
+            name: 'Blindado Colosso (Chefe)',
+            baseHp: 1150,
+            speed: 0.85,
+            reward: 115,
+            score: 350,
+            color: '#7e22ce',
+            accent: '#e9d5ff',
+            sizeRatio: 0.46,
+            lifeDamage: 5
+        }
+    };
+
+    const PATH_WAYPOINTS = [
+        { col: 0, row: 1 },
+        { col: 11, row: 1 },
+        { col: 11, row: 4 },
+        { col: 2, row: 4 },
+        { col: 2, row: 7 },
+        { col: 13, row: 7 },
+        { col: 13, row: 2 },
+        { col: 15, row: 2 },
+        { col: 15, row: 8 },
+        { col: 6, row: 8 },
+        { col: 6, row: 9 }
+    ];
+
+    function getCurrentLevel(waveNum) {
+        return Math.max(1, Math.floor((Math.max(1, waveNum) - 1) / 2) + 1);
+    }
+
+    function getThreatMultiplier(waveNum) {
+        const w = Math.max(1, waveNum);
+        return +(1 + (w - 1) * 0.22 + Math.pow(Math.max(0, w - 5), 1.25) * 0.07).toFixed(2);
+    }
+
+    function buildWaveConfig(waveNumber) {
+        const w = Math.max(1, waveNumber);
+
+        const hpGrowth = 1 + (w - 1) * 0.24 + Math.pow(Math.max(0, w - 5), 1.25) * 0.08;
+        const bossHpGrowth = 1 + (w - 1) * 0.28 + Math.pow(Math.max(0, w - 5), 1.3) * 0.1;
+
+        const countScale = 1 + (w - 1) * 0.18 - Math.max(0, w - 12) * 0.04;
+        const speedPace = Math.max(0.45, 1 - Math.min(0.45, (w - 1) * 0.025));
+
+        const groups = [];
+
+        const jeepCount = Math.max(2, Math.round((3 + w * 1.15) * countScale));
+        const truckCount = Math.max(3, Math.round((4 + w * 0.95) * countScale));
+
+        if (w % 2 === 0) {
+            groups.push({ type: 'jeep', count: jeepCount, interval: +(0.82 * speedPace).toFixed(2), hpMult: +hpGrowth.toFixed(2) });
+            groups.push({ type: 'truck', count: truckCount, interval: +(1.02 * speedPace).toFixed(2), hpMult: +(hpGrowth * 1.05).toFixed(2) });
+        } else {
+            groups.push({ type: 'truck', count: truckCount, interval: +(1.05 * speedPace).toFixed(2), hpMult: +(hpGrowth * 1.05).toFixed(2) });
+            groups.push({ type: 'jeep', count: jeepCount, interval: +(0.80 * speedPace).toFixed(2), hpMult: +hpGrowth.toFixed(2) });
+        }
+
+        if (w >= 3) {
+            const tankCount = Math.min(18, Math.max(1, Math.round((w - 2) * 0.95 * Math.sqrt(countScale))));
+            groups.push({
+                type: 'tank',
+                count: tankCount,
+                interval: +(1.55 * speedPace).toFixed(2),
+                hpMult: +(hpGrowth * 0.95).toFixed(2)
+            });
+        }
+
+        if (w % 5 === 0) {
+            const bossCount = Math.min(5, Math.floor(w / 5));
+            groups.push({
+                type: 'boss',
+                count: bossCount,
+                interval: 3.2,
+                hpMult: +(bossHpGrowth * (w === 5 ? 0.85 : 1.0)).toFixed(2)
+            });
+        }
+
+        if (w >= 6) {
+            const vanguardCount = Math.min(22, Math.round(4 + w * 0.7));
+            groups.push({
+                type: 'jeep',
+                count: vanguardCount,
+                interval: +(0.52 * speedPace).toFixed(2),
+                hpMult: +(hpGrowth * 1.08).toFixed(2)
+            });
+        }
+
+        return groups;
+    }
+
+    // ========================================================================
+    // 3. ESTADO GLOBAL, MAPA E DECORAÇÃO DO CENÁRIO
+    // ========================================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const radarCanvas = document.getElementById('radarCanvas');
+    const radarCtx = radarCanvas.getContext('2d');
+    const canvasWrap = document.getElementById('canvas-wrap');
+
+    const pathCellsSet = new Set();
+    const pathCellList = [];
+    const sceneryProps = [];
+
+    function buildMapAndScenery() {
+        pathCellsSet.clear();
+        pathCellList.length = 0;
+
+        for (let i = 0; i < PATH_WAYPOINTS.length - 1; i++) {
+            const start = PATH_WAYPOINTS[i];
+            const end = PATH_WAYPOINTS[i + 1];
+            const stepCol = Math.sign(end.col - start.col);
+            const stepRow = Math.sign(end.row - start.row);
+
+            let c = start.col;
+            let r = start.row;
+            while (c !== end.col || r !== end.row) {
+                const key = `${c},${r}`;
+                if (!pathCellsSet.has(key)) {
+                    pathCellsSet.add(key);
+                    pathCellList.push({ col: c, row: r });
+                }
+                c += stepCol;
+                r += stepRow;
+            }
+        }
+        const last = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
+        pathCellsSet.add(`${last.col},${last.row}`);
+        pathCellList.push({ col: last.col, row: last.row });
+
+        sceneryProps.length = 0;
+        const fixedProps = [
+            { col: 0.4, row: 0.4, type: 'tree', scale: 0.9 },
+            { col: 5.5, row: 0.45, type: 'rock', scale: 0.85 },
+            { col: 14.8, row: 0.5, type: 'tree', scale: 1.0 },
+            { col: 0.5, row: 5.5, type: 'tree', scale: 0.95 },
+            { col: 7.2, row: 5.6, type: 'crater', scale: 0.9 },
+            { col: 10.2, row: 2.6, type: 'bush', scale: 0.85 },
+            { col: 1.1, row: 9.2, type: 'rock', scale: 0.85 },
+            { col: 11.5, row: 9.1, type: 'tree', scale: 0.95 },
+            { col: 14.5, row: 5.3, type: 'crater', scale: 0.85 }
+        ];
+        sceneryProps.push(...fixedProps);
+    }
+    buildMapAndScenery();
+
+    const state = {
+        status: 'start',
+        paused: false,
+        gameSpeed: 1,
+        gold: INITIAL_GOLD,
+        lives: INITIAL_LIVES,
+        score: 0,
+        waveIndex: 0,
+        waveActive: false,
+        spawnQueue: [],
+        spawnTimer: 0,
+        towers: [],
+        enemies: [],
+        projectiles: [],
+        particles: [],
+        shockwaves: [],
+        scorchMarks: [],
+        floatingTexts: [],
+        selectedBuildType: null,
+        selectedTower: null,
+        airstrikeArmed: false,
+        airstrikeCooldown: 0,
+        airstrikes: [],
+        hoverCell: null,
+        cellSize: 60,
+        lastTimestamp: 0,
+        timeElapsed: 0,
+        screenShake: 0
+    };
+
+    function resizeCanvas() {
+        const rect = canvasWrap.getBoundingClientRect();
+        const availW = Math.max(220, rect.width - 12);
+        const availH = Math.max(140, rect.height - 12);
+        const targetRatio = COLS / ROWS;
+
+        let cssWidth = availW;
+        let cssHeight = cssWidth / targetRatio;
+
+        if (cssHeight > availH) {
+            cssHeight = availH;
+            cssWidth = cssHeight * targetRatio;
+        }
+
+        cssWidth = Math.max(220, Math.floor(cssWidth));
+        cssHeight = Math.max(140, Math.floor(cssHeight));
+
+        canvas.style.width = `${cssWidth}px`;
+        canvas.style.height = `${cssHeight}px`;
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = cssWidth * dpr;
+        canvas.height = cssHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        state.cellSize = cssWidth / COLS;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function triggerScreenShake(intensity) {
+        state.screenShake = Math.max(state.screenShake, intensity);
+    }
+
+    // ========================================================================
+    // 4. CLASSES DAS ENTIDADES (TORRES, VEÍCULOS, PROJÉTEIS, EFEITOS)
+    // ========================================================================
+
+    class Tower {
+        constructor(col, row, typeKey) {
+            const cfg = TOWER_TYPES[typeKey];
+            this.col = col;
+            this.row = row;
+            this.type = typeKey;
+            this.name = cfg.name;
+            this.color = cfg.color;
+            this.level = 1;
+            this.totalInvested = cfg.cost;
+            this.targetMode = 0;
+
+            this.range = cfg.range;
+            this.damage = cfg.damage;
+            this.fireRate = cfg.fireRate;
+            this.projectileSpeed = cfg.projectileSpeed;
+            this.slowFactor = cfg.slowFactor;
+            this.slowDuration = cfg.slowDuration;
+            this.splashRadius = cfg.splashRadius;
+
+            this.cooldown = 0;
+            this.angle = 0;
+            this.recoil = 0;
+            this.muzzleFlash = 0;
+            this.barrelToggle = 0;
+            this.currentTarget = null;
+        }
+
+        getUpgradeCost() {
+            return Math.round(TOWER_TYPES[this.type].cost * 0.78 * this.level);
+        }
+
+        getSellValue() {
+            return Math.round(this.totalInvested * 0.7);
+        }
+
+        upgrade() {
+            if (this.level >= MAX_TOWER_LEVEL) return false;
+            const cost = this.getUpgradeCost();
+            if (state.gold < cost) return false;
+
+            state.gold -= cost;
+            this.totalInvested += cost;
+            this.level++;
+
+            this.damage = Math.round(this.damage * 1.40);
+            this.range = +(this.range + 0.35).toFixed(2);
+            this.fireRate = +(this.fireRate * 1.14).toFixed(2);
+
+            if (this.type === 'cryo') {
+                this.slowFactor = Math.min(0.76, this.slowFactor + 0.07);
+                this.slowDuration += 0.35;
+            } else if (this.type === 'missile') {
+                this.splashRadius = +(this.splashRadius + 0.15).toFixed(2);
+            }
+
+            sfx.playBuild(true);
+            spawnExplosionParticles(this.col + 0.5, this.row + 0.5, this.color, 14, 1.8);
+            addFloatingText(this.col + 0.5, this.row + 0.15, `Nível ${this.level}!`, '#34d399');
+            return true;
+        }
+
+        update(dt) {
+            if (this.cooldown > 0) this.cooldown -= dt;
+            if (this.recoil > 0) this.recoil = Math.max(0, this.recoil - dt * 6);
+            if (this.muzzleFlash > 0) this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 14);
+
+            const target = this.findTarget();
+            this.currentTarget = target;
+
+            if (target) {
+                const dx = target.x - (this.col + 0.5);
+                const dy = target.y - (this.row + 0.5);
+                const desiredAngle = Math.atan2(dy, dx);
+
+                let diff = desiredAngle - this.angle;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                this.angle += diff * Math.min(1, dt * 16);
+
+                if (this.cooldown <= 0) {
+                    this.shoot(target);
+                    this.cooldown = 1 / this.fireRate;
+                    this.recoil = 1;
+                    this.muzzleFlash = 1;
+                    this.barrelToggle = 1 - this.barrelToggle;
+                }
+            }
+        }
+
+        findTarget() {
+            const cx = this.col + 0.5;
+            const cy = this.row + 0.5;
+            let bestTarget = null;
+            let bestScore = -Infinity;
+
+            for (const enemy of state.enemies) {
+                const dist = Math.hypot(enemy.x - cx, enemy.y - cy);
+                if (dist <= this.range) {
+                    let score = enemy.distanceTraveled;
+                    if (this.targetMode === 1) {
+                        score = enemy.hp;
+                    } else if (this.targetMode === 2) {
+                        score = -dist;
+                    } else {
+                        if (this.type === 'cryo' && enemy.slowTimer <= 0.2) {
+                            score += 120;
+                        } else if (this.type === 'cannon' && (enemy.type === 'tank' || enemy.type === 'boss')) {
+                            score += 40;
+                        }
+                    }
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestTarget = enemy;
+                    }
+                }
+            }
+            return bestTarget;
+        }
+
+        shoot(target) {
+            const cx = this.col + 0.5;
+            const cy = this.row + 0.5;
+
+            let lateralOffset = 0;
+            if (this.type === 'mg' || this.type === 'missile') {
+                lateralOffset = (this.barrelToggle === 0 ? -0.09 : 0.09);
+            }
+
+            const perpX = -Math.sin(this.angle) * lateralOffset;
+            const perpY = Math.cos(this.angle) * lateralOffset;
+            const muzzleDist = 0.34;
+            const spawnX = cx + Math.cos(this.angle) * muzzleDist + perpX;
+            const spawnY = cy + Math.sin(this.angle) * muzzleDist + perpY;
+
+            if (this.type === 'mg') sfx.playMG();
+            else if (this.type === 'cannon') sfx.playCannon();
+            else if (this.type === 'cryo') sfx.playCryo();
+            else if (this.type === 'missile') sfx.playMissileLaunch();
+
+            state.projectiles.push(new Projectile(
+                spawnX,
+                spawnY,
+                target,
+                this.damage,
+                this.projectileSpeed,
+                this.color,
+                this.type,
+                this.slowFactor,
+                this.slowDuration,
+                this.splashRadius
+            ));
+        }
+
+        draw(ctx, cs) {
+            const cx = (this.col + 0.5) * cs;
+            const cy = (this.row + 0.5) * cs;
+
+            if (this.type === 'cannon' && this.currentTarget && this.currentTarget.hp > 0) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(249, 115, 22, 0.28)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(this.currentTarget.x * cs, this.currentTarget.y * cs);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            const pad = cs * 0.11;
+            const size = cs - pad * 2;
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(this.col * cs + pad, this.row * cs + pad, size, size, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#64748b';
+            const bOff = cs * 0.18;
+            [[bOff, bOff], [cs - bOff, bOff], [bOff, cs - bOff], [cs - bOff, cs - bOff]].forEach(([bx, by]) => {
+                ctx.beginPath();
+                ctx.arc(this.col * cs + bx, this.row * cs + by, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            if (this.level > 1) {
+                ctx.fillStyle = '#fbbf24';
+                for (let i = 0; i < this.level - 1; i++) {
+                    const lx = this.col * cs + cs * (0.28 + i * 0.22);
+                    const ly = this.row * cs + cs * 0.83;
+                    ctx.fillRect(lx - 3, ly - 1.5, 6, 3);
+                }
+            }
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(this.angle);
+
+            const recoilShift = -this.recoil * cs * (this.type === 'cannon' ? 0.11 : 0.05);
+            ctx.translate(recoilShift, 0);
+
+            if (this.type === 'mg') {
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(cs * 0.05, -cs * 0.13, cs * 0.34, cs * 0.06);
+                ctx.fillRect(cs * 0.05, cs * 0.07, cs * 0.34, cs * 0.06);
+
+                ctx.fillStyle = '#0f172a';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, cs * 0.22, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(-cs * 0.03, 0, cs * 0.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (this.muzzleFlash > 0) {
+                    const fy = this.barrelToggle === 1 ? -cs * 0.10 : cs * 0.10;
+                    ctx.fillStyle = '#fef08a';
+                    ctx.beginPath();
+                    ctx.arc(cs * 0.42, fy, cs * 0.08 * this.muzzleFlash, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            } else if (this.type === 'cannon') {
+                ctx.fillStyle = '#cbd5e1';
+                ctx.fillRect(0, -cs * 0.055, cs * 0.46, cs * 0.11);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(cs * 0.40, -cs * 0.08, cs * 0.08, cs * 0.16);
+
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(cs * 0.22, -cs * 0.14);
+                ctx.lineTo(cs * 0.22, cs * 0.14);
+                ctx.lineTo(-cs * 0.22, cs * 0.21);
+                ctx.lineTo(-cs * 0.22, -cs * 0.21);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                if (this.muzzleFlash > 0) {
+                    ctx.fillStyle = '#fdba74';
+                    ctx.beginPath();
+                    ctx.arc(cs * 0.52, 0, cs * 0.14 * this.muzzleFlash, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+            } else if (this.type === 'cryo') {
+                ctx.strokeStyle = '#e9d5ff';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(cs * 0.08, -cs * 0.13);
+                ctx.lineTo(cs * 0.34, -cs * 0.06);
+                ctx.moveTo(cs * 0.08, cs * 0.13);
+                ctx.lineTo(cs * 0.34, cs * 0.06);
+                ctx.stroke();
+
+                const pulse = 1 + Math.sin(state.timeElapsed * 8) * 0.08;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, cs * 0.21 * pulse, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#f3e8ff';
+                ctx.beginPath();
+                ctx.arc(0, 0, cs * 0.09, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (this.type === 'missile') {
+                ctx.fillStyle = '#334155';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(-cs * 0.22, -cs * 0.22, cs * 0.44, cs * 0.44, 5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-cs * 0.14, -cs * 0.16, cs * 0.34, cs * 0.11);
+                ctx.fillRect(-cs * 0.14, cs * 0.05, cs * 0.34, cs * 0.11);
+
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(cs * 0.20, -cs * 0.105, cs * 0.045, 0, Math.PI * 2);
+                ctx.arc(cs * 0.20, cs * 0.105, cs * 0.045, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+    }
+
+    class Enemy {
+        constructor(typeKey, hpMult = 1.0) {
+            const cfg = ENEMY_TYPES[typeKey];
+            this.type = typeKey;
+            this.maxHp = Math.round(cfg.baseHp * hpMult);
+            this.hp = this.maxHp;
+            this.baseSpeed = cfg.speed;
+            this.reward = cfg.reward;
+            this.score = cfg.score;
+            this.color = cfg.color;
+            this.accent = cfg.accent;
+            this.sizeRatio = cfg.sizeRatio;
+            this.lifeDamage = cfg.lifeDamage;
+
+            this.waypointIndex = 0;
+            this.x = PATH_WAYPOINTS[0].col + 0.5;
+            this.y = PATH_WAYPOINTS[0].row + 0.5;
+            this.distanceTraveled = 0;
+            this.angle = 0;
+
+            this.slowTimer = 0;
+            this.slowFactor = 0;
+            this.hitFlash = 0;
+            this.wheelPhase = 0;
+            this.smokeTimer = 0;
+        }
+
+        applySlow(factor, duration) {
+            this.slowFactor = Math.max(this.slowFactor, factor);
+            this.slowTimer = Math.max(this.slowTimer, duration);
+        }
+
+        takeDamage(amount) {
+            this.hp -= amount;
+            this.hitFlash = 0.09;
+            if (this.hp <= 0) {
+                this.hp = 0;
+                return true;
+            }
+            return false;
+        }
+
+        update(dt) {
+            if (this.hitFlash > 0) this.hitFlash -= dt;
+
+            let currentSpeed = this.baseSpeed;
+            if (this.slowTimer > 0) {
+                this.slowTimer -= dt;
+                currentSpeed *= (1 - this.slowFactor);
+                if (this.slowTimer <= 0) this.slowFactor = 0;
+            }
+
+            this.wheelPhase += currentSpeed * dt * 12;
+
+            if (this.hp < this.maxHp * 0.4) {
+                this.smokeTimer -= dt;
+                if (this.smokeTimer <= 0) {
+                    this.smokeTimer = 0.14;
+                    state.particles.push(new Particle(this.x, this.y, '#64748b', 0.4, 0.5, 4));
+                }
+            }
+
+            const targetWp = PATH_WAYPOINTS[this.waypointIndex + 1];
+            if (!targetWp) return true;
+
+            const tx = targetWp.col + 0.5;
+            const ty = targetWp.row + 0.5;
+            const dx = tx - this.x;
+            const dy = ty - this.y;
+            const dist = Math.hypot(dx, dy);
+
+            const targetAngle = Math.atan2(dy, dx);
+            let angleDiff = targetAngle - this.angle;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            this.angle += angleDiff * Math.min(1, dt * 14);
+
+            const moveStep = currentSpeed * dt;
+            if (dist <= moveStep) {
+                this.x = tx;
+                this.y = ty;
+                this.distanceTraveled += dist;
+                this.waypointIndex++;
+                if (this.waypointIndex >= PATH_WAYPOINTS.length - 1) {
+                    return true;
+                }
+            } else {
+                this.x += (dx / dist) * moveStep;
+                this.y += (dy / dist) * moveStep;
+                this.distanceTraveled += moveStep;
+            }
+
+            return false;
+        }
+
+        draw(ctx, cs) {
+            const px = this.x * cs;
+            const py = this.y * cs;
+            const s = cs * this.sizeRatio;
+
+            ctx.save();
+            ctx.translate(px, py);
+
+            if (this.slowTimer > 0) {
+                ctx.strokeStyle = 'rgba(192, 132, 252, 0.85)';
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.16)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, s * 1.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.rotate(this.angle);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+            ctx.beginPath();
+            ctx.roundRect(-s * 1.05 + 3, -s * 0.72 + 4, s * 2.1, s * 1.44, 5);
+            ctx.fill();
+
+            const bodyColor = this.hitFlash > 0 ? '#ffffff' : (this.slowTimer > 0 ? '#c084fc' : this.color);
+
+            if (this.type === 'jeep') {
+                ctx.fillStyle = '#0f172a';
+                const wW = s * 0.48, wH = s * 0.24;
+                ctx.fillRect(-s * 0.75, -s * 0.82, wW, wH);
+                ctx.fillRect(s * 0.25, -s * 0.82, wW, wH);
+                ctx.fillRect(-s * 0.75, s * 0.58, wW, wH);
+                ctx.fillRect(s * 0.25, s * 0.58, wW, wH);
+
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                ctx.roundRect(-s * 0.9, -s * 0.62, s * 1.8, s * 1.24, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(s * 0.12, -s * 0.46, s * 0.24, s * 0.92);
+                ctx.fillStyle = '#fef9c3';
+                ctx.fillRect(s * 0.82, -s * 0.45, s * 0.12, s * 0.22);
+                ctx.fillRect(s * 0.82, s * 0.23, s * 0.12, s * 0.22);
+
+            } else if (this.type === 'truck') {
+                ctx.fillStyle = '#0f172a';
+                const wW = s * 0.42, wH = s * 0.22;
+                [-0.78, -0.15, 0.48].forEach(wx => {
+                    ctx.fillRect(s * wx, -s * 0.85, wW, wH);
+                    ctx.fillRect(s * wx, s * 0.63, wW, wH);
+                });
+
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(-s * 1.05, -s * 0.68, s * 1.45, s * 1.36, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.accent;
+                ctx.fillRect(-s * 0.92, -s * 0.48, s * 1.18, s * 0.96);
+
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.roundRect(s * 0.42, -s * 0.62, s * 0.58, s * 1.24, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(s * 0.65, -s * 0.48, s * 0.22, s * 0.96);
+
+            } else if (this.type === 'tank' || this.type === 'boss') {
+                const isBoss = this.type === 'boss';
+
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.fillRect(-s * 1.05, -s * 0.88, s * 2.1, s * 0.34);
+                ctx.fillRect(-s * 1.05, s * 0.54, s * 2.1, s * 0.34);
+
+                ctx.fillStyle = '#475569';
+                const treadOffset = (this.wheelPhase % 6) - 3;
+                for (let tx = -s * 0.9; tx < s * 0.9; tx += s * 0.32) {
+                    ctx.fillRect(tx + treadOffset, -s * 0.86, 3, s * 0.30);
+                    ctx.fillRect(tx + treadOffset, s * 0.56, 3, s * 0.30);
+                }
+
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.roundRect(-s * 0.95, -s * 0.62, s * 1.9, s * 1.24, 5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.accent;
+                ctx.fillRect(-s * 0.72, -s * 0.44, s * 1.35, s * 0.88);
+
+                ctx.fillStyle = bodyColor;
+                ctx.beginPath();
+                ctx.arc(-s * 0.05, 0, s * (isBoss ? 0.48 : 0.40), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                if (isBoss) {
+                    ctx.fillRect(s * 0.15, -s * 0.22, s * 0.98, s * 0.14);
+                    ctx.fillRect(s * 0.15, s * 0.08, s * 0.98, s * 0.14);
+                } else {
+                    ctx.fillRect(s * 0.15, -s * 0.10, s * 0.92, s * 0.20);
+                }
+            }
+
+            ctx.restore();
+
+            if (this.hp < this.maxHp || this.type === 'boss') {
+                const barW = cs * (this.type === 'boss' ? 0.95 : 0.68);
+                const barH = this.type === 'boss' ? 6 : 5;
+                const bx = px - barW / 2;
+                const by = py - s * 1.15 - 8;
+                const pct = Math.max(0, this.hp / this.maxHp);
+
+                ctx.fillStyle = 'rgba(11, 18, 21, 0.9)';
+                ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+
+                ctx.fillStyle = pct > 0.5 ? '#10b981' : (pct > 0.25 ? '#fbbf24' : '#ef4444');
+                ctx.fillRect(bx, by, barW * pct, barH);
+            }
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, target, damage, speed, color, towerType, slowFactor, slowDuration, splashRadius) {
+            this.x = x;
+            this.y = y;
+            this.target = target;
+            this.lastTargetX = target.x;
+            this.lastTargetY = target.y;
+            this.damage = damage;
+            this.speed = speed;
+            this.color = color;
+            this.towerType = towerType;
+            this.slowFactor = slowFactor;
+            this.slowDuration = slowDuration;
+            this.splashRadius = splashRadius;
+            this.angle = Math.atan2(target.y - y, target.x - x);
+            this.trail = [{ x, y }];
+            this.smokeTimer = 0;
+        }
+
+        update(dt) {
+            if (this.target && this.target.hp > 0) {
+                this.lastTargetX = this.target.x;
+                this.lastTargetY = this.target.y;
+            }
+
+            const dx = this.lastTargetX - this.x;
+            const dy = this.lastTargetY - this.y;
+            const dist = Math.hypot(dx, dy);
+            this.angle = Math.atan2(dy, dx);
+            const step = this.speed * dt;
+
+            this.trail.push({ x: this.x, y: this.y });
+            if (this.trail.length > 5) this.trail.shift();
+
+            if (this.towerType === 'missile') {
+                this.smokeTimer -= dt;
+                if (this.smokeTimer <= 0) {
+                    this.smokeTimer = 0.035;
+                    state.particles.push(new Particle(this.x, this.y, '#cbd5e1', 0.35, 0.35, 3.2));
+                }
+            }
+
+            if (dist <= step || dist < 0.14) {
+                this.onHit();
+                return true;
+            }
+
+            this.x += (dx / dist) * step;
+            this.y += (dy / dist) * step;
+            return false;
+        }
+
+        onHit() {
+            if (this.splashRadius > 0) {
+                sfx.playExplosion(false);
+                triggerScreenShake(3.5);
+                state.shockwaves.push(new Shockwave(this.lastTargetX, this.lastTargetY, this.splashRadius, '#f97316'));
+                spawnExplosionParticles(this.lastTargetX, this.lastTargetY, '#f97316', 14, 2.5);
+
+                for (let i = state.enemies.length - 1; i >= 0; i--) {
+                    const enemy = state.enemies[i];
+                    const d = Math.hypot(enemy.x - this.lastTargetX, enemy.y - this.lastTargetY);
+                    if (d <= this.splashRadius) {
+                        const falloff = 1 - (d / (this.splashRadius * 1.6));
+                        const dmg = Math.max(1, Math.round(this.damage * falloff));
+                        if (enemy.takeDamage(dmg)) {
+                            handleEnemyKilled(enemy);
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (this.target && this.target.hp > 0) {
+                if (this.slowFactor > 0) {
+                    this.target.applySlow(this.slowFactor, this.slowDuration);
+                }
+                const killed = this.target.takeDamage(this.damage);
+                spawnExplosionParticles(this.lastTargetX, this.lastTargetY, this.color, this.towerType === 'cannon' ? 9 : 4, 1.5);
+
+                if (killed) {
+                    handleEnemyKilled(this.target);
+                }
+            }
+        }
+
+        draw(ctx, cs) {
+            if (this.trail.length > 1) {
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = this.towerType === 'cannon' ? 3.2 : (this.towerType === 'mg' ? 1.8 : 2.4);
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.moveTo(this.trail[0].x * cs, this.trail[0].y * cs);
+                for (let i = 1; i < this.trail.length; i++) {
+                    ctx.lineTo(this.trail[i].x * cs, this.trail[i].y * cs);
+                }
+                ctx.lineTo(this.x * cs, this.y * cs);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.save();
+            ctx.translate(this.x * cs, this.y * cs);
+            ctx.rotate(this.angle);
+
+            if (this.towerType === 'missile') {
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(-6, -2.2, 10, 4.4);
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.moveTo(7, 0);
+                ctx.lineTo(3, -3);
+                ctx.lineTo(3, 3);
+                ctx.closePath();
+                ctx.fill();
+            } else if (this.towerType === 'cannon') {
+                ctx.fillStyle = '#fed7aa';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.towerType === 'cryo' ? 3.4 : 2.3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color, speedScale = 1.8, maxLife = 0.45, size = 3.5) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = (0.3 + Math.random() * 1.4) * speedScale;
+            this.vx = Math.cos(angle) * speed;
+            this.vy = Math.sin(angle) * speed;
+            this.life = maxLife * (0.7 + Math.random() * 0.5);
+            this.maxLife = this.life;
+            this.size = size * (0.7 + Math.random() * 0.6);
+        }
+
+        update(dt) {
+            this.x += this.vx * dt;
+            this.y += this.vy * dt;
+            this.vx *= 0.93;
+            this.vy *= 0.93;
+            this.life -= dt;
+            return this.life <= 0;
+        }
+
+        draw(ctx, cs) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x * cs, this.y * cs, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    class Shockwave {
+        constructor(x, y, maxRadius, color) {
+            this.x = x;
+            this.y = y;
+            this.maxRadius = maxRadius;
+            this.color = color;
+            this.life = 0.32;
+            this.maxLife = 0.32;
+        }
+
+        update(dt) {
+            this.life -= dt;
+            return this.life <= 0;
+        }
+
+        draw(ctx, cs) {
+            const progress = 1 - (this.life / this.maxLife);
+            const r = this.maxRadius * progress * cs;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, 1 - progress);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3 * (1 - progress);
+            ctx.beginPath();
+            ctx.arc(this.x * cs, this.y * cs, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    class ScorchMark {
+        constructor(x, y, radius) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.life = 8.0;
+            this.maxLife = 8.0;
+        }
+
+        update(dt) {
+            this.life -= dt;
+            return this.life <= 0;
+        }
+
+        draw(ctx, cs) {
+            ctx.save();
+            ctx.globalAlpha = Math.min(0.45, (this.life / this.maxLife) * 0.55);
+            ctx.fillStyle = '#090d10';
+            ctx.beginPath();
+            ctx.arc(this.x * cs, this.y * cs, this.radius * cs, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    class AirStrikeRun {
+        constructor(targetX, targetY) {
+            this.targetX = targetX;
+            this.targetY = targetY;
+            this.radius = AIRSTRIKE_CONFIG.radius;
+            this.damage = AIRSTRIKE_CONFIG.baseDamage + Math.max(0, state.waveIndex - 1) * AIRSTRIKE_CONFIG.waveDamageScale;
+
+            this.duration = 1.15;
+            this.elapsed = 0;
+            this.detonated = false;
+
+            const angle = -0.35 + (Math.random() - 0.5) * 0.25;
+            this.angle = angle;
+            const span = Math.max(COLS, ROWS) * 0.85;
+            this.startX = targetX - Math.cos(angle) * span;
+            this.startY = targetY - Math.sin(angle) * span;
+            this.endX = targetX + Math.cos(angle) * span;
+            this.endY = targetY + Math.sin(angle) * span;
+
+            this.subBombs = [];
+            for (let i = 0; i < AIRSTRIKE_CONFIG.bombCount; i++) {
+                const t = i / Math.max(1, AIRSTRIKE_CONFIG.bombCount - 1);
+                const along = (t - 0.5) * this.radius * 1.1;
+                const perp = (Math.random() - 0.5) * this.radius * 0.65;
+                const bx = targetX + Math.cos(angle) * along - Math.sin(angle) * perp;
+                const by = targetY + Math.sin(angle) * along + Math.cos(angle) * perp;
+                this.subBombs.push({
+                    x: bx,
+                    y: by,
+                    dropAt: 0.36 + t * 0.24,
+                    exploded: false
+                });
+            }
+        }
+
+        detonateBomb(bx, by) {
+            sfx.playExplosion(true);
+            triggerScreenShake(5.5);
+            state.scorchMarks.push(new ScorchMark(bx, by, 0.45));
+            state.shockwaves.push(new Shockwave(bx, by, this.radius * 0.72, '#fb923c'));
+            spawnExplosionParticles(bx, by, '#ef4444', 16, 2.8);
+            spawnExplosionParticles(bx, by, '#fde047', 10, 2.0);
+
+            for (let i = state.enemies.length - 1; i >= 0; i--) {
+                const enemy = state.enemies[i];
+                const d = Math.hypot(enemy.x - bx, enemy.y - by);
+                if (d <= this.radius * 0.85) {
+                    const falloff = Math.max(0.45, 1 - (d / (this.radius * 1.15)));
+                    const dmg = Math.max(1, Math.round(this.damage * falloff));
+                    if (enemy.takeDamage(dmg)) {
+                        handleEnemyKilled(enemy);
+                    }
+                }
+            }
+        }
+
+        update(dt) {
+            this.elapsed += dt;
+
+            for (const b of this.subBombs) {
+                if (!b.exploded && this.elapsed >= b.dropAt) {
+                    b.exploded = true;
+                    this.detonateBomb(b.x, b.y);
+                }
+            }
+
+            if (!this.detonated && this.elapsed >= 0.58) {
+                this.detonated = true;
+                addFloatingText(this.targetX, this.targetY - 0.35, `BOMBARDEIO -${this.damage}`, '#fb923c');
+            }
+
+            return this.elapsed >= this.duration;
+        }
+
+        draw(ctx, cs) {
+            const tx = this.targetX * cs;
+            const ty = this.targetY * cs;
+            const rPx = this.radius * cs;
+
+            ctx.save();
+            const alpha = Math.max(0, 1 - Math.max(0, (this.elapsed - 0.55) / 0.6));
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = '#fb923c';
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath();
+            ctx.arc(tx, ty, rPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const progress = Math.min(1, this.elapsed / this.duration);
+            const planeX = (this.startX + (this.endX - this.startX) * progress) * cs;
+            const planeY = (this.startY + (this.endY - this.startY) * progress) * cs;
+
+            ctx.save();
+            ctx.translate(planeX, planeY);
+            ctx.rotate(this.angle);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.moveTo(cs * 0.45 + 6, 6);
+            ctx.lineTo(-cs * 0.35 + 6, -cs * 0.42 + 6);
+            ctx.lineTo(-cs * 0.18 + 6, 6);
+            ctx.lineTo(-cs * 0.35 + 6, cs * 0.42 + 6);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#e2e8f0';
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(cs * 0.48, 0);
+            ctx.lineTo(-cs * 0.36, -cs * 0.44);
+            ctx.lineTo(-cs * 0.16, 0);
+            ctx.lineTo(-cs * 0.36, cs * 0.44);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(-cs * 0.12, -cs * 0.08, cs * 0.34, cs * 0.16);
+
+            ctx.restore();
+            ctx.restore();
+        }
+    }
+
+    class FloatingText {
+        constructor(x, y, text, color) {
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.color = color;
+            this.life = 0.9;
+            this.maxLife = 0.9;
+        }
+
+        update(dt) {
+            this.y -= 0.65 * dt;
+            this.life -= dt;
+            return this.life <= 0;
+        }
+
+        draw(ctx, cs) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+            ctx.font = '800 13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#090d10';
+            ctx.fillText(this.text, this.x * cs + 1, this.y * cs + 1);
+            ctx.fillStyle = this.color;
+            ctx.fillText(this.text, this.x * cs, this.y * cs);
+            ctx.restore();
+        }
+    }
+
+    // ========================================================================
+    // 5. LÓGICA DE ONDAS INFINITAS, ECONOMIA E EVENTOS
+    // ========================================================================
+
+    function spawnExplosionParticles(x, y, color, count, speedScale = 1.8) {
+        for (let i = 0; i < count; i++) {
+            state.particles.push(new Particle(x, y, color, speedScale, 0.45, 3.4));
+        }
+    }
+
+    function addFloatingText(x, y, text, color) {
+        state.floatingTexts.push(new FloatingText(x, y, text, color));
+    }
+
+    function handleEnemyKilled(enemy) {
+        const idx = state.enemies.indexOf(enemy);
+        if (idx !== -1) {
+            state.enemies.splice(idx, 1);
+            state.gold += enemy.reward;
+            state.score += enemy.score;
+
+            const isHeavy = enemy.type === 'tank' || enemy.type === 'boss';
+            sfx.playExplosion(isHeavy);
+            if (isHeavy) triggerScreenShake(enemy.type === 'boss' ? 8 : 4.5);
+
+            state.scorchMarks.push(new ScorchMark(enemy.x, enemy.y, isHeavy ? 0.34 : 0.22));
+            state.shockwaves.push(new Shockwave(enemy.x, enemy.y, isHeavy ? 0.95 : 0.55, '#fbbf24'));
+            spawnExplosionParticles(enemy.x, enemy.y, '#f97316', isHeavy ? 18 : 10, 2.2);
+            spawnExplosionParticles(enemy.x, enemy.y, '#fef08a', isHeavy ? 10 : 5, 1.5);
+            addFloatingText(enemy.x, enemy.y - 0.2, `+${enemy.reward}g`, '#fbbf24');
+            updateHUD();
+        }
+    }
+
+    function handleEnemyReachedBase(enemy) {
+        state.lives = Math.max(0, state.lives - enemy.lifeDamage);
+        sfx.playBaseHit();
+        triggerScreenShake(7);
+        state.shockwaves.push(new Shockwave(enemy.x, enemy.y, 0.9, '#f43f5e'));
+        spawnExplosionParticles(enemy.x, enemy.y, '#f43f5e', 16, 2.0);
+        addFloatingText(enemy.x, enemy.y - 0.3, `-${enemy.lifeDamage} Vida`, '#f43f5e');
+        updateHUD();
+
+        if (state.lives <= 0) {
+            triggerGameOver();
+        }
+    }
+
+    function startNextWave() {
+        if (state.status !== 'playing') return;
+        if (state.waveActive && state.spawnQueue.length > 0) return;
+
+        if (state.waveActive && state.enemies.length > 0) {
+            const rushBonus = 15 + state.waveIndex * 3;
+            state.gold += rushBonus;
+            state.score += rushBonus * 5;
+            addFloatingText(PATH_WAYPOINTS[0].col + 0.8, PATH_WAYPOINTS[0].row + 0.3, `Bônus Antecipação +${rushBonus}g`, '#38bdf8');
+        }
+
+        const nextWaveNumber = state.waveIndex + 1;
+        const waveCfg = buildWaveConfig(nextWaveNumber);
+        let delayAccumulator = 0.25;
+
+        for (const group of waveCfg) {
+            const rewardScale = 1 + Math.min(1.8, (nextWaveNumber - 1) * 0.05);
+            for (let i = 0; i < group.count; i++) {
+                state.spawnQueue.push({
+                    type: group.type,
+                    hpMult: group.hpMult,
+                    rewardMult: rewardScale,
+                    delay: delayAccumulator
+                });
+                delayAccumulator += group.interval;
+            }
+        }
+
+        state.waveIndex = nextWaveNumber;
+        state.waveActive = true;
+        state.spawnTimer = 0;
+        sfx.playWaveStart();
+        const bossNotice = nextWaveNumber % 5 === 0 ? ' • ALERTA: COLOSSO!' : '';
+        showBanner(`Onda ${state.waveIndex} (Nível ${getCurrentLevel(state.waveIndex)}) iniciada${bossNotice}`);
+        updateHUD();
+    }
+
+    function triggerGameOver() {
+        state.status = 'gameover';
+        state.airstrikeArmed = false;
+        sfx.playEndGame(false);
+        document.getElementById('gameover-stats').textContent =
+            `O Bunker caiu na Onda ${state.waveIndex} (Nível ${getCurrentLevel(state.waveIndex)}). Pontuação alcançada: ${state.score}.`;
+        document.getElementById('modal-gameover').classList.remove('hidden');
+        updateHUD();
+    }
+
+    function resetGame() {
+        sfx.init();
+        state.status = 'playing';
+        state.paused = false;
+        state.gameSpeed = 1;
+        state.gold = INITIAL_GOLD;
+        state.lives = INITIAL_LIVES;
+        state.score = 0;
+        state.waveIndex = 0;
+        state.waveActive = false;
+        state.spawnQueue = [];
+        state.spawnTimer = 0;
+        state.towers = [];
+        state.enemies = [];
+        state.projectiles = [];
+        state.particles = [];
+        state.shockwaves = [];
+        state.scorchMarks = [];
+        state.airstrikes = [];
+        state.floatingTexts = [];
+        state.selectedBuildType = null;
+        state.selectedTower = null;
+        state.airstrikeArmed = false;
+        state.airstrikeCooldown = 0;
+        state.screenShake = 0;
+
+        document.getElementById('modal-start').classList.add('hidden');
+        document.getElementById('modal-victory').classList.add('hidden');
+        document.getElementById('modal-gameover').classList.add('hidden');
+
+        const btnPause = document.getElementById('btn-pause');
+        btnPause.textContent = '⏸ Pausar';
+        btnPause.classList.remove('btn-warning-active');
+
+        const btnSpeed = document.getElementById('btn-speed');
+        btnSpeed.textContent = '⏩ 1x';
+        btnSpeed.classList.remove('btn-active');
+
+        updateHUD();
+        updateInspector();
+    }
+
+    function toggleAirstrikeArmed() {
+        sfx.init();
+        if (state.status !== 'playing') return;
+
+        if (state.airstrikeArmed) {
+            state.airstrikeArmed = false;
+            updateHUD();
+            return;
+        }
+
+        if (state.airstrikeCooldown > 0) {
+            showBanner(`Ataque aéreo em recarga (${state.airstrikeCooldown.toFixed(1)}s)`);
+            return;
+        }
+
+        if (state.gold < AIRSTRIKE_CONFIG.cost) {
+            showBanner(`Ouro insuficiente! Ataque aéreo custa ${AIRSTRIKE_CONFIG.cost}g`);
+            return;
+        }
+
+        state.airstrikeArmed = true;
+        state.selectedBuildType = null;
+        state.selectedTower = null;
+        updateInspector();
+        updateHUD();
+        showBanner('Clique no mapa para marcar a zona de bombardeio (ESC cancela)');
+    }
+
+    function launchAirstrikeAt(col, row) {
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) {
+            showBanner('Alvo fora da zona operacional!');
+            return;
+        }
+        if (state.airstrikeCooldown > 0) {
+            showBanner('Ataque aéreo ainda em recarga!');
+            return;
+        }
+        if (state.gold < AIRSTRIKE_CONFIG.cost) {
+            showBanner('Ouro insuficiente para ataque aéreo!');
+            state.airstrikeArmed = false;
+            updateHUD();
+            return;
+        }
+
+        state.gold -= AIRSTRIKE_CONFIG.cost;
+        state.airstrikeCooldown = AIRSTRIKE_CONFIG.cooldown;
+        state.airstrikeArmed = false;
+
+        const tx = col + 0.5;
+        const ty = row + 0.5;
+        state.airstrikes.push(new AirStrikeRun(tx, ty));
+        sfx.playMissileLaunch();
+        updateHUD();
+    }
+
+    function isCellBuildable(col, row) {
+        if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return false;
+        if (pathCellsSet.has(`${col},${row}`)) return false;
+        if (state.towers.some(t => t.col === col && t.row === row)) return false;
+        return true;
+    }
+
+    // ========================================================================
+    // 6. ATUALIZAÇÃO DO LOOP, RADAR E RENDERIZAÇÃO DO CENÁRIO MILITAR
+    // ========================================================================
+
+    function update(rawDt) {
+        if (state.status !== 'playing' || state.paused) return;
+
+        const dt = Math.min(rawDt, 0.05) * state.gameSpeed;
+        state.timeElapsed += dt;
+        if (state.screenShake > 0) {
+            state.screenShake = Math.max(0, state.screenShake - dt * 28);
+        }
+
+        if (state.airstrikeCooldown > 0) {
+            const prevSec = Math.ceil(state.airstrikeCooldown);
+            state.airstrikeCooldown = Math.max(0, state.airstrikeCooldown - dt);
+            const nextSec = Math.ceil(state.airstrikeCooldown);
+            if (prevSec !== nextSec || state.airstrikeCooldown === 0) {
+                updateAirstrikeButton();
+            }
+        }
+
+        if (state.waveActive) {
+            state.spawnTimer += dt;
+            while (state.spawnQueue.length > 0 && state.spawnTimer >= state.spawnQueue[0].delay) {
+                const nextEnemy = state.spawnQueue.shift();
+                const spawned = new Enemy(nextEnemy.type, nextEnemy.hpMult);
+                if (nextEnemy.rewardMult) {
+                    spawned.reward = Math.max(spawned.reward, Math.round(spawned.reward * nextEnemy.rewardMult));
+                }
+                state.enemies.push(spawned);
+            }
+
+            if (state.spawnQueue.length === 0 && state.enemies.length === 0) {
+                state.waveActive = false;
+                const waveBonus = 25 + state.waveIndex * 8;
+                state.gold += waveBonus;
+                state.score += waveBonus * 5;
+                showBanner(`Onda ${state.waveIndex} limpa! Recompensa: +${waveBonus}g`);
+                updateHUD();
+            }
+        }
+
+        for (const tower of state.towers) tower.update(dt);
+
+        for (let i = state.enemies.length - 1; i >= 0; i--) {
+            const enemy = state.enemies[i];
+            if (enemy.update(dt)) {
+                state.enemies.splice(i, 1);
+                handleEnemyReachedBase(enemy);
+                if (state.status !== 'playing') return;
+            }
+        }
+
+        for (let i = state.projectiles.length - 1; i >= 0; i--) {
+            if (state.projectiles[i].update(dt)) state.projectiles.splice(i, 1);
+        }
+
+        for (let i = state.airstrikes.length - 1; i >= 0; i--) {
+            if (state.airstrikes[i].update(dt)) state.airstrikes.splice(i, 1);
+        }
+
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+            if (state.particles[i].update(dt)) state.particles.splice(i, 1);
+        }
+
+        for (let i = state.shockwaves.length - 1; i >= 0; i--) {
+            if (state.shockwaves[i].update(dt)) state.shockwaves.splice(i, 1);
+        }
+
+        for (let i = state.scorchMarks.length - 1; i >= 0; i--) {
+            if (state.scorchMarks[i].update(dt)) state.scorchMarks.splice(i, 1);
+        }
+
+        for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+            if (state.floatingTexts[i].update(dt)) state.floatingTexts.splice(i, 1);
+        }
+    }
+
+    function drawSceneryProp(ctx, prop, cs) {
+        const x = prop.col * cs;
+        const y = prop.row * cs;
+        const r = cs * 0.28 * prop.scale;
+
+        if (prop.type === 'tree') {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+            ctx.beginPath();
+            ctx.arc(x + 4, y + 5, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1b3826';
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#254d34';
+            ctx.beginPath();
+            ctx.arc(x - r * 0.2, y - r * 0.2, r * 0.65, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (prop.type === 'rock') {
+            ctx.fillStyle = '#334155';
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x - r, y + r * 0.3);
+            ctx.lineTo(x - r * 0.4, y - r * 0.7);
+            ctx.lineTo(x + r * 0.6, y - r * 0.5);
+            ctx.lineTo(x + r * 0.9, y + r * 0.4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } else if (prop.type === 'crater') {
+            ctx.fillStyle = 'rgba(15, 23, 20, 0.55)';
+            ctx.beginPath();
+            ctx.arc(x, y, r * 1.1, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        } else if (prop.type === 'bush') {
+            ctx.fillStyle = '#1e3f2b';
+            ctx.beginPath();
+            ctx.arc(x - r * 0.3, y, r * 0.65, 0, Math.PI * 2);
+            ctx.arc(x + r * 0.3, y + r * 0.1, r * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function renderRadar() {
+        const rw = radarCanvas.width;
+        const rh = radarCanvas.height;
+        const sx = rw / COLS;
+        const sy = rh / ROWS;
+
+        radarCtx.clearRect(0, 0, rw, rh);
+        radarCtx.fillStyle = '#101914';
+        radarCtx.fillRect(0, 0, rw, rh);
+
+        radarCtx.strokeStyle = '#334155';
+        radarCtx.lineWidth = Math.max(2, sx * 0.55);
+        radarCtx.lineCap = 'round';
+        radarCtx.lineJoin = 'round';
+        radarCtx.beginPath();
+        PATH_WAYPOINTS.forEach((wp, idx) => {
+            const px = (wp.col + 0.5) * sx;
+            const py = (wp.row + 0.5) * sy;
+            if (idx === 0) radarCtx.moveTo(px, py);
+            else radarCtx.lineTo(px, py);
+        });
+        radarCtx.stroke();
+
+        const spawnWp = PATH_WAYPOINTS[0];
+        const baseWp = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
+        radarCtx.fillStyle = '#ef4444';
+        radarCtx.fillRect(spawnWp.col * sx, spawnWp.row * sy, sx, sy);
+        radarCtx.fillStyle = '#10b981';
+        radarCtx.fillRect(baseWp.col * sx, baseWp.row * sy, sx, sy);
+
+        for (const t of state.towers) {
+            radarCtx.fillStyle = t.color;
+            radarCtx.fillRect((t.col + 0.25) * sx, (t.row + 0.25) * sy, sx * 0.5, sy * 0.5);
+        }
+
+        for (const e of state.enemies) {
+            radarCtx.fillStyle = e.type === 'boss' ? '#e879f9' : '#fbbf24';
+            radarCtx.beginPath();
+            radarCtx.arc(e.x * sx, e.y * sy, e.type === 'boss' ? 3.2 : 2.1, 0, Math.PI * 2);
+            radarCtx.fill();
+        }
+
+        const totalTargets = state.enemies.length + state.spawnQueue.length;
+        const radarCountEl = document.getElementById('radar-count');
+        if (radarCountEl) {
+            radarCountEl.textContent = `${totalTargets} ALVOS`;
+        }
+    }
+
+    function render() {
+        const cs = state.cellSize;
+        const width = COLS * cs;
+        const height = ROWS * cs;
+
+        ctx.save();
+        if (state.screenShake > 0.1) {
+            const sx = (Math.random() - 0.5) * state.screenShake;
+            const sy = (Math.random() - 0.5) * state.screenShake;
+            ctx.translate(sx, sy);
+        }
+
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const isAlt = (r + c) % 2 === 0;
+                ctx.fillStyle = isAlt ? '#16241d' : '#132019';
+                ctx.fillRect(c * cs, r * cs, cs, cs);
+            }
+        }
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+        ctx.lineWidth = 1;
+        for (let c = 0; c <= COLS; c++) {
+            ctx.beginPath();
+            ctx.moveTo(c * cs, 0);
+            ctx.lineTo(c * cs, height);
+            ctx.stroke();
+        }
+        for (let r = 0; r <= ROWS; r++) {
+            ctx.beginPath();
+            ctx.moveTo(0, r * cs);
+            ctx.lineTo(width, r * cs);
+            ctx.stroke();
+        }
+
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = cs * 0.78;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        PATH_WAYPOINTS.forEach((wp, idx) => {
+            const wx = (wp.col + 0.5) * cs;
+            const wy = (wp.row + 0.5) * cs;
+            if (idx === 0) ctx.moveTo(wx, wy);
+            else ctx.lineTo(wx, wy);
+        });
+        ctx.stroke();
+
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = cs * 0.66;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.28)';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([cs * 0.16, cs * 0.20]);
+        ctx.stroke();
+        ctx.restore();
+
+        for (const prop of sceneryProps) {
+            drawSceneryProp(ctx, prop, cs);
+        }
+
+        for (const sm of state.scorchMarks) {
+            sm.draw(ctx, cs);
+        }
+
+        const spawnWp = PATH_WAYPOINTS[0];
+        const baseWp = PATH_WAYPOINTS[PATH_WAYPOINTS.length - 1];
+
+        const spX = (spawnWp.col + 0.5) * cs;
+        const spY = (spawnWp.row + 0.5) * cs;
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(spawnWp.col * cs + 4, spawnWp.row * cs + 4, cs - 8, cs - 8, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fca5a5';
+        ctx.font = `800 ${Math.max(9, Math.round(cs * 0.17))}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('INVASÃO', spX, spY);
+
+        // Bunker Defensivo (Base)
+        const bsX = (baseWp.col + 0.5) * cs;
+        const bsY = (baseWp.row + 0.5) * cs;
+        const shieldPulse = Math.sin(state.timeElapsed * 4) * 2.5;
+
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(baseWp.col * cs + 3, baseWp.row * cs + 3, cs - 6, cs - 6, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Escudo energético da Base
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(bsX, bsY, cs * 0.34 + shieldPulse * 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#34d399';
+        ctx.fillText('BUNKER', bsX, bsY);
+
+        // Círculo de alcance da torre selecionada no mapa
+        if (state.selectedTower) {
+            const st = state.selectedTower;
+            const cx = (st.col + 0.5) * cs;
+            const cy = (st.row + 0.5) * cs;
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, st.range * cs, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // 7. Torres Construídas
+        for (const tower of state.towers) tower.draw(ctx, cs);
+
+        // 8. Veículos Inimigos
+        for (const enemy of state.enemies) enemy.draw(ctx, cs);
+
+        // 9. Projéteis, Ataques Aéreos, Ondas de Choque, Partículas e Textos Flutuantes
+        for (const proj of state.projectiles) proj.draw(ctx, cs);
+        for (const strike of state.airstrikes) strike.draw(ctx, cs);
+        for (const sw of state.shockwaves) sw.draw(ctx, cs);
+        for (const p of state.particles) p.draw(ctx, cs);
+        for (const ft of state.floatingTexts) ft.draw(ctx, cs);
+
+        // 10. Prévia de Ataque Aéreo ou Construção no Hover
+        if (state.status === 'playing' && state.airstrikeArmed && state.hoverCell) {
+            const { col, row } = state.hoverCell;
+            if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+                const cx = (col + 0.5) * cs;
+                const cy = (row + 0.5) * cs;
+                const rPx = AIRSTRIKE_CONFIG.radius * cs;
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.16)';
+                ctx.strokeStyle = '#fb923c';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                ctx.arc(cx, cy, rPx, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.strokeStyle = '#fde047';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx - 12, cy);
+                ctx.lineTo(cx + 12, cy);
+                ctx.moveTo(cx, cy - 12);
+                ctx.lineTo(cx, cy + 12);
+                ctx.stroke();
+                ctx.restore();
+            }
+        } else if (state.status === 'playing' && state.selectedBuildType && state.hoverCell) {
+            const { col, row } = state.hoverCell;
+            const cfg = TOWER_TYPES[state.selectedBuildType];
+            const valid = isCellBuildable(col, row) && state.gold >= cfg.cost;
+            const cx = (col + 0.5) * cs;
+            const cy = (row + 0.5) * cs;
+
+            ctx.fillStyle = valid ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)';
+            ctx.strokeStyle = valid ? 'rgba(16, 185, 129, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cfg.range * cs, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = valid ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+            ctx.beginPath();
+            ctx.roundRect(col * cs + cs * 0.11, row * cs + cs * 0.11, cs * 0.78, cs * 0.78, 8);
+            ctx.fill();
+        }
+
+        ctx.restore();
+        renderRadar();
+    }
+
+    function gameLoop(timestamp) {
+        if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+        const rawDt = (timestamp - state.lastTimestamp) / 1000;
+        state.lastTimestamp = timestamp;
+
+        update(rawDt);
+        render();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // ========================================================================
+    // 7. INTERFACE (HUD), CONTROLES E INTERAÇÃO DO USUÁRIO
+    // ========================================================================
+
+    let bannerTimeout = null;
+    function showBanner(msg) {
+        const banner = document.getElementById('feedback-banner');
+        banner.textContent = msg;
+        banner.classList.add('show');
+        clearTimeout(bannerTimeout);
+        bannerTimeout = setTimeout(() => {
+            banner.classList.remove('show');
+        }, 2300);
+    }
+
+    function updateHUD() {
+        document.getElementById('ui-gold').textContent = state.gold;
+        document.getElementById('ui-lives').textContent = state.lives;
+        document.getElementById('ui-wave').textContent = `${state.waveIndex} / ∞`;
+        document.getElementById('ui-score').textContent = state.score;
+
+        const displayWave = state.waveIndex === 0 ? 1 : state.waveIndex;
+        const currentLevel = getCurrentLevel(displayWave);
+        const threatMult = getThreatMultiplier(displayWave);
+        const waveInLevel = state.waveIndex === 0 ? 0 : (((state.waveIndex - 1) % 2) + 1);
+        const levelPct = state.waveIndex === 0 ? 0 : (waveInLevel === 2 ? 100 : 50);
+
+        document.getElementById('ui-level').textContent = currentLevel;
+        document.getElementById('level-badge-tag').textContent = `Setor ${currentLevel}`;
+        document.getElementById('level-main-title').textContent = `Nível ${currentLevel}`;
+        document.getElementById('level-threat-mult').textContent = `Ameaça ${threatMult.toFixed(2)}x`;
+        document.getElementById('level-progress-bar').style.width = `${levelPct}%`;
+        document.getElementById('level-scale-info').textContent = state.waveIndex === 0
+            ? 'Pronto para iniciar: fases infinitas e progressivas ativas.'
+            : `Onda ${state.waveIndex}: vida e recompensas escalam continuamente.`;
+
+        const btnWave = document.getElementById('btn-next-wave');
+        if (state.waveActive && state.spawnQueue.length > 0) {
+            btnWave.textContent = `Onda ${state.waveIndex} em curso...`;
+            btnWave.disabled = true;
+        } else if (state.waveActive && state.enemies.length > 0) {
+            btnWave.textContent = `⚡ Antecipar Onda ${state.waveIndex + 1}`;
+            btnWave.disabled = false;
+        } else {
+            btnWave.textContent = `▶ Iniciar Onda ${state.waveIndex + 1}`;
+            btnWave.disabled = false;
+        }
+
+        document.querySelectorAll('.tower-card').forEach(card => {
+            const type = card.dataset.type;
+            const cost = TOWER_TYPES[type].cost;
+            card.classList.toggle('too-expensive', state.gold < cost);
+            card.classList.toggle('selected', state.selectedBuildType === type);
+        });
+
+        const hint = document.getElementById('build-hint');
+        if (state.airstrikeArmed) {
+            hint.textContent = 'Alvo Aéreo ativo (ESC cancela)';
+        } else if (state.selectedBuildType) {
+            hint.textContent = `Posicionando: ${TOWER_TYPES[state.selectedBuildType].shortName} (ESC cancela)`;
+        } else {
+            hint.textContent = 'Teclas 1-4';
+        }
+
+        updateAirstrikeButton();
+
+        if (state.selectedTower) {
+            updateInspector();
+        }
+    }
+
+    function updateAirstrikeButton() {
+        const btnAir = document.getElementById('btn-airstrike');
+        if (!btnAir) return;
+
+        btnAir.classList.toggle('armed', state.airstrikeArmed);
+
+        if (state.airstrikeArmed) {
+            btnAir.textContent = '🎯 Marcar Alvo';
+            btnAir.disabled = false;
+        } else if (state.airstrikeCooldown > 0) {
+            btnAir.textContent = `✈️ ${Math.ceil(state.airstrikeCooldown)}s`;
+            btnAir.disabled = true;
+        } else {
+            btnAir.textContent = `✈️ Aéreo (${AIRSTRIKE_CONFIG.cost}g)`;
+            btnAir.disabled = state.status !== 'playing' || state.gold < AIRSTRIKE_CONFIG.cost;
+        }
+    }
+
+    function updateInspector() {
+        const container = document.getElementById('inspector-content');
+        const levelLabel = document.getElementById('inspector-level');
+        const t = state.selectedTower;
+
+        if (!t) {
+            levelLabel.textContent = '';
+            container.innerHTML = `<div class="inspector-empty">Clique em uma torre no mapa para evoluir ou vender.</div>`;
+            return;
+        }
+
+        levelLabel.textContent = `Nível ${t.level} / ${MAX_TOWER_LEVEL}`;
+        const isMax = t.level >= MAX_TOWER_LEVEL;
+        const upgCost = t.getUpgradeCost();
+        const sellVal = t.getSellValue();
+        const canAfford = state.gold >= upgCost;
+
+        container.innerHTML = `
+            <div class="inspector-details">
+                <div class="inspector-info">
+                    <h4 style="color: ${t.color};">${TOWER_TYPES[t.type].shortName} (Nv.${t.level})</h4>
+                    <p>Dano <strong>${t.damage}</strong> • Alc <strong>${t.range}</strong></p>
+                </div>
+                <div class="inspector-actions">
+                    <button id="btn-do-target" class="btn" title="Prioridade de alvo (T)">🎯 ${TARGET_MODES[t.targetMode]}</button>
+                    <button id="btn-do-upgrade" class="btn btn-upgrade" ${isMax || !canAfford ? 'disabled' : ''} title="Evoluir torre (U)">
+                        ${isMax ? 'Máx' : `▲ ${upgCost}g`}
+                    </button>
+                    <button id="btn-do-sell" class="btn btn-sell" title="Vender torre (X)">
+                        +${sellVal}g
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('btn-do-target').addEventListener('click', () => {
+            t.targetMode = (t.targetMode + 1) % TARGET_MODES.length;
+            updateInspector();
+        });
+
+        const btnUpg = document.getElementById('btn-do-upgrade');
+        if (btnUpg && !isMax) {
+            btnUpg.addEventListener('click', () => {
+                sfx.init();
+                if (t.upgrade()) {
+                    updateHUD();
+                    updateInspector();
+                }
+            });
+        }
+
+        document.getElementById('btn-do-sell').addEventListener('click', () => {
+            sfx.init();
+            sfx.playSell();
+            state.gold += sellVal;
+            spawnExplosionParticles(t.col + 0.5, t.row + 0.5, '#fbbf24', 10, 1.5);
+            addFloatingText(t.col + 0.5, t.row + 0.3, `+${sellVal}g`, '#fbbf24');
+            state.towers = state.towers.filter(item => item !== t);
+            state.selectedTower = null;
+            updateHUD();
+            updateInspector();
+        });
+    }
+
+    function selectBuildType(typeKey) {
+        sfx.init();
+        state.airstrikeArmed = false;
+        if (state.selectedBuildType === typeKey) {
+            state.selectedBuildType = null;
+        } else {
+            state.selectedBuildType = typeKey;
+            state.selectedTower = null;
+            updateInspector();
+        }
+        updateHUD();
+    }
+
+    document.querySelectorAll('.tower-card').forEach(card => {
+        card.addEventListener('click', () => {
+            selectBuildType(card.dataset.type);
+        });
+    });
+
+    function getGridCoordsFromEvent(e) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches && e.touches.length ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches && e.touches.length ? e.touches[0].clientY : e.clientY;
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const col = Math.floor(x / state.cellSize);
+        const row = Math.floor(y / state.cellSize);
+        return { col, row };
+    }
+
+    canvas.addEventListener('mousemove', (e) => {
+        state.hoverCell = getGridCoordsFromEvent(e);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        state.hoverCell = null;
+    });
+
+    canvas.addEventListener('click', (e) => {
+        sfx.init();
+        if (state.status !== 'playing') return;
+        const { col, row } = getGridCoordsFromEvent(e);
+
+        if (state.airstrikeArmed) {
+            launchAirstrikeAt(col, row);
+            return;
+        }
+
+        if (state.selectedBuildType) {
+            const cfg = TOWER_TYPES[state.selectedBuildType];
+            if (!isCellBuildable(col, row)) {
+                showBanner('Terreno bloqueado ou estrada!');
+                return;
+            }
+            if (state.gold < cfg.cost) {
+                showBanner('Ouro insuficiente para esta arma!');
+                return;
+            }
+
+            state.gold -= cfg.cost;
+            const newTower = new Tower(col, row, state.selectedBuildType);
+            state.towers.push(newTower);
+            sfx.playBuild(false);
+            spawnExplosionParticles(col + 0.5, row + 0.5, cfg.color, 12, 1.6);
+            state.selectedTower = newTower;
+            state.selectedBuildType = null;
+            updateHUD();
+            updateInspector();
+            return;
+        }
+
+        const clickedTower = state.towers.find(t => t.col === col && t.row === row);
+        state.selectedTower = clickedTower || null;
+        updateInspector();
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        state.selectedBuildType = null;
+        state.selectedTower = null;
+        state.airstrikeArmed = false;
+        updateHUD();
+        updateInspector();
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', resetGame);
+    document.querySelectorAll('.btn-restart').forEach(btn => {
+        btn.addEventListener('click', resetGame);
+    });
+
+    document.getElementById('btn-next-wave').addEventListener('click', () => {
+        sfx.init();
+        startNextWave();
+    });
+
+    document.getElementById('btn-airstrike').addEventListener('click', toggleAirstrikeArmed);
+
+    const btnPause = document.getElementById('btn-pause');
+    btnPause.addEventListener('click', () => {
+        if (state.status !== 'playing') return;
+        state.paused = !state.paused;
+        btnPause.textContent = state.paused ? '▶ Continuar' : '⏸ Pausar';
+        btnPause.classList.toggle('btn-warning-active', state.paused);
+    });
+
+    const btnSpeed = document.getElementById('btn-speed');
+    btnSpeed.addEventListener('click', () => {
+        state.gameSpeed = state.gameSpeed === 1 ? 2 : 1;
+        btnSpeed.textContent = `⏩ ${state.gameSpeed}x`;
+        btnSpeed.classList.toggle('btn-active', state.gameSpeed === 2);
+    });
+
+    const btnSound = document.getElementById('btn-sound');
+    btnSound.addEventListener('click', () => {
+        sfx.init();
+        const isMuted = sfx.toggleMute();
+        btnSound.textContent = isMuted ? '🔇 Mudo' : '🔊 Som';
+        btnSound.classList.toggle('btn-muted', isMuted);
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (state.status !== 'playing') return;
+        const k = e.key.toLowerCase();
+        if (e.key === '1') selectBuildType('mg');
+        else if (e.key === '2') selectBuildType('cannon');
+        else if (e.key === '3') selectBuildType('cryo');
+        else if (e.key === '4') selectBuildType('missile');
+        else if (k === 'a') {
+            toggleAirstrikeArmed();
+        } else if (e.key === 'Escape') {
+            state.selectedBuildType = null;
+            state.selectedTower = null;
+            state.airstrikeArmed = false;
+            updateHUD();
+            updateInspector();
+        } else if (e.code === 'Space') {
+            e.preventDefault();
+            btnPause.click();
+        } else if (k === 'f') {
+            btnSpeed.click();
+        } else if (k === 't' && state.selectedTower) {
+            state.selectedTower.targetMode = (state.selectedTower.targetMode + 1) % TARGET_MODES.length;
+            updateInspector();
+        } else if (k === 'u' && state.selectedTower) {
+            const btnUpg = document.getElementById('btn-do-upgrade');
+            if (btnUpg && !btnUpg.disabled) btnUpg.click();
+        } else if (k === 'x' && state.selectedTower) {
+            const btnSell = document.getElementById('btn-do-sell');
+            if (btnSell) btnSell.click();
+        }
+    });
+
+    updateHUD();
+    requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>
