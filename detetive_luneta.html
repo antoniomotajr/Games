@@ -1,0 +1,3293 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Olho de Lince: Detetive de Luneta</title>
+  <style>
+    /* =========================================================================
+       VARIÁVEIS DE TEMA E ESTILOS GERAIS (TEMA ESCURO DE OBSERVAÇÃO)
+       ========================================================================= */
+    :root {
+      --bg-primary: #070a10;
+      --bg-secondary: #0d1320;
+      --surface-glass: rgba(15, 23, 38, 0.78);
+      --surface-glass-hover: rgba(23, 35, 58, 0.92);
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --border-strong: rgba(56, 189, 248, 0.35);
+
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --accent-cyan: #38bdf8;
+      --accent-cyan-glow: rgba(56, 189, 248, 0.25);
+      --accent-amber: #fbbf24;
+      --accent-emerald: #10b981;
+      --accent-red: #f43f5e;
+
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --transition-fast: 160ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      min-height: 100%;
+      background-color: var(--bg-primary);
+      background-image:
+        radial-gradient(circle at 50% 18%, rgba(56, 189, 248, 0.08) 0%, transparent 55%),
+        radial-gradient(circle at 85% 80%, rgba(251, 191, 36, 0.05) 0%, transparent 45%),
+        linear-gradient(180deg, #070a10 0%, #05080d 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+
+    /* Grade sutil de fundo de estação de vigilância */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+      background-size: 36px 36px;
+      z-index: 0;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+      min-height: 100vh;
+      padding: 10px 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* =========================================================================
+       CHECKLIST DE EVIDÊNCIAS E AVALIAÇÃO (LAYOUT LADO A LADO COMPACTO)
+       ========================================================================= */
+    .checklist-instructions {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .report-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.75fr) minmax(210px, 0.72fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    @media (max-width: 820px) {
+      .report-workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .report-column-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+      padding: 0 2px;
+    }
+
+    .palette-sidebar {
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background: rgba(8, 13, 24, 0.78);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .palette-group-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+
+    .palette-swatches-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .palette-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-main);
+      text-align: left;
+      cursor: pointer;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .palette-chip:hover {
+      transform: translateY(-1px);
+      background: rgba(30, 41, 59, 0.9);
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .palette-chip.active-filter {
+      border-color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.16);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+    }
+
+    .palette-chip-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      flex-shrink: 0;
+    }
+
+    .question-rows-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    @media (max-width: 640px) {
+      .question-rows-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .question-row-card {
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: rgba(11, 17, 30, 0.88);
+      border: 1.5px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .question-row-card.active-yes {
+      border-color: rgba(56, 189, 248, 0.55);
+      background: rgba(14, 26, 46, 0.92);
+    }
+
+    .question-row-card.eval-correct {
+      border-color: var(--accent-emerald);
+      background: rgba(16, 185, 129, 0.14);
+    }
+
+    .question-row-card.eval-wrong {
+      border-color: var(--accent-red);
+      background: rgba(244, 63, 94, 0.14);
+    }
+
+    .question-row-card.eval-missed {
+      border-color: var(--accent-amber);
+      border-style: dashed;
+      background: rgba(251, 191, 36, 0.12);
+    }
+
+    .question-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .question-prompt-text {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .yes-no-toggle {
+      display: inline-flex;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      flex-shrink: 0;
+    }
+
+    .yes-no-btn {
+      padding: 3px 9px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-muted);
+      border: none;
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .yes-no-btn.selected-yes {
+      background: var(--accent-cyan);
+      color: #06101d;
+    }
+
+    .yes-no-btn.selected-no {
+      background: rgba(148, 163, 184, 0.26);
+      color: var(--text-main);
+    }
+
+    .color-select-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .color-select-row.hidden-color {
+      display: none;
+    }
+
+    .color-preview-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      flex-shrink: 0;
+    }
+
+    .color-dropdown {
+      flex: 1;
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: #09101d;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: var(--text-main);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .question-eval-note {
+      font-size: 0.69rem;
+      font-weight: 700;
+    }
+
+    .palette-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .review-character-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 10px;
+      border-radius: var(--radius-md);
+      background: radial-gradient(circle at 50% 42%, #17253b 0%, #0b1220 75%, #04070d 100%);
+      border: 1px solid rgba(56, 189, 248, 0.32);
+    }
+
+    .review-character-title {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent-cyan);
+    }
+
+    .review-character-svg {
+      width: 148px;
+      height: 170px;
+      filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.55));
+    }
+
+    .evidence-card.filtered-dim {
+      opacity: 0.25;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    @media (max-width: 640px) {
+      .evidence-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+    }
+
+    .topbar {
+      color: var(--accent-cyan);
+      box-shadow: 0 0 16px var(--accent-cyan-glow);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--text-main);
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .hud-stats {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: rgba(7, 10, 16, 0.7);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .stat-pill .label {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+    }
+
+    .stat-pill .value {
+      color: var(--accent-cyan);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-pill.score .value {
+      color: var(--accent-amber);
+    }
+
+    .lives-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(7, 10, 16, 0.7);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .heart-svg {
+      width: 17px;
+      height: 17px;
+      transition: transform 240ms ease, opacity 240ms ease, filter 240ms ease;
+    }
+
+    .heart-svg.active {
+      color: var(--accent-red);
+      filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.55));
+    }
+
+    .heart-svg.lost {
+      color: #334155;
+      opacity: 0.45;
+      transform: scale(0.85);
+    }
+
+    .btn-audio {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: var(--text-main);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .btn-audio:hover {
+      background: rgba(56, 189, 248, 0.22);
+      transform: translateY(-1px);
+    }
+
+    .btn-audio.muted {
+      background: rgba(148, 163, 184, 0.08);
+      border-color: rgba(148, 163, 184, 0.22);
+      color: var(--text-muted);
+    }
+
+    /* =========================================================================
+       ÁREA PRINCIPAL E PAINÉIS DE ESTADO
+       ========================================================================= */
+    .main-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 18px;
+    }
+
+    .panel {
+      width: 100%;
+      background: var(--surface-glass);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: clamp(12px, 2vw, 18px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-cyan);
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .phase-meta {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* =========================================================================
+       VISOR DA LUNETA ÓPTICA (SVG + CSS3)
+       ========================================================================= */
+    .scope-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* Animação suave de oscilação manual de quem segura a luneta */
+    @keyframes scopeSway {
+      0%   { transform: translate(0px, 0px) rotate(0deg); }
+      25%  { transform: translate(3px, -2.5px) rotate(0.45deg); }
+      50%  { transform: translate(-1.5px, 3px) rotate(-0.35deg); }
+      75%  { transform: translate(-3px, -1.5px) rotate(0.25deg); }
+      100% { transform: translate(0px, 0px) rotate(0deg); }
+    }
+
+    @keyframes shutterFlash {
+      0%   { opacity: 0; }
+      20%  { opacity: 0.92; background: #e2e8f0; }
+      100% { opacity: 0; }
+    }
+
+    .telescope-lens {
+      position: relative;
+      width: min(76vw, 350px);
+      height: min(76vw, 350px);
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 42%, #17253b 0%, #0b1220 68%, #04070d 100%);
+      border: 8px solid #161f30;
+      outline: 3px solid rgba(56, 189, 248, 0.25);
+      box-shadow:
+        0 0 0 6px #070a10,
+        0 0 45px rgba(0, 0, 0, 0.9),
+        0 0 28px rgba(56, 189, 248, 0.14),
+        inset 0 0 58px rgba(0, 0, 0, 0.92),
+        inset 0 0 18px rgba(56, 189, 248, 0.12);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      animation: scopeSway 6.2s ease-in-out infinite;
+    }
+
+    /* Anel interno graduado da lente */
+    .telescope-lens::before {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 184, 0.22);
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    /* Reflexo diagonal de vidro translúcido */
+    .lens-glare {
+      position: absolute;
+      inset: -25%;
+      background: linear-gradient(
+        122deg,
+        rgba(255, 255, 255, 0) 34%,
+        rgba(226, 232, 240, 0.11) 43%,
+        rgba(255, 255, 255, 0.03) 48%,
+        rgba(255, 255, 255, 0) 58%
+      );
+      pointer-events: none;
+      z-index: 5;
+      transform: rotate(-8deg);
+    }
+
+    /* Linhas de mira (crosshair) e marcações */
+    .crosshair-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .crosshair-h {
+      position: absolute;
+      top: 50%;
+      left: 16px;
+      right: 16px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        rgba(56, 189, 248, 0.45) 0%,
+        rgba(56, 189, 248, 0.12) 42%,
+        transparent 48%,
+        transparent 52%,
+        rgba(56, 189, 248, 0.12) 58%,
+        rgba(56, 189, 248, 0.45) 100%
+      );
+    }
+
+    .crosshair-v {
+      position: absolute;
+      left: 50%;
+      top: 16px;
+      bottom: 16px;
+      width: 1px;
+      background: linear-gradient(
+        180deg,
+        rgba(56, 189, 248, 0.45) 0%,
+        rgba(56, 189, 248, 0.12) 42%,
+        transparent 48%,
+        transparent 52%,
+        rgba(56, 189, 248, 0.12) 58%,
+        rgba(56, 189, 248, 0.45) 100%
+      );
+    }
+
+    .crosshair-center-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 28px;
+      height: 28px;
+      margin: -14px 0 0 -14px;
+      border-radius: 50%;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .tick-mark {
+      position: absolute;
+      background: rgba(56, 189, 248, 0.45);
+    }
+
+    .shutter-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 6;
+    }
+
+    .shutter-overlay.trigger {
+      animation: shutterFlash 340ms ease-out forwards;
+    }
+
+    .character-svg {
+      width: 84%;
+      height: 84%;
+      z-index: 2;
+      filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.55));
+      transition: opacity 200ms ease, transform 220ms ease;
+    }
+
+    .character-svg.hidden {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+
+    .standby-message {
+      z-index: 3;
+      text-align: center;
+      padding: 0 22px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .standby-message strong {
+      display: block;
+      color: var(--accent-cyan);
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+
+    /* Cronômetro e barra de progresso */
+    .timer-box {
+      width: min(92vw, 420px);
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .timer-readout {
+      font-variant-numeric: tabular-nums;
+      color: var(--accent-amber);
+      font-size: 0.95rem;
+    }
+
+    .timer-readout.urgent {
+      color: var(--accent-red);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-amber));
+      transition: width 80ms linear, background 220ms ease;
+    }
+
+    .progress-fill.urgent {
+      background: linear-gradient(90deg, #f97316, var(--accent-red));
+    }
+
+    /* =========================================================================
+       CHECKLIST DE EVIDÊNCIAS E AVALIAÇÃO
+       ========================================================================= */
+    .checklist-instructions {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+      gap: 10px;
+    }
+
+    @media (max-width: 480px) {
+      .evidence-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+    }
+
+    .evidence-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 8px 10px;
+      min-height: 54px;
+      border-radius: var(--radius-sm);
+      background: rgba(11, 17, 30, 0.85);
+      border: 1.5px solid var(--border-subtle);
+      color: var(--text-main);
+      text-align: left;
+      cursor: pointer;
+      user-select: none;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), opacity var(--transition-fast);
+    }
+
+    .evidence-card:hover:not(:disabled) {
+      transform: translateY(-2px);
+      background: var(--surface-glass-hover);
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .evidence-card:disabled {
+      cursor: default;
+    }
+
+    .evidence-card.selected {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 8px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .swatch-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+    }
+
+    .check-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 5px;
+      border: 1.5px solid rgba(148, 163, 184, 0.4);
+      display: grid;
+      place-items: center;
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: #070a10;
+      background: transparent;
+      flex-shrink: 0;
+      transition: all var(--transition-fast);
+    }
+
+    .evidence-card.selected .check-indicator {
+      background: var(--accent-cyan);
+      border-color: var(--accent-cyan);
+    }
+
+    /* Bloqueio por exclusividade de slot ou limite máximo atingido */
+    .evidence-card.locked-choice {
+      opacity: 0.42;
+      border-style: dashed;
+      border-color: rgba(148, 163, 184, 0.24);
+      background: rgba(9, 14, 24, 0.55);
+      cursor: not-allowed;
+    }
+
+    .evidence-card.locked-choice:hover {
+      transform: none;
+    }
+
+    @keyframes cardBlockedShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); border-color: rgba(251, 191, 36, 0.75); }
+      75% { transform: translateX(4px); border-color: rgba(251, 191, 36, 0.75); }
+    }
+
+    .evidence-card.blocked-feedback {
+      animation: cardBlockedShake 240ms ease;
+    }
+
+    .card-lock-note {
+      font-size: 0.63rem;
+      color: var(--accent-amber);
+      font-weight: 600;
+      margin-top: 1px;
+    }
+
+    .evidence-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.18;
+      color: var(--text-main);
+    }
+
+    .evidence-category {
+      font-size: 0.63rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .evidence-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+      line-height: 1.25;
+      color: var(--text-main);
+    }
+
+    .evidence-category {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Estados pós-avaliação */
+    .evidence-card.eval-correct {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: var(--accent-emerald);
+      border-style: solid;
+      opacity: 1;
+    }
+
+    .evidence-card.eval-wrong {
+      background: rgba(244, 63, 94, 0.16);
+      border-color: var(--accent-red);
+      border-style: solid;
+      opacity: 1;
+    }
+
+    .evidence-card.eval-missed {
+      background: rgba(251, 191, 36, 0.14);
+      border-color: var(--accent-amber);
+      border-style: dashed;
+      border-width: 2px;
+      opacity: 1;
+    }
+
+    .evidence-card.eval-neutral {
+      opacity: 0.42;
+      border-style: solid;
+    }
+
+    .eval-badge {
+      display: inline-block;
+      align-self: flex-start;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .eval-badge.correct {
+      background: rgba(16, 185, 129, 0.25);
+      color: #6ee7b7;
+    }
+
+    .eval-badge.wrong {
+      background: rgba(244, 63, 94, 0.25);
+      color: #fda4af;
+    }
+
+    .eval-badge.missed {
+      background: rgba(251, 191, 36, 0.25);
+      color: #fde68a;
+    }
+
+    /* =========================================================================
+       RESUMO DA RODADA, BOTÕES E TELA INICIAL / GAME OVER
+       ========================================================================= */
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .selection-counter {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+    }
+
+    .selection-counter strong {
+      color: var(--accent-cyan);
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(2, 132, 199, 0.35);
+      transition: transform var(--transition-fast), filter var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+      box-shadow: 0 10px 26px rgba(56, 189, 248, 0.45);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      border-color: rgba(16, 185, 129, 0.55);
+      box-shadow: 0 8px 22px rgba(5, 150, 105, 0.35);
+    }
+
+    .btn-emerald:hover:not(:disabled) {
+      box-shadow: 0 10px 26px rgba(16, 185, 129, 0.48);
+    }
+
+    .feedback-banner {
+      margin-top: 14px;
+      padding: 13px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .feedback-banner.perfect {
+      border-color: rgba(16, 185, 129, 0.5);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .feedback-banner.penalized {
+      border-color: rgba(244, 63, 94, 0.45);
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    .feedback-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .feedback-details {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+    }
+
+    .feedback-points {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--accent-amber);
+    }
+
+    .intro-card {
+      text-align: center;
+      max-width: 640px;
+      margin: 8px auto;
+    }
+
+    .intro-card h1 {
+      font-size: clamp(1.45rem, 3.6vw, 2rem);
+      margin-bottom: 10px;
+      background: linear-gradient(90deg, #f8fafc, #7dd3fc, #fde68a);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .intro-card p {
+      color: var(--text-muted);
+      font-size: 0.94rem;
+      margin-bottom: 18px;
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 10px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .rule-item {
+      padding: 12px;
+      border-radius: var(--radius-md);
+      background: rgba(7, 10, 16, 0.65);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .rule-item strong {
+      display: block;
+      color: var(--text-main);
+      margin-bottom: 3px;
+      font-size: 0.86rem;
+    }
+
+    .gameover-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 18px 0 22px;
+    }
+
+    @media (max-width: 520px) {
+      .gameover-stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .gameover-box {
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(7, 10, 16, 0.72);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .gameover-box .k {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .gameover-box .v {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-top: 2px;
+    }
+
+    .gameover-box.best .v {
+      color: var(--accent-amber);
+    }
+
+    .hidden-view {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- =====================================================================
+         CABEÇALHO SUPERIOR COMPACTO
+         ===================================================================== -->
+    <header class="topbar" aria-label="Status da operação">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="8"></circle>
+            <circle cx="12" cy="12" r="3"></circle>
+            <line x1="12" y1="2" x2="12" y2="5"></line>
+            <line x1="12" y1="19" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="5" y2="12"></line>
+            <line x1="19" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Olho de Lince</div>
+          <div class="brand-subtitle">Detetive de Luneta</div>
+        </div>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat-pill">
+          <span class="label">FASE</span>
+          <span class="value" id="hud-phase">1</span>
+        </div>
+
+        <div class="stat-pill score">
+          <span class="label">PONTOS</span>
+          <span class="value" id="hud-score">0</span>
+        </div>
+
+        <div class="lives-group" id="hud-lives" aria-label="Vidas restantes: 3 de 3"></div>
+
+        <button type="button" class="btn-audio" id="btn-audio-toggle" aria-pressed="false" title="Alternar som">
+          <span id="audio-icon" aria-hidden="true">🔊</span>
+          <span id="audio-label">Som Ativo</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- =====================================================================
+         PALCO PRINCIPAL DO JOGO
+         ===================================================================== -->
+    <main class="main-stage">
+      <!-- TELA INICIAL / BRIEFING -->
+      <section class="panel intro-card" id="view-intro">
+        <div class="phase-badge" style="margin-bottom: 12px;">Posto de Vigilância Ativo</div>
+        <h1>Olho de Lince: Detetive de Luneta</h1>
+        <p>
+          Observe cada alvo através da lente da luneta por poucos segundos, memorize roupas, cores e acessórios
+          e marque apenas as evidências reais antes de confirmar seu relatório.
+        </p>
+
+        <div class="rules-grid">
+          <div class="rule-item">
+            <strong>1. Foco na Lente</strong>
+            A luneta oscila levemente. Observe cabelo, roupas e acessórios antes do obturador fechar.
+          </div>
+          <div class="rule-item">
+            <strong>2. Cuidado com Pegadinhas</strong>
+            Cores trocadas ou peças que o alvo não usava entram como distratores na lista.
+          </div>
+          <div class="rule-item">
+            <strong>3. 3 Vidas &amp; Fases Infinitas</strong>
+            Erros ou itens esquecidos custam 1 vida. A cada fase, a dificuldade escala.
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary" id="btn-start-game">
+          Iniciar Observação
+        </button>
+      </section>
+
+      <!-- TELA DE OBSERVAÇÃO PELA LUNETA -->
+      <section class="panel" id="view-observe" class="hidden-view" style="display: none;">
+        <div class="panel-header">
+          <span class="phase-badge" id="observe-phase-badge">Fase 1 • Observação</span>
+          <span class="phase-meta" id="observe-difficulty-meta">1 acessório • 4 pegadinhas • 4.0s</span>
+        </div>
+
+        <div class="scope-wrapper">
+          <div class="telescope-lens" id="telescope-lens">
+            <div class="crosshair-layer" aria-hidden="true">
+              <div class="crosshair-h"></div>
+              <div class="crosshair-v"></div>
+              <div class="crosshair-center-ring"></div>
+              <!-- Marcações de escala -->
+              <span class="tick-mark" style="top: 50%; left: 26%; width: 1px; height: 8px; margin-top: -4px;"></span>
+              <span class="tick-mark" style="top: 50%; left: 74%; width: 1px; height: 8px; margin-top: -4px;"></span>
+              <span class="tick-mark" style="left: 50%; top: 26%; height: 1px; width: 8px; margin-left: -4px;"></span>
+              <span class="tick-mark" style="left: 50%; top: 74%; height: 1px; width: 8px; margin-left: -4px;"></span>
+            </div>
+
+            <div class="lens-glare" aria-hidden="true"></div>
+            <div class="shutter-overlay" id="shutter-overlay" aria-hidden="true"></div>
+
+            <!-- SVG Vetorial Dinâmico do Personagem em 12 Camadas -->
+            <svg
+              id="character-svg"
+              class="character-svg"
+              viewBox="0 0 260 300"
+              xmlns="http://www.w3.org/2000/svg"
+              role="img"
+              aria-label="Personagem observado pela luneta"
+            ></svg>
+          </div>
+
+          <div class="timer-box">
+            <div class="timer-row">
+              <span>Tempo de exposição da lente</span>
+              <span class="timer-readout" id="timer-readout">10.0s</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TELA DE CHECKLIST E AVALIAÇÃO -->
+      <section class="panel" id="view-checklist" style="display: none;">
+        <div class="panel-header">
+          <span class="phase-badge" id="checklist-phase-badge">Fase 1 • Relatório de Campo</span>
+          <span class="phase-meta" id="checklist-target-hint">Alvo: —</span>
+        </div>
+
+        <p class="checklist-instructions" id="checklist-instructions">
+          Para cada item, diga se estava usando (<strong>Sim / Não</strong>) e, se sim, escolha <strong>qual a cor</strong>.
+        </p>
+
+        <div class="report-workspace">
+          <div>
+            <div class="report-column-title">
+              <span>Perguntas do Relatório</span>
+              <span id="checklist-column-limit" style="color: var(--accent-amber);">Limite: 0</span>
+            </div>
+            <div class="question-rows-grid" id="evidence-grid"></div>
+          </div>
+
+          <aside class="palette-sidebar" aria-label="Paleta de cores de referência">
+            <div class="review-character-box" id="review-character-box" style="display: none;">
+              <div class="review-character-title">
+                <span>Alvo Observado</span>
+                <span style="color: var(--text-muted);">Conferência</span>
+              </div>
+              <svg
+                id="review-character-svg"
+                class="review-character-svg"
+                viewBox="0 0 260 300"
+                xmlns="http://www.w3.org/2000/svg"
+                role="img"
+                aria-label="Personagem real para conferência"
+              ></svg>
+            </div>
+
+            <div class="report-column-title" style="margin-bottom: 0;">
+              <span>Paleta de Cores</span>
+              <span style="color: var(--text-muted); font-size: 0.68rem;">Clique p/ filtrar</span>
+            </div>
+
+            <div>
+              <div class="palette-group-label">Roupas &amp; Acessórios</div>
+              <div class="palette-swatches-grid" id="palette-clothing-grid"></div>
+            </div>
+
+            <div>
+              <div class="palette-group-label">Cabelos</div>
+              <div class="palette-swatches-grid" id="palette-hair-grid"></div>
+            </div>
+
+            <div class="palette-filter-bar" id="palette-filter-bar">
+              <span id="palette-filter-status">Mostrando todas as cores</span>
+              <button type="button" class="btn-clear-filter" id="btn-clear-color-filter" style="display: none;">
+                Limpar
+              </button>
+            </div>
+          </aside>
+        </div>
+
+        <div id="feedback-banner-container"></div>
+
+        <div class="action-bar">
+          <div class="selection-counter" id="selection-counter">
+            Selecionados: <strong>0 / 0</strong>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-primary" id="btn-confirm-report">
+              Confirmar Relatório
+            </button>
+            <button type="button" class="btn-primary btn-emerald" id="btn-next-phase" style="display: none;">
+              Próxima Fase
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TELA DE GAME OVER -->
+      <section class="panel intro-card" id="view-gameover" style="display: none;">
+        <div class="phase-badge" style="color: #fda4af; background: rgba(244, 63, 94, 0.14); border-color: rgba(244, 63, 94, 0.35); margin-bottom: 10px;">
+          Operação Encerrada
+        </div>
+        <h2 style="font-size: 1.65rem; margin-bottom: 6px;">Suas Vidas Acabaram!</h2>
+        <p style="margin-bottom: 8px;">Bom trabalho de observação. Veja seu desempenho nesta missão:</p>
+
+        <div class="gameover-stats">
+          <div class="gameover-box">
+            <div class="k">Fase Alcançada</div>
+            <div class="v" id="gameover-phase">1</div>
+          </div>
+          <div class="gameover-box">
+            <div class="k">Pontuação Final</div>
+            <div class="v" id="gameover-score">0</div>
+          </div>
+          <div class="gameover-box best">
+            <div class="k">Recorde (Local)</div>
+            <div class="v" id="gameover-best">0</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary btn-emerald" id="btn-restart-game">
+          Jogar Novamente
+        </button>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. ÁUDIO PROCEDURAL (WEB AUDIO API)
+       Gera efeitos sonoros sintéticos sem arquivos externos:
+       - clique suave ao marcar/desmarcar cards
+       - tique-taque nos últimos segundos da luneta
+       - som de obturador ao encerrar a observação
+       - fanfarra ascendente ao gabaritar sem erros/omissões
+       - som grave de alerta ao perder vida
+       ========================================================================= */
+    const SoundEngine = (() => {
+      let ctx = null;
+      let muted = false;
+
+      function ensureContext() {
+        if (muted) return null;
+        if (!ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            ctx = new AudioCtx();
+          }
+        }
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+        return ctx;
+      }
+
+      function setMuted(value) {
+        muted = Boolean(value);
+      }
+
+      function isMuted() {
+        return muted;
+      }
+
+      // Clique suave ao selecionar/desmarcar um card
+      function playClick(selected = true) {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = 'sine';
+        const baseFreq = selected ? 580 : 420;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(selected ? 760 : 300, now + 0.055);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.09, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.065);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.07);
+      }
+
+      // Tique-taque discreto nos últimos segundos da luneta
+      function playTick(urgent = false) {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(urgent ? 1040 : 820, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.045);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(urgent ? 0.11 : 0.065, now + 0.006);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.05);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.055);
+      }
+
+      // Efeito de obturador mecânico + ruído curto quando o tempo acaba
+      function playShutter() {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const now = audio.currentTime;
+
+        // Pulso curto de ruído branco filtrado
+        const bufferSize = Math.floor(audio.sampleRate * 0.09);
+        const noiseBuffer = audio.createBuffer(1, bufferSize, audio.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+        }
+
+        const whiteNoise = audio.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+
+        const filter = audio.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1600, now);
+        filter.Q.setValueAtTime(1.4, now);
+
+        const noiseGain = audio.createGain();
+        noiseGain.gain.setValueAtTime(0.18, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+        whiteNoise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(audio.destination);
+        whiteNoise.start(now);
+
+        // Estalo metálico grave
+        const osc = audio.createOscillator();
+        const oscGain = audio.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.08);
+
+        oscGain.gain.setValueAtTime(0.09, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+        osc.connect(oscGain);
+        oscGain.connect(audio.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      // Fanfarra curta ascendente ao gabaritar uma fase
+      function playFanfare() {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+        const now = audio.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const start = now + idx * 0.085;
+          const duration = idx === notes.length - 1 ? 0.28 : 0.12;
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, start);
+
+          gain.gain.setValueAtTime(0.001, start);
+          gain.gain.linearRampToValueAtTime(0.13, start + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0008, start + duration);
+
+          osc.connect(gain);
+          gain.connect(audio.destination);
+
+          osc.start(start);
+          osc.stop(start + duration + 0.02);
+        });
+      }
+
+      // Som grave de alerta ao perder vida ou errar
+      function playAlert() {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const now = audio.currentTime;
+        const freqs = [195, 146.83]; // G3 -> D3 grave
+
+        freqs.forEach((freq, idx) => {
+          const start = now + idx * 0.13;
+          const duration = 0.19;
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, start);
+          osc.frequency.linearRampToValueAtTime(freq * 0.92, start + duration);
+
+          const filter = audio.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(650, start);
+
+          gain.gain.setValueAtTime(0.001, start);
+          gain.gain.linearRampToValueAtTime(0.14, start + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(audio.destination);
+
+          osc.start(start);
+          osc.stop(start + duration + 0.02);
+        });
+      }
+
+      // Aviso suave quando o jogador tenta exceder o limite ou marcar slot já ocupado
+      function playBlocked() {
+        const audio = ensureContext();
+        if (!audio) return;
+
+        const now = audio.currentTime;
+        const osc = audio.createOscillator();
+        const gain = audio.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(290, now);
+        osc.frequency.linearRampToValueAtTime(220, now + 0.09);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.075, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.095);
+
+        osc.connect(gain);
+        gain.connect(audio.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      return {
+        ensureContext,
+        setMuted,
+        isMuted,
+        playClick,
+        playTick,
+        playShutter,
+        playFanfare,
+        playAlert,
+        playBlocked
+      };
+    })();
+
+    /* =========================================================================
+       CATÁLOGO DE CORES, CABELOS, PERFIS E PEÇAS
+       ========================================================================= */
+    const PALETTE = [
+      { key: 'black',  name: 'Preto',    hex: '#1e242d', light: '#475569', dark: '#0b0e14' },
+      { key: 'white',  name: 'Branco',   hex: '#f1f5f9', light: '#ffffff', dark: '#cbd5e1' },
+      { key: 'blue',   name: 'Azul',     hex: '#2563eb', light: '#60a5fa', dark: '#1d4ed8' },
+      { key: 'green',  name: 'Verde',    hex: '#16a34a', light: '#4ade80', dark: '#15803d' },
+      { key: 'red',    name: 'Vermelho', hex: '#dc2626', light: '#f87171', dark: '#991b1b' },
+      { key: 'yellow', name: 'Amarelo',  hex: '#eab308', light: '#fde047', dark: '#ca8a04' },
+      { key: 'purple', name: 'Roxo',     hex: '#9333ea', light: '#c084fc', dark: '#6b21a8' },
+      { key: 'pink',   name: 'Rosa',     hex: '#ec4899', light: '#f472b6', dark: '#be185d' },
+      { key: 'orange', name: 'Laranja',  hex: '#f97316', light: '#fb923c', dark: '#c2410c' },
+      { key: 'brown',  name: 'Marrom',   hex: '#854d0e', light: '#b45309', dark: '#5c3408' }
+    ];
+
+    const HAIR_COLORS = [
+      { key: 'blonde', name: 'Loiro',    hex: '#facc15', light: '#fef08a', dark: '#ca8a04' },
+      { key: 'black',  name: 'Preto',    hex: '#18181b', light: '#3f3f46', dark: '#09090b' },
+      { key: 'brown',  name: 'Castanho', hex: '#78350f', light: '#a16207', dark: '#451a03' },
+      { key: 'ginger', name: 'Ruivo',    hex: '#ea580c', light: '#fb923c', dark: '#9a3412' },
+      { key: 'gray',   name: 'Grisalho', hex: '#94a3b8', light: '#cbd5e1', dark: '#64748b' }
+    ];
+
+    const SKIN_TONES = [
+      { key: 'light',  hex: '#fbd3b8', shadow: '#e2a985' },
+      { key: 'medium', hex: '#e3a87e', shadow: '#c28359' },
+      { key: 'tan',    hex: '#c48356', shadow: '#9c6038' },
+      { key: 'deep',   hex: '#7c4a2d', shadow: '#58321c' }
+    ];
+
+    const PROFILES = [
+      {
+        id: 'adult_female',
+        label: 'Mulher Adulta',
+        topOptions: [
+          { type: 'blusa',   noun: 'Blusa' },
+          { type: 'camisa',  noun: 'Camisa' },
+          { type: 'jaqueta', noun: 'Jaqueta' }
+        ],
+        bottomOptions: [
+          { type: 'saia',  noun: 'Saia' },
+          { type: 'calca', noun: 'Calça' }
+        ],
+        shoeOptions: [
+          { type: 'sapatos',   noun: 'Sapatos' },
+          { type: 'botas',     noun: 'Botas' },
+          { type: 'sandalias', noun: 'Sandálias' }
+        ]
+      },
+      {
+        id: 'adult_male',
+        label: 'Homem Adulto',
+        topOptions: [
+          { type: 'camisa',   noun: 'Camisa' },
+          { type: 'camiseta', noun: 'Camiseta' },
+          { type: 'jaqueta',  noun: 'Jaqueta' }
+        ],
+        bottomOptions: [
+          { type: 'calca',   noun: 'Calça' },
+          { type: 'bermuda', noun: 'Bermuda' }
+        ],
+        shoeOptions: [
+          { type: 'sapatos', noun: 'Sapatos' },
+          { type: 'tenis',   noun: 'Tênis' },
+          { type: 'botas',   noun: 'Botas' }
+        ]
+      },
+      {
+        id: 'girl',
+        label: 'Criança (Menina)',
+        topOptions: [
+          { type: 'blusa',    noun: 'Blusa' },
+          { type: 'camiseta', noun: 'Camiseta' },
+          { type: 'jaqueta',  noun: 'Jaqueta' }
+        ],
+        bottomOptions: [
+          { type: 'saia',  noun: 'Saia' },
+          { type: 'short', noun: 'Short' },
+          { type: 'calca', noun: 'Calça' }
+        ],
+        shoeOptions: [
+          { type: 'tenis',     noun: 'Tênis' },
+          { type: 'sandalias', noun: 'Sandálias' },
+          { type: 'sapatos',   noun: 'Sapatos' }
+        ]
+      },
+      {
+        id: 'boy',
+        label: 'Criança (Menino)',
+        topOptions: [
+          { type: 'camiseta', noun: 'Camiseta' },
+          { type: 'camisa',   noun: 'Camisa' },
+          { type: 'jaqueta',  noun: 'Jaqueta' }
+        ],
+        bottomOptions: [
+          { type: 'bermuda', noun: 'Bermuda' },
+          { type: 'short',   noun: 'Short' },
+          { type: 'calca',   noun: 'Calça' }
+        ],
+        shoeOptions: [
+          { type: 'tenis',   noun: 'Tênis' },
+          { type: 'sapatos', noun: 'Sapatos' },
+          { type: 'botas',   noun: 'Botas' }
+        ]
+      }
+    ];
+
+    /* Utilitários aleatórios e algoritmo Fisher-Yates */
+    function randInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function pickRandom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function shuffleFisherYates(array) {
+      const copy = array.slice();
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function formatGenderedItem(noun, colorName) {
+      // Concordância natural em português para plural/feminino/masculino
+      const pluralNouns = ['Sapatos', 'Tênis', 'Botas', 'Sandálias'];
+      const feminineNouns = ['Blusa', 'Camisa', 'Camiseta', 'Jaqueta', 'Saia', 'Calça', 'Bermuda', 'Bolsa', 'Mochila'];
+
+      if (pluralNouns.includes(noun)) {
+        if (colorName === 'Marrom') return `${noun} Marrons`;
+        if (colorName === 'Azul') return `${noun} Azuis`;
+        return `${noun} ${colorName}s`;
+      }
+
+      if (feminineNouns.includes(noun)) {
+        if (colorName === 'Preto') return `${noun} Preta`;
+        if (colorName === 'Branco') return `${noun} Branca`;
+        if (colorName === 'Amarelo') return `${noun} Amarela`;
+        if (colorName === 'Roxo') return `${noun} Roxa`;
+        if (colorName === 'Marrom') return `${noun} Marrom`;
+        return `${noun} ${colorName}`;
+      }
+
+      // Masculino singular (Boné, Chapéu, Relógio, Óculos)
+      return `${noun} ${colorName}`;
+    }
+
+    /* =========================================================================
+       2. GERADOR PROCEDURAL DE PERSONAGENS
+       Sorteia perfil, pele, cabelo, itens base obrigatórios e acessórios
+       opcionais escalonados pela fase (até 5 acessórios).
+       ========================================================================= */
+    function getDifficultyConfig(phase) {
+      // Fase 1: 1 acessório, 4 distratores, 10.0s
+      // Escala suavemente até máx 5 acessórios, máx 10 distratores e mín 5.0s
+      const extraAccessoriesCount = Math.min(5, phase);
+      const distractorsCount = Math.min(10, 3 + phase);
+      const exposureSeconds = Math.max(5.0, Number((10.0 - (phase - 1) * 0.4).toFixed(1)));
+
+      return {
+        extraAccessoriesCount,
+        distractorsCount,
+        exposureSeconds
+      };
+    }
+
+    function generateCharacter(phase) {
+      const config = getDifficultyConfig(phase);
+      const profile = pickRandom(PROFILES);
+      const skin = pickRandom(SKIN_TONES);
+      const hair = pickRandom(HAIR_COLORS);
+
+      const topPiece = pickRandom(profile.topOptions);
+      const topColor = pickRandom(PALETTE);
+
+      const bottomPiece = pickRandom(profile.bottomOptions);
+      const bottomColor = pickRandom(PALETTE);
+
+      const shoePiece = pickRandom(profile.shoeOptions);
+      const shoeColor = pickRandom(PALETTE);
+
+      // Sorteia até N acessórios distintos para a fase
+      const accessoryPool = shuffleFisherYates(['glasses', 'necklace', 'watch', 'hat', 'bag']);
+      const chosenKeys = accessoryPool.slice(0, config.extraAccessoriesCount);
+
+      const accessories = {
+        glasses: null,
+        necklace: false,
+        watch: null,
+        hat: null,
+        bag: null
+      };
+
+      const trueItems = [];
+
+      // 1) Itens Base (sempre incluídos no gabarito real)
+      trueItems.push({
+        id: `hair_${hair.key}`,
+        label: `Cabelo ${hair.name}`,
+        category: 'Cabelo',
+        slot: 'hair',
+        colorHex: hair.hex,
+        kind: 'hair',
+        colorObj: hair
+      });
+
+      trueItems.push({
+        id: `top_${topPiece.type}_${topColor.key}`,
+        label: formatGenderedItem(topPiece.noun, topColor.name),
+        category: 'Roupa Superior',
+        slot: 'top',
+        colorHex: topColor.hex,
+        kind: 'top',
+        pieceType: topPiece.type,
+        noun: topPiece.noun,
+        colorObj: topColor
+      });
+
+      trueItems.push({
+        id: `bottom_${bottomPiece.type}_${bottomColor.key}`,
+        label: formatGenderedItem(bottomPiece.noun, bottomColor.name),
+        category: 'Roupa Inferior',
+        slot: 'bottom',
+        colorHex: bottomColor.hex,
+        kind: 'bottom',
+        pieceType: bottomPiece.type,
+        noun: bottomPiece.noun,
+        colorObj: bottomColor
+      });
+
+      trueItems.push({
+        id: `shoe_${shoePiece.type}_${shoeColor.key}`,
+        label: formatGenderedItem(shoePiece.noun, shoeColor.name),
+        category: 'Calçado',
+        slot: 'shoes',
+        colorHex: shoeColor.hex,
+        kind: 'shoe',
+        pieceType: shoePiece.type,
+        noun: shoePiece.noun,
+        colorObj: shoeColor
+      });
+
+      // 2) Acessórios Opcionais sorteados na fase
+      if (chosenKeys.includes('glasses')) {
+        const c = pickRandom(PALETTE);
+        accessories.glasses = c;
+        trueItems.push({
+          id: `acc_glasses_${c.key}`,
+          label: `Óculos ${c.name}`,
+          category: 'Acessório • Óculos',
+          slot: 'glasses',
+          colorHex: c.hex,
+          kind: 'glasses',
+          colorObj: c
+        });
+      }
+
+      if (chosenKeys.includes('necklace')) {
+        accessories.necklace = true;
+        trueItems.push({
+          id: 'acc_necklace_pearls',
+          label: 'Colar de Pérolas',
+          category: 'Acessório • Colar',
+          slot: 'necklace',
+          colorHex: '#f8fafc',
+          kind: 'necklace'
+        });
+      }
+
+      if (chosenKeys.includes('watch')) {
+        const c = pickRandom(PALETTE);
+        accessories.watch = c;
+        trueItems.push({
+          id: `acc_watch_${c.key}`,
+          label: `Relógio ${c.name}`,
+          category: 'Acessório • Relógio',
+          slot: 'watch',
+          colorHex: c.hex,
+          kind: 'watch',
+          colorObj: c
+        });
+      }
+
+      if (chosenKeys.includes('hat')) {
+        const c = pickRandom(PALETTE);
+        const hatNoun = (profile.id === 'boy' || profile.id === 'adult_male') ? 'Boné' : 'Chapéu';
+        const hatType = hatNoun === 'Boné' ? 'cap' : 'hat';
+        accessories.hat = { color: c, noun: hatNoun, type: hatType };
+        trueItems.push({
+          id: `acc_${hatType}_${c.key}`,
+          label: `${hatNoun} ${c.name}`,
+          category: 'Acessório • Cabeça',
+          slot: 'hat',
+          colorHex: c.hex,
+          kind: 'hat',
+          hatNoun,
+          colorObj: c
+        });
+      }
+
+      if (chosenKeys.includes('bag')) {
+        const c = pickRandom(PALETTE);
+        const bagNoun = (profile.id === 'adult_female' || profile.id === 'girl') ? 'Bolsa' : 'Mochila';
+        const bagType = bagNoun === 'Bolsa' ? 'handbag' : 'backpack';
+        accessories.bag = { color: c, noun: bagNoun, type: bagType };
+        trueItems.push({
+          id: `acc_${bagType}_${c.key}`,
+          label: formatGenderedItem(bagNoun, c.name),
+          category: 'Acessório • Bolsa/Mochila',
+          slot: 'bag',
+          colorHex: c.hex,
+          kind: 'bag',
+          bagNoun,
+          colorObj: c
+        });
+      }
+
+      return {
+        profile,
+        skin,
+        hair,
+        top: { ...topPiece, color: topColor },
+        bottom: { ...bottomPiece, color: bottomColor },
+        shoe: { ...shoePiece, color: shoeColor },
+        accessories,
+        trueItems,
+        config
+      };
+    }
+
+    /* =========================================================================
+       3. GERADOR DE PEGADINHAS (DISTRATORES) E EMBARALHAMENTO FISHER-YATES
+       Cria itens falsos plausíveis (mesmo tipo com outra cor, ou acessórios/
+       roupas não usados) sem duplicar itens já presentes no gabarito.
+       ========================================================================= */
+    function buildChecklistItems(character) {
+      const trueItems = character.trueItems;
+      const existingIds = new Set(trueItems.map((item) => item.id));
+      const candidateDistractors = [];
+
+      // A) Cores alternativas para o cabelo
+      HAIR_COLORS.forEach((h) => {
+        const id = `hair_${h.key}`;
+        if (!existingIds.has(id)) {
+          candidateDistractors.push({
+            id,
+            label: `Cabelo ${h.name}`,
+            category: 'Cabelo',
+            slot: 'hair',
+            colorHex: h.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      // B) Mesma peça superior com outras cores + outras peças superiores
+      PALETTE.forEach((c) => {
+        const idSameType = `top_${character.top.type}_${c.key}`;
+        if (!existingIds.has(idSameType)) {
+          candidateDistractors.push({
+            id: idSameType,
+            label: formatGenderedItem(character.top.noun, c.name),
+            category: 'Roupa Superior',
+            slot: 'top',
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      const altTops = [
+        { type: 'blusa', noun: 'Blusa' },
+        { type: 'camisa', noun: 'Camisa' },
+        { type: 'camiseta', noun: 'Camiseta' },
+        { type: 'jaqueta', noun: 'Jaqueta' }
+      ];
+      altTops.forEach((t) => {
+        const c = pickRandom(PALETTE);
+        const id = `top_${t.type}_${c.key}`;
+        if (!existingIds.has(id)) {
+          candidateDistractors.push({
+            id,
+            label: formatGenderedItem(t.noun, c.name),
+            category: 'Roupa Superior',
+            slot: 'top',
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      // C) Mesma peça inferior com outras cores + outras peças inferiores
+      PALETTE.forEach((c) => {
+        const idSameType = `bottom_${character.bottom.type}_${c.key}`;
+        if (!existingIds.has(idSameType)) {
+          candidateDistractors.push({
+            id: idSameType,
+            label: formatGenderedItem(character.bottom.noun, c.name),
+            category: 'Roupa Inferior',
+            slot: 'bottom',
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      const altBottoms = [
+        { type: 'saia', noun: 'Saia' },
+        { type: 'calca', noun: 'Calça' },
+        { type: 'bermuda', noun: 'Bermuda' },
+        { type: 'short', noun: 'Short' }
+      ];
+      altBottoms.forEach((b) => {
+        const c = pickRandom(PALETTE);
+        const id = `bottom_${b.type}_${c.key}`;
+        if (!existingIds.has(id)) {
+          candidateDistractors.push({
+            id,
+            label: formatGenderedItem(b.noun, c.name),
+            category: 'Roupa Inferior',
+            slot: 'bottom',
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      // D) Calçados alternativos
+      PALETTE.slice(0, 6).forEach((c) => {
+        const id = `shoe_${character.shoe.type}_${c.key}`;
+        if (!existingIds.has(id)) {
+          candidateDistractors.push({
+            id,
+            label: formatGenderedItem(character.shoe.noun, c.name),
+            category: 'Calçado',
+            slot: 'shoes',
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      // E) Acessórios não usados ou com cores diferentes
+      if (!existingIds.has('acc_necklace_pearls')) {
+        candidateDistractors.push({
+          id: 'acc_necklace_pearls',
+          label: 'Colar de Pérolas',
+          category: 'Acessório • Colar',
+          slot: 'necklace',
+          colorKey: 'white',
+          colorHex: '#f8fafc',
+          isTrue: false
+        });
+      }
+
+      ['glasses', 'watch', 'cap', 'hat', 'handbag', 'backpack'].forEach((accType) => {
+        const c = pickRandom(PALETTE);
+        const slotMap = {
+          glasses: 'glasses',
+          watch: 'watch',
+          cap: 'hat',
+          hat: 'hat',
+          handbag: 'bag',
+          backpack: 'bag'
+        };
+        const categoryMap = {
+          glasses: 'Acessório • Óculos',
+          watch: 'Acessório • Relógio',
+          cap: 'Acessório • Cabeça',
+          hat: 'Acessório • Cabeça',
+          handbag: 'Acessório • Bolsa/Mochila',
+          backpack: 'Acessório • Bolsa/Mochila'
+        };
+        const labelMap = {
+          glasses: `Óculos ${c.name}`,
+          watch: `Relógio ${c.name}`,
+          cap: `Boné ${c.name}`,
+          hat: `Chapéu ${c.name}`,
+          handbag: formatGenderedItem('Bolsa', c.name),
+          backpack: formatGenderedItem('Mochila', c.name)
+        };
+        const id = `acc_${accType}_${c.key}`;
+        if (!existingIds.has(id)) {
+          candidateDistractors.push({
+            id,
+            label: labelMap[accType],
+            category: categoryMap[accType],
+            slot: slotMap[accType],
+            colorKey: c.key,
+            colorHex: c.hex,
+            isTrue: false
+          });
+        }
+      });
+
+      const chosenDistractors = candidateDistractors
+        .filter((item, index, arr) => arr.findIndex((x) => x.id === item.id) === index)
+        .slice(0, character.config.distractorsCount);
+
+      const combined = [
+        ...trueItems.map((item) => ({ ...item, isTrue: true })),
+        ...chosenDistractors
+      ];
+
+      // Embaralhamento final obrigatório com Fisher-Yates
+      return shuffleFisherYates(combined);
+    }
+
+    /* =========================================================================
+       4. RENDERIZADOR SVG EM 12 CAMADAS ORDENADAS
+       Ordem exata exigida:
+       1. cabelo traseiro
+       2. mochila/bolsa
+       3. corpo/pele
+       4. relógio
+       5. pernas/calçados
+       6. saia/calça/bermuda
+       7. blusa/camisa/jaqueta
+       8. colar de pérolas
+       9. cabeça/rosto
+       10. cabelo frontal
+       11. óculos
+       12. chapéu/boné
+       ========================================================================= */
+    function renderCharacterSVG(svgEl, charData) {
+      const isChild = charData.profile.id === 'girl' || charData.profile.id === 'boy';
+      const isFemaleStyle = charData.profile.id === 'adult_female' || charData.profile.id === 'girl';
+
+      // Proporções ajustadas entre adulto e criança
+      const headCy = isChild ? 94 : 84;
+      const headR = isChild ? 33 : 31;
+      const shoulderY = isChild ? 136 : 124;
+      const waistY = isChild ? 186 : 182;
+      const hipY = isChild ? 196 : 192;
+      const footY = 266;
+
+      const skin = charData.skin.hex;
+      const skinShadow = charData.skin.shadow;
+      const hair = charData.hair;
+      const topColor = charData.top.color;
+      const bottomColor = charData.bottom.color;
+      const shoeColor = charData.shoe.color;
+
+      // 1. Cabelo traseiro
+      let layer1BackHair = '';
+      if (isFemaleStyle || hair.key === 'long' || charData.profile.id === 'adult_female') {
+        const backLengthY = isChild ? headCy + 54 : headCy + 76;
+        layer1BackHair = `
+          <g id="layer-1-back-hair">
+            <path d="M ${130 - headR - 3} ${headCy - 4}
+                     C ${130 - headR - 14} ${headCy + 25}, ${130 - headR - 10} ${backLengthY - 15}, ${130 - headR + 2} ${backLengthY}
+                     L ${130 + headR - 2} ${backLengthY}
+                     C ${130 + headR + 10} ${backLengthY - 15}, ${130 + headR + 14} ${headCy + 25}, ${130 + headR + 3} ${headCy - 4} Z"
+                  fill="${hair.dark}" />
+          </g>
+        `;
+      } else {
+        layer1BackHair = `<g id="layer-1-back-hair"></g>`;
+      }
+
+      // 2. Mochila / Bolsa
+      let layer2Bag = `<g id="layer-2-bag"></g>`;
+      if (charData.accessories.bag) {
+        const bag = charData.accessories.bag;
+        if (bag.type === 'backpack') {
+          layer2Bag = `
+            <g id="layer-2-bag">
+              <!-- Alças nos ombros -->
+              <path d="M 103 ${shoulderY + 2} Q 96 ${shoulderY + 22} 99 ${waistY}"
+                    fill="none" stroke="${bag.color.dark}" stroke-width="5.5" stroke-linecap="round" />
+              <path d="M 157 ${shoulderY + 2} Q 164 ${shoulderY + 22} 161 ${waistY}"
+                    fill="none" stroke="${bag.color.dark}" stroke-width="5.5" stroke-linecap="round" />
+              <!-- Corpo da mochila -->
+              <rect x="76" y="${shoulderY + 6}" width="108" height="72" rx="18"
+                    fill="${bag.color.hex}" stroke="${bag.color.dark}" stroke-width="2.2" />
+              <rect x="86" y="${shoulderY + 14}" width="88" height="22" rx="9"
+                    fill="${bag.color.light}" opacity="0.35" />
+              <!-- Bolso frontal com zíper -->
+              <rect x="92" y="${shoulderY + 36}" width="76" height="32" rx="8"
+                    fill="${bag.color.dark}" stroke="${bag.color.light}" stroke-width="1.2" />
+              <line x1="98" y1="${shoulderY + 44}" x2="162" y2="${shoulderY + 44}"
+                    stroke="#e2e8f0" stroke-width="1.6" stroke-dasharray="3 2" />
+            </g>
+          `;
+        } else {
+          // Bolsa transversal com alça e fecho metálico
+          layer2Bag = `
+            <g id="layer-2-bag">
+              <path d="M 106 ${shoulderY + 2} L 174 ${hipY + 12}"
+                    fill="none" stroke="${bag.color.dark}" stroke-width="5" stroke-linecap="round" />
+              <rect x="155" y="${hipY + 6}" width="44" height="36" rx="9"
+                    fill="${bag.color.hex}" stroke="${bag.color.dark}" stroke-width="2" />
+              <!-- Aba da bolsa -->
+              <path d="M 155 ${hipY + 14} Q 177 ${hipY + 27} 199 ${hipY + 14} L 199 ${hipY + 11} Q 199 ${hipY + 6} 190 ${hipY + 6} L 164 ${hipY + 6} Q 155 ${hipY + 6} 155 ${hipY + 11} Z"
+                    fill="${bag.color.light}" stroke="${bag.color.dark}" stroke-width="1.4" />
+              <!-- Fecho -->
+              <rect x="173" y="${hipY + 18}" width="8" height="7" rx="2" fill="#fbbf24" stroke="#92400e" stroke-width="1" />
+            </g>
+          `;
+        }
+      }
+
+      // 3. Corpo / Pele (pescoço, tronco, braços e mãos)
+      const armSpanX = isChild ? 36 : 44;
+      const shoulderOffset = isChild ? 29 : 35;
+      const armStartLeftX = 130 - shoulderOffset;
+      const armEndLeftX = armStartLeftX - armSpanX;
+      const armStartRightX = 130 + shoulderOffset;
+      const armEndRightX = armStartRightX + armSpanX;
+      const handY = waistY + 17;
+
+      const layer3Body = `
+        <g id="layer-3-body">
+          <!-- Pescoço com sombra sob o queixo -->
+          <rect x="119" y="${headCy + headR - 5}" width="22" height="22" rx="8" fill="${skin}" />
+          <path d="M 119 ${headCy + headR - 1} Q 130 ${headCy + headR + 7} 141 ${headCy + headR - 1} L 141 ${headCy + headR + 4} Q 130 ${headCy + headR + 11} 119 ${headCy + headR + 4} Z"
+                fill="${skinShadow}" opacity="0.65" />
+          <!-- Tronco -->
+          <rect x="${130 - shoulderOffset}" y="${shoulderY}" width="${shoulderOffset * 2}" height="${hipY - shoulderY + 6}" rx="16" fill="${skin}" />
+          <!-- Braço esquerdo -->
+          <path d="M ${armStartLeftX} ${shoulderY + 6}
+                   L ${armEndLeftX} ${waistY + 12}
+                   L ${armEndLeftX + 12} ${waistY + 18}
+                   L ${130 - (isChild ? 24 : 30)} ${shoulderY + 22} Z"
+                fill="${skin}" />
+          <circle cx="${armEndLeftX + 6}" cy="${handY}" r="7.2" fill="${skin}" />
+          <!-- Braço direito -->
+          <path d="M ${armStartRightX} ${shoulderY + 6}
+                   L ${armEndRightX} ${waistY + 12}
+                   L ${armEndRightX - 12} ${waistY + 18}
+                   L ${130 + (isChild ? 24 : 30)} ${shoulderY + 22} Z"
+                fill="${skin}" />
+          <circle cx="${armEndRightX - 6}" cy="${handY}" r="7.2" fill="${skin}" />
+        </g>
+      `;
+
+      // 4. Relógio (vestido no pulso, acima da mão, acompanhando o ângulo do antebraço)
+      let layer4Watch = `<g id="layer-4-watch"></g>`;
+      if (charData.accessories.watch) {
+        const wColor = charData.accessories.watch;
+        // Interpola a posição exata no pulso (82% do comprimento do braço, antes da mão)
+        const wristCenterX = armStartRightX + (armEndRightX - armStartRightX) * 0.80 - 4;
+        const wristCenterY = (shoulderY + 12) + ((waistY + 13) - (shoulderY + 12)) * 0.80;
+        const armAngleDeg = Math.atan2((waistY + 15) - (shoulderY + 14), (armEndRightX - 6) - armStartRightX) * (180 / Math.PI);
+
+        layer4Watch = `
+          <g id="layer-4-watch" transform="translate(${wristCenterX.toFixed(1)}, ${wristCenterY.toFixed(1)}) rotate(${armAngleDeg.toFixed(1)})">
+            <!-- Pulseira envolvendo o pulso -->
+            <rect x="-4" y="-8.5" width="8" height="17" rx="2.5"
+                  fill="${wColor.hex}" stroke="${wColor.dark}" stroke-width="1.5" />
+            <!-- Fivela lateral -->
+            <rect x="-2.5" y="-9.5" width="5" height="2.2" rx="1" fill="#cbd5e1" />
+            <!-- Caixa e mostrador do relógio -->
+            <circle cx="0" cy="0" r="6.2" fill="${wColor.light}" stroke="${wColor.dark}" stroke-width="1.5" />
+            <circle cx="0" cy="0" r="4.4" fill="#f8fafc" />
+            <!-- Ponteiros -->
+            <line x1="0" y1="0" x2="0" y2="-2.7" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round" />
+            <line x1="0" y1="0" x2="2.2" y2="1" stroke="#dc2626" stroke-width="1.1" stroke-linecap="round" />
+            <circle cx="0" cy="0" r="0.9" fill="#0f172a" />
+          </g>
+        `;
+      }
+
+      // 5. Pernas / Calçados detalhados
+      const legLeftX = 104;
+      const legRightX = 138;
+      const legWidth = isChild ? 16 : 18;
+
+      let shoeSvg = '';
+      if (charData.shoe.type === 'botas') {
+        shoeSvg = `
+          <!-- Bota esquerda -->
+          <path d="M ${legLeftX - 2} ${footY - 26} L ${legLeftX + legWidth + 2} ${footY - 26} L ${legLeftX + legWidth + 9} ${footY + 3} L ${legLeftX - 4} ${footY + 3} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.6" />
+          <rect x="${legLeftX - 4}" y="${footY + 3}" width="${legWidth + 13}" height="4" rx="1.5" fill="${shoeColor.dark}" />
+          <line x1="${legLeftX + 1}" y1="${footY - 19}" x2="${legLeftX + legWidth - 1}" y2="${footY - 19}" stroke="${shoeColor.light}" stroke-width="1.4" />
+          <!-- Bota direita -->
+          <path d="M ${legRightX - 2} ${footY - 26} L ${legRightX + legWidth + 2} ${footY - 26} L ${legRightX + legWidth + 11} ${footY + 3} L ${legRightX - 2} ${footY + 3} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.6" />
+          <rect x="${legRightX - 2}" y="${footY + 3}" width="${legWidth + 13}" height="4" rx="1.5" fill="${shoeColor.dark}" />
+          <line x1="${legRightX + 1}" y1="${footY - 19}" x2="${legRightX + legWidth - 1}" y2="${footY - 19}" stroke="${shoeColor.light}" stroke-width="1.4" />
+        `;
+      } else if (charData.shoe.type === 'sandalias') {
+        shoeSvg = `
+          <rect x="${legLeftX - 4}" y="${footY + 1}" width="${legWidth + 11}" height="5.5" rx="2.5" fill="${shoeColor.dark}" />
+          <path d="M ${legLeftX - 1} ${footY - 6} Q ${legLeftX + 8} ${footY - 10} ${legLeftX + legWidth + 4} ${footY - 5}" fill="none" stroke="${shoeColor.hex}" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M ${legLeftX} ${footY - 12} L ${legLeftX + legWidth + 1} ${footY - 12}" stroke="${shoeColor.hex}" stroke-width="2.4" stroke-linecap="round" />
+          <rect x="${legRightX - 2}" y="${footY + 1}" width="${legWidth + 11}" height="5.5" rx="2.5" fill="${shoeColor.dark}" />
+          <path d="M ${legRightX + 1} ${footY - 6} Q ${legRightX + 10} ${footY - 10} ${legRightX + legWidth + 6} ${footY - 5}" fill="none" stroke="${shoeColor.hex}" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M ${legRightX + 2} ${footY - 12} L ${legRightX + legWidth + 3} ${footY - 12}" stroke="${shoeColor.hex}" stroke-width="2.4" stroke-linecap="round" />
+        `;
+      } else if (charData.shoe.type === 'tenis') {
+        shoeSvg = `
+          <!-- Tênis esquerdo com solado claro e cadarço -->
+          <path d="M ${legLeftX - 3} ${footY - 9} Q ${legLeftX + 8} ${footY - 14} ${legLeftX + legWidth + 9} ${footY}
+                   L ${legLeftX + legWidth + 9} ${footY + 3} L ${legLeftX - 4} ${footY + 3} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.5" />
+          <rect x="${legLeftX - 4}" y="${footY + 3}" width="${legWidth + 13}" height="4" rx="2" fill="#f8fafc" stroke="${shoeColor.dark}" stroke-width="1" />
+          <line x1="${legLeftX + 5}" y1="${footY - 8}" x2="${legLeftX + 11}" y2="${footY - 5}" stroke="#f8fafc" stroke-width="1.6" stroke-linecap="round" />
+          <!-- Tênis direito -->
+          <path d="M ${legRightX - 1} ${footY - 9} Q ${legRightX + 10} ${footY - 14} ${legRightX + legWidth + 11} ${footY}
+                   L ${legRightX + legWidth + 11} ${footY + 3} L ${legRightX - 2} ${footY + 3} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.5" />
+          <rect x="${legRightX - 2}" y="${footY + 3}" width="${legWidth + 13}" height="4" rx="2" fill="#f8fafc" stroke="${shoeColor.dark}" stroke-width="1" />
+          <line x1="${legRightX + 7}" y1="${footY - 8}" x2="${legRightX + 13}" y2="${footY - 5}" stroke="#f8fafc" stroke-width="1.6" stroke-linecap="round" />
+        `;
+      } else {
+        // Sapatos sociais com biqueira e salto
+        shoeSvg = `
+          <path d="M ${legLeftX - 3} ${footY - 8} Q ${legLeftX + 8} ${footY - 13} ${legLeftX + legWidth + 9} ${footY + 1}
+                   L ${legLeftX + legWidth + 9} ${footY + 4} L ${legLeftX - 4} ${footY + 4} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.5" />
+          <rect x="${legLeftX - 4}" y="${footY + 4}" width="${legWidth + 13}" height="3" rx="1.2" fill="${shoeColor.dark}" />
+          <path d="M ${legRightX - 1} ${footY - 8} Q ${legRightX + 10} ${footY - 13} ${legRightX + legWidth + 11} ${footY + 1}
+                   L ${legRightX + legWidth + 11} ${footY + 4} L ${legRightX - 2} ${footY + 4} Z"
+                fill="${shoeColor.hex}" stroke="${shoeColor.dark}" stroke-width="1.5" />
+          <rect x="${legRightX - 2}" y="${footY + 4}" width="${legWidth + 13}" height="3" rx="1.2" fill="${shoeColor.dark}" />
+        `;
+      }
+
+      const layer5LegsAndShoes = `
+        <g id="layer-5-legs-shoes">
+          <rect x="${legLeftX}" y="${hipY - 4}" width="${legWidth}" height="${footY - hipY + 4}" rx="7" fill="${skin}" />
+          <rect x="${legRightX}" y="${hipY - 4}" width="${legWidth}" height="${footY - hipY + 4}" rx="7" fill="${skin}" />
+          ${shoeSvg}
+        </g>
+      `;
+
+      // 6. Saia / Calça / Bermuda / Short com cós, pregas, bolsos e bainhas
+      let layer6Bottom = '';
+      if (charData.bottom.type === 'saia') {
+        const skirtBottomY = isChild ? hipY + 34 : hipY + 45;
+        layer6Bottom = `
+          <g id="layer-6-bottom">
+            <path d="M 94 ${hipY - 4} L 166 ${hipY - 4} L 179 ${skirtBottomY} L 81 ${skirtBottomY} Z"
+                  fill="${bottomColor.hex}" stroke="${bottomColor.dark}" stroke-width="2" />
+            <!-- Cós e pregas da saia -->
+            <rect x="94" y="${hipY - 4}" width="72" height="7" rx="3" fill="${bottomColor.dark}" />
+            <line x1="113" y1="${hipY + 3}" x2="105" y2="${skirtBottomY}" stroke="${bottomColor.dark}" stroke-width="1.6" opacity="0.65" />
+            <line x1="130" y1="${hipY + 3}" x2="130" y2="${skirtBottomY}" stroke="${bottomColor.dark}" stroke-width="1.6" opacity="0.65" />
+            <line x1="147" y1="${hipY + 3}" x2="155" y2="${skirtBottomY}" stroke="${bottomColor.dark}" stroke-width="1.6" opacity="0.65" />
+            <line x1="83" y1="${skirtBottomY - 4}" x2="177" y2="${skirtBottomY - 4}" stroke="${bottomColor.light}" stroke-width="1.2" opacity="0.55" />
+          </g>
+        `;
+      } else {
+        const legLen =
+          charData.bottom.type === 'calca'
+            ? footY - hipY - 6
+            : charData.bottom.type === 'bermuda'
+            ? 46
+            : 28; // short
+
+        layer6Bottom = `
+          <g id="layer-6-bottom">
+            <!-- Cós e gancho central -->
+            <rect x="93" y="${hipY - 5}" width="74" height="14" rx="5" fill="${bottomColor.hex}" stroke="${bottomColor.dark}" stroke-width="1.5" />
+            <line x1="130" y1="${hipY - 4}" x2="130" y2="${hipY + 9}" stroke="${bottomColor.dark}" stroke-width="1.5" />
+            <!-- Pernas -->
+            <rect x="${legLeftX - 1}" y="${hipY + 2}" width="${legWidth + 2}" height="${legLen}" rx="6"
+                  fill="${bottomColor.hex}" stroke="${bottomColor.dark}" stroke-width="1.6" />
+            <rect x="${legRightX - 1}" y="${hipY + 2}" width="${legWidth + 2}" height="${legLen}" rx="6"
+                  fill="${bottomColor.hex}" stroke="${bottomColor.dark}" stroke-width="1.6" />
+            <!-- Bolsos frontais e costura de bainha -->
+            <path d="M ${legLeftX + 1} ${hipY + 5} Q ${legLeftX + 8} ${hipY + 12} ${legLeftX + 13} ${hipY + 5}" fill="none" stroke="${bottomColor.light}" stroke-width="1.2" opacity="0.7" />
+            <path d="M ${legRightX + 4} ${hipY + 5} Q ${legRightX + 10} ${hipY + 12} ${legRightX + 16} ${hipY + 5}" fill="none" stroke="${bottomColor.light}" stroke-width="1.2" opacity="0.7" />
+            <line x1="${legLeftX}" y1="${hipY + legLen - 2}" x2="${legLeftX + legWidth}" y2="${hipY + legLen - 2}" stroke="${bottomColor.light}" stroke-width="1.2" opacity="0.6" />
+            <line x1="${legRightX}" y1="${hipY + legLen - 2}" x2="${legRightX + legWidth}" y2="${hipY + legLen - 2}" stroke="${bottomColor.light}" stroke-width="1.2" opacity="0.6" />
+          </g>
+        `;
+      }
+
+      // 7. Blusa / Camisa / Camiseta / Jaqueta com golas, botões, bolsos e punhos
+      const topW = isChild ? 62 : 76;
+      const topX = 130 - topW / 2;
+      const topH = hipY - shoulderY + 2;
+
+      let topExtraDetails = '';
+      if (charData.top.type === 'camisa') {
+        topExtraDetails = `
+          <!-- Gola social e carcela com botões -->
+          <polygon points="118,${shoulderY} 130,${shoulderY + 14} 123,${shoulderY + 18}" fill="${topColor.light}" stroke="${topColor.dark}" stroke-width="1.2" />
+          <polygon points="142,${shoulderY} 130,${shoulderY + 14} 137,${shoulderY + 18}" fill="${topColor.light}" stroke="${topColor.dark}" stroke-width="1.2" />
+          <line x1="130" y1="${shoulderY + 14}" x2="130" y2="${shoulderY + topH - 2}" stroke="${topColor.dark}" stroke-width="1.5" />
+          <circle cx="130" cy="${shoulderY + 23}" r="1.6" fill="${topColor.light}" />
+          <circle cx="130" cy="${shoulderY + 35}" r="1.6" fill="${topColor.light}" />
+          <circle cx="130" cy="${shoulderY + 47}" r="1.6" fill="${topColor.light}" />
+          <!-- Bolso no peito -->
+          <rect x="${130 + 9}" y="${shoulderY + 20}" width="13" height="14" rx="2" fill="none" stroke="${topColor.dark}" stroke-width="1.2" />
+        `;
+      } else if (charData.top.type === 'jaqueta') {
+        topExtraDetails = `
+          <!-- Zíper central, lapelas e bolsos laterais -->
+          <rect x="128" y="${shoulderY + 12}" width="4" height="${topH - 12}" fill="${topColor.dark}" />
+          <line x1="130" y1="${shoulderY + 12}" x2="130" y2="${shoulderY + topH}" stroke="#e2e8f0" stroke-width="1.3" stroke-dasharray="2.5 2" />
+          <polygon points="115,${shoulderY} 130,${shoulderY + 16} 120,${shoulderY + 21}" fill="${topColor.light}" stroke="${topColor.dark}" stroke-width="1.2" />
+          <polygon points="145,${shoulderY} 130,${shoulderY + 16} 140,${shoulderY + 21}" fill="${topColor.light}" stroke="${topColor.dark}" stroke-width="1.2" />
+          <line x1="${topX + 8}" y1="${shoulderY + topH - 18}" x2="${topX + 18}" y2="${shoulderY + topH - 8}" stroke="${topColor.dark}" stroke-width="2" stroke-linecap="round" />
+          <line x1="${topX + topW - 8}" y1="${shoulderY + topH - 18}" x2="${topX + topW - 18}" y2="${shoulderY + topH - 8}" stroke="${topColor.dark}" stroke-width="2" stroke-linecap="round" />
+          <!-- Barra elástica -->
+          <rect x="${topX}" y="${shoulderY + topH - 6}" width="${topW}" height="6" rx="3" fill="${topColor.dark}" opacity="0.55" />
+        `;
+      } else if (charData.top.type === 'blusa') {
+        topExtraDetails = `
+          <!-- Decote canoa com detalhe drapeado -->
+          <path d="M 114 ${shoulderY} Q 130 ${shoulderY + 15} 146 ${shoulderY}" fill="none" stroke="${topColor.light}" stroke-width="2.4" stroke-linecap="round" />
+          <path d="M 116 ${shoulderY + 2} Q 130 ${shoulderY + 17} 144 ${shoulderY + 2}" fill="none" stroke="${topColor.dark}" stroke-width="1.3" />
+          <line x1="${topX + 4}" y1="${shoulderY + topH - 5}" x2="${topX + topW - 4}" y2="${shoulderY + topH - 5}" stroke="${topColor.light}" stroke-width="1.2" opacity="0.6" />
+        `;
+      } else {
+        // Camiseta com gola careca ribana e costura nas mangas
+        topExtraDetails = `
+          <path d="M 117 ${shoulderY} Q 130 ${shoulderY + 13} 143 ${shoulderY}" fill="none" stroke="${topColor.dark}" stroke-width="3.2" stroke-linecap="round" />
+          <path d="M 118 ${shoulderY} Q 130 ${shoulderY + 11} 142 ${shoulderY}" fill="none" stroke="${topColor.light}" stroke-width="1.2" stroke-linecap="round" />
+          <line x1="${topX + 4}" y1="${shoulderY + topH - 4}" x2="${topX + topW - 4}" y2="${shoulderY + topH - 4}" stroke="${topColor.dark}" stroke-width="1.2" opacity="0.55" />
+        `;
+      }
+
+      const layer7Top = `
+        <g id="layer-7-top">
+          <rect x="${topX}" y="${shoulderY}" width="${topW}" height="${topH}" rx="14"
+                fill="${topColor.hex}" stroke="${topColor.dark}" stroke-width="1.8" />
+          <!-- Mangas com bainha -->
+          <path d="M ${topX + 2} ${shoulderY + 2} L ${topX - 16} ${shoulderY + 26} L ${topX - 5} ${shoulderY + 33} L ${topX + 10} ${shoulderY + 16} Z"
+                fill="${topColor.hex}" stroke="${topColor.dark}" stroke-width="1.6" />
+          <line x1="${topX - 15}" y1="${shoulderY + 24}" x2="${topX - 6}" y2="${shoulderY + 30}" stroke="${topColor.light}" stroke-width="1.3" opacity="0.7" />
+          <path d="M ${topX + topW - 2} ${shoulderY + 2} L ${topX + topW + 16} ${shoulderY + 26} L ${topX + topW + 5} ${shoulderY + 33} L ${topX + topW - 10} ${shoulderY + 16} Z"
+                fill="${topColor.hex}" stroke="${topColor.dark}" stroke-width="1.6" />
+          <line x1="${topX + topW + 15}" y1="${shoulderY + 24}" x2="${topX + topW + 6}" y2="${shoulderY + 30}" stroke="${topColor.light}" stroke-width="1.3" opacity="0.7" />
+          ${topExtraDetails}
+        </g>
+      `;
+
+      // 8. Colar de Pérolas com fio e brilho especular
+      let layer8Necklace = `<g id="layer-8-necklace"></g>`;
+      if (charData.accessories.necklace) {
+        const ny = shoulderY + 7;
+        const coords = [-18, -12, -6, 0, 6, 12, 18].map((dx) => ({
+          x: 130 + dx,
+          y: ny + Math.cos((dx / 20) * (Math.PI / 2)) * 10
+        }));
+        const strandPath = coords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        const pearls = coords
+          .map((p, idx) => {
+            const r = idx === 3 ? 4.3 : 3.5;
+            return `
+              <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" />
+              <circle cx="${p.x - 1.1}" cy="${p.y - 1.1}" r="${r * 0.32}" fill="#ffffff" />
+            `;
+          })
+          .join('');
+        layer8Necklace = `
+          <g id="layer-8-necklace">
+            <path d="${strandPath}" fill="none" stroke="#cbd5e1" stroke-width="1.4" />
+            ${pearls}
+          </g>
+        `;
+      }
+
+      // 9. Cabeça / Rosto (expressão facial, olhos, sobrancelhas, nariz, sorriso sutil)
+      const eyeY = headCy - 1;
+      const layer9Head = `
+        <g id="layer-9-head">
+          <!-- Orelhas -->
+          <circle cx="${130 - headR}" cy="${headCy + 2}" r="6" fill="${skinShadow}" />
+          <circle cx="${130 + headR}" cy="${headCy + 2}" r="6" fill="${skinShadow}" />
+          <!-- Rosto -->
+          <circle cx="130" cy="${headCy}" r="${headR}" fill="${skin}" />
+          <!-- Sobrancelhas -->
+          <path d="M 111 ${eyeY - 8} Q 117 ${eyeY - 12} 123 ${eyeY - 8}" fill="none" stroke="${hair.dark}" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M 137 ${eyeY - 8} Q 143 ${eyeY - 12} 149 ${eyeY - 8}" fill="none" stroke="${hair.dark}" stroke-width="2.2" stroke-linecap="round" />
+          <!-- Olhos -->
+          <circle cx="117" cy="${eyeY}" r="3.4" fill="#0f172a" />
+          <circle cx="143" cy="${eyeY}" r="3.4" fill="#0f172a" />
+          <circle cx="118.2" cy="${eyeY - 1.2}" r="1.2" fill="#ffffff" />
+          <circle cx="144.2" cy="${eyeY - 1.2}" r="1.2" fill="#ffffff" />
+          <!-- Nariz -->
+          <path d="M 130 ${eyeY + 1} L 128 ${eyeY + 8} L 132 ${eyeY + 9}" fill="none" stroke="${skinShadow}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <!-- Sorriso sutil -->
+          <path d="M 122 ${eyeY + 16} Q 130 ${eyeY + 21} 138 ${eyeY + 16}" fill="none" stroke="#9f1239" stroke-width="2" stroke-linecap="round" />
+        </g>
+      `;
+
+      // 10. Cabelo frontal (franja / mecha / topo)
+      const layer10FrontHair = `
+        <g id="layer-10-front-hair">
+          <path d="M ${130 - headR - 1} ${headCy - 2}
+                   C ${130 - headR - 2} ${headCy - headR - 12}, ${130 + headR + 2} ${headCy - headR - 12}, ${130 + headR + 1} ${headCy - 2}
+                   C ${130 + headR - 8} ${headCy - 14}, ${130 + 6} ${headCy - 16}, ${130 - 4} ${headCy - 8}
+                   C ${130 - 16} ${headCy - 16}, ${130 - headR + 10} ${headCy - 12}, ${130 - headR - 1} ${headCy - 2} Z"
+                fill="${hair.hex}" />
+        </g>
+      `;
+
+      // 11. Óculos com lentes translúcidas, reflexo diagonal e dobradiças
+      let layer11Glasses = `<g id="layer-11-glasses"></g>`;
+      if (charData.accessories.glasses) {
+        const gColor = charData.accessories.glasses;
+        layer11Glasses = `
+          <g id="layer-11-glasses">
+            <rect x="105" y="${eyeY - 7.5}" width="22" height="15" rx="4.5"
+                  fill="rgba(224,242,254,0.22)" stroke="${gColor.hex}" stroke-width="2.6" />
+            <line x1="109" y1="${eyeY - 4.5}" x2="115" y2="${eyeY + 4}" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" stroke-linecap="round" />
+            <rect x="133" y="${eyeY - 7.5}" width="22" height="15" rx="4.5"
+                  fill="rgba(224,242,254,0.22)" stroke="${gColor.hex}" stroke-width="2.6" />
+            <line x1="137" y1="${eyeY - 4.5}" x2="143" y2="${eyeY + 4}" stroke="rgba(255,255,255,0.55)" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M 127 ${eyeY - 2} Q 130 ${eyeY - 4} 133 ${eyeY - 2}" fill="none" stroke="${gColor.hex}" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="98" y1="${eyeY - 2}" x2="105" y2="${eyeY - 1}" stroke="${gColor.dark}" stroke-width="2.4" stroke-linecap="round" />
+            <line x1="155" y1="${eyeY - 1}" x2="162" y2="${eyeY - 2}" stroke="${gColor.dark}" stroke-width="2.4" stroke-linecap="round" />
+          </g>
+        `;
+      }
+
+      // 12. Chapéu / Boné detalhado
+      let layer12Hat = `<g id="layer-12-hat"></g>`;
+      if (charData.accessories.hat) {
+        const hatInfo = charData.accessories.hat;
+        const hatY = headCy - headR + 2;
+        if (hatInfo.type === 'cap') {
+          // Boné com gomos, botão superior e aba curva
+          layer12Hat = `
+            <g id="layer-12-hat">
+              <path d="M ${130 - headR} ${hatY}
+                       C ${130 - headR} ${hatY - 26}, ${130 + headR} ${hatY - 26}, ${130 + headR} ${hatY} Z"
+                    fill="${hatInfo.color.hex}" stroke="${hatInfo.color.dark}" stroke-width="1.8" />
+              <path d="M 130 ${hatY - 20} Q 116 ${hatY - 10} 114 ${hatY}" fill="none" stroke="${hatInfo.color.dark}" stroke-width="1.2" opacity="0.6" />
+              <path d="M 130 ${hatY - 20} Q 144 ${hatY - 10} 146 ${hatY}" fill="none" stroke="${hatInfo.color.dark}" stroke-width="1.2" opacity="0.6" />
+              <circle cx="130" cy="${hatY - 20.5}" r="2.2" fill="${hatInfo.color.light}" />
+              <rect x="${130 - headR - 2}" y="${hatY - 2}" width="${headR * 2 + 16}" height="6" rx="3"
+                    fill="${hatInfo.color.light}" stroke="${hatInfo.color.dark}" stroke-width="1.4" />
+            </g>
+          `;
+        } else {
+          // Chapéu de abas largas com faixa e fivela
+          layer12Hat = `
+            <g id="layer-12-hat">
+              <ellipse cx="130" cy="${hatY + 1}" rx="${headR + 19}" ry="7.5"
+                       fill="${hatInfo.color.light}" stroke="${hatInfo.color.dark}" stroke-width="1.6" />
+              <path d="M ${130 - headR + 4} ${hatY}
+                       L ${130 - headR + 10} ${hatY - 23}
+                       Q 130 ${hatY - 29} ${130 + headR - 10} ${hatY - 23}
+                       L ${130 + headR - 4} ${hatY} Z"
+                    fill="${hatInfo.color.hex}" stroke="${hatInfo.color.dark}" stroke-width="1.8" />
+              <rect x="${130 - headR + 7}" y="${hatY - 6}" width="${(headR - 7) * 2}" height="5" rx="1.5"
+                    fill="${hatInfo.color.dark}" />
+              <rect x="126" y="${hatY - 6.5}" width="8" height="6" rx="1.5" fill="none" stroke="#fbbf24" stroke-width="1.4" />
+            </g>
+          `;
+        }
+      }
+
+      svgEl.innerHTML = [
+        layer1BackHair,
+        layer2Bag,
+        layer3Body,
+        layer4Watch,
+        layer5LegsAndShoes,
+        layer6Bottom,
+        layer7Top,
+        layer8Necklace,
+        layer9Head,
+        layer10FrontHair,
+        layer11Glasses,
+        layer12Hat
+      ].join('');
+    }
+
+    /* =========================================================================
+       5. ESTADO DO JOGO, LOOP DE FASES, AVALIAÇÃO E PONTUAÇÃO
+       ========================================================================= */
+    const STORAGE_BEST_KEY = 'olho_de_lince_best_score_v1';
+
+    const state = {
+      phase: 1,
+      score: 0,
+      lives: 3,
+      maxLives: 3,
+      bestScore: 0,
+      mode: 'intro', // 'intro' | 'observe' | 'checklist' | 'evaluated' | 'gameover'
+      currentCharacter: null,
+      checklistItems: [],
+      selectedIds: new Set(),
+      questionAnswers: {}, // { [slot]: { used: boolean | null, colorKey: string } }
+      activeColorFilter: null, // { group: 'clothing' | 'hair', key: string, name: string } | null
+      timerId: null,
+      lastTickSecond: null
+    };
+
+    // Elementos de interface
+    const el = {
+      hudPhase: document.getElementById('hud-phase'),
+      hudScore: document.getElementById('hud-score'),
+      hudLives: document.getElementById('hud-lives'),
+      btnAudio: document.getElementById('btn-audio-toggle'),
+      audioIcon: document.getElementById('audio-icon'),
+      audioLabel: document.getElementById('audio-label'),
+
+      viewIntro: document.getElementById('view-intro'),
+      viewObserve: document.getElementById('view-observe'),
+      viewChecklist: document.getElementById('view-checklist'),
+      viewGameover: document.getElementById('view-gameover'),
+
+      btnStartGame: document.getElementById('btn-start-game'),
+      btnRestartGame: document.getElementById('btn-restart-game'),
+      btnConfirmReport: document.getElementById('btn-confirm-report'),
+      btnNextPhase: document.getElementById('btn-next-phase'),
+
+      observePhaseBadge: document.getElementById('observe-phase-badge'),
+      observeDifficultyMeta: document.getElementById('observe-difficulty-meta'),
+      characterSvg: document.getElementById('character-svg'),
+      shutterOverlay: document.getElementById('shutter-overlay'),
+      timerReadout: document.getElementById('timer-readout'),
+      progressFill: document.getElementById('progress-fill'),
+
+      checklistPhaseBadge: document.getElementById('checklist-phase-badge'),
+      checklistTargetHint: document.getElementById('checklist-target-hint'),
+      checklistColumnLimit: document.getElementById('checklist-column-limit'),
+      checklistInstructions: document.getElementById('checklist-instructions'),
+      evidenceGrid: document.getElementById('evidence-grid'),
+      paletteClothingGrid: document.getElementById('palette-clothing-grid'),
+      paletteHairGrid: document.getElementById('palette-hair-grid'),
+      paletteFilterStatus: document.getElementById('palette-filter-status'),
+      btnClearColorFilter: document.getElementById('btn-clear-color-filter'),
+      reviewCharacterBox: document.getElementById('review-character-box'),
+      reviewCharacterSvg: document.getElementById('review-character-svg'),
+      feedbackBannerContainer: document.getElementById('feedback-banner-container'),
+      selectionCounter: document.getElementById('selection-counter'),
+
+      gameoverPhase: document.getElementById('gameover-phase'),
+      gameoverScore: document.getElementById('gameover-score'),
+      gameoverBest: document.getElementById('gameover-best')
+    };
+
+    function loadBestScore() {
+      try {
+        const saved = localStorage.getItem(STORAGE_BEST_KEY);
+        const parsed = saved ? parseInt(saved, 10) : 0;
+        state.bestScore = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+      } catch (_) {
+        state.bestScore = 0;
+      }
+    }
+
+    function saveBestScore() {
+      if (state.score > state.bestScore) {
+        state.bestScore = state.score;
+        try {
+          localStorage.setItem(STORAGE_BEST_KEY, String(state.bestScore));
+        } catch (_) {}
+      }
+    }
+
+    function renderLivesHUD() {
+      const hearts = [];
+      for (let i = 0; i < state.maxLives; i++) {
+        const isAlive = i < state.lives;
+        hearts.push(`
+          <svg class="heart-svg ${isAlive ? 'active' : 'lost'}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        `);
+      }
+      el.hudLives.innerHTML = hearts.join('');
+      el.hudLives.setAttribute('aria-label', `Vidas restantes: ${state.lives} de ${state.maxLives}`);
+    }
+
+    function updateHUD() {
+      el.hudPhase.textContent = String(state.phase);
+      el.hudScore.textContent = String(state.score);
+      renderLivesHUD();
+    }
+
+    function showView(viewName) {
+      el.viewIntro.style.display = viewName === 'intro' ? 'block' : 'none';
+      el.viewObserve.style.display = viewName === 'observe' ? 'block' : 'none';
+      el.viewChecklist.style.display = viewName === 'checklist' ? 'block' : 'none';
+      el.viewGameover.style.display = viewName === 'gameover' ? 'block' : 'none';
+    }
+
+    function getMaxSelections() {
+      return state.currentCharacter ? state.currentCharacter.trueItems.length : 0;
+    }
+
+    function getQuestionDefinitions(charData) {
+      const bottomNounLower = charData.bottom.noun.toLowerCase();
+      const hatNoun = (charData.profile.id === 'boy' || charData.profile.id === 'adult_male') ? 'boné/chapéu' : 'chapéu/boné';
+      const bagNoun = (charData.profile.id === 'adult_female' || charData.profile.id === 'girl') ? 'bolsa/mochila' : 'mochila/bolsa';
+
+      const defs = [
+        { slot: 'hair', label: 'cabelo', askText: 'Tá usando cabelo?', hasColor: true, colorPool: HAIR_COLORS },
+        { slot: 'top', label: 'roupa de cima', askText: 'Tá usando roupa de cima?', hasColor: true, colorPool: PALETTE },
+        { slot: 'bottom', label: bottomNounLower, askText: `Tá usando ${bottomNounLower}?`, hasColor: true, colorPool: PALETTE },
+        { slot: 'shoes', label: 'sapato/calçado', askText: 'Tá usando sapato?', hasColor: true, colorPool: PALETTE },
+        { slot: 'glasses', label: 'óculos', askText: 'Tá usando óculos?', hasColor: true, colorPool: PALETTE },
+        { slot: 'necklace', label: 'colar de pérolas', askText: 'Tá usando colar de pérolas?', hasColor: false, colorPool: [] },
+        { slot: 'watch', label: 'relógio', askText: 'Tá usando relógio?', hasColor: true, colorPool: PALETTE },
+        { slot: 'hat', label: hatNoun, askText: `Tá usando ${hatNoun}?`, hasColor: true, colorPool: PALETTE },
+        { slot: 'bag', label: bagNoun, askText: `Tá usando ${bagNoun}?`, hasColor: true, colorPool: PALETTE }
+      ];
+
+      return defs.map((d) => {
+        const realItem = charData.trueItems.find((t) => t.slot === d.slot) || null;
+        return {
+          ...d,
+          isReal: Boolean(realItem),
+          realColorKey: realItem && realItem.colorObj ? realItem.colorObj.key : null,
+          realColorName: realItem && realItem.colorObj ? realItem.colorObj.name : null
+        };
+      });
+    }
+
+    function getUsedYesCount() {
+      return Object.values(state.questionAnswers).filter((ans) => ans && ans.used === true).length;
+    }
+
+    function syncSelectedIdsFromAnswers() {
+      state.selectedIds.clear();
+      if (!state.currentCharacter) return;
+      const defs = getQuestionDefinitions(state.currentCharacter);
+      defs.forEach((d) => {
+        const ans = state.questionAnswers[d.slot];
+        if (ans && ans.used === true) {
+          const prefix = d.hasColor ? `${d.slot}_${ans.colorKey || ''}` : d.slot;
+          state.selectedIds.add(prefix);
+        }
+      });
+    }
+
+    function getSelectedSlots() {
+      const slots = new Set();
+      Object.entries(state.questionAnswers).forEach(([slot, ans]) => {
+        if (ans && ans.used === true) {
+          slots.add(slot);
+        }
+      });
+      return slots;
+    }
+
+    function getCardLockReason() {
+      return null;
+    }
+
+    function refreshChecklistConstraintsUI() {
+      const maxSel = getMaxSelections();
+      const yesCount = getUsedYesCount();
+      const filter = state.activeColorFilter;
+      updateSelectionCounter();
+
+      if (!state.currentCharacter) return;
+      const defs = getQuestionDefinitions(state.currentCharacter);
+
+      defs.forEach((def) => {
+        const rowEl = el.evidenceGrid.querySelector(`[data-slot="${def.slot}"]`);
+        if (!rowEl) return;
+
+        const ans = state.questionAnswers[def.slot] || { used: null, colorKey: '' };
+        const btnYes = rowEl.querySelector('[data-answer="yes"]');
+        const btnNo = rowEl.querySelector('[data-answer="no"]');
+        const colorRow = rowEl.querySelector('.color-select-row');
+        const selectEl = rowEl.querySelector('.color-dropdown');
+        const dotEl = rowEl.querySelector('.color-preview-dot');
+
+        rowEl.classList.toggle('active-yes', ans.used === true);
+
+        if (btnYes && btnNo) {
+          btnYes.classList.toggle('selected-yes', ans.used === true);
+          btnNo.classList.toggle('selected-no', ans.used === false);
+        }
+
+        if (colorRow) {
+          const showColor = def.hasColor && ans.used === true;
+          colorRow.classList.toggle('hidden-color', !showColor);
+        }
+
+        if (selectEl) {
+          selectEl.value = ans.colorKey || '';
+          const pool = def.slot === 'hair' ? HAIR_COLORS : PALETTE;
+          const chosenColor = pool.find((c) => c.key === ans.colorKey);
+          if (dotEl) {
+            dotEl.style.backgroundColor = chosenColor ? chosenColor.hex : '#475569';
+          }
+
+          // Aplica filtro da paleta nas opções do select quando ativo
+          Array.from(selectEl.options).forEach((opt) => {
+            if (!opt.value) return;
+            if (!filter) {
+              opt.hidden = false;
+              return;
+            }
+            const matchesGroup =
+              (filter.group === 'hair' && def.slot === 'hair') ||
+              (filter.group === 'clothing' && def.slot !== 'hair');
+            opt.hidden = !(matchesGroup && opt.value === filter.key);
+          });
+        }
+
+        let matchesFilter = true;
+        if (filter) {
+          const matchesGroup =
+            (filter.group === 'hair' && def.slot === 'hair') ||
+            (filter.group === 'clothing' && def.slot !== 'hair');
+          matchesFilter = matchesGroup && ans.colorKey === filter.key;
+        }
+        rowEl.classList.toggle('filtered-dim', ans.used !== true && !matchesFilter);
+      });
+
+      // Atualiza estado visual dos chips na paleta lateral
+      document.querySelectorAll('.palette-chip').forEach((chip) => {
+        const cGroup = chip.getAttribute('data-palette-group');
+        const cKey = chip.getAttribute('data-palette-key');
+        const active = Boolean(filter && filter.group === cGroup && filter.key === cKey);
+        chip.classList.toggle('active-filter', active);
+      });
+
+      if (filter) {
+        const groupLabel = filter.group === 'hair' ? 'Cabelo' : 'Roupas/Acessórios';
+        el.paletteFilterStatus.textContent = `${groupLabel}: ${filter.name}`;
+        el.btnClearColorFilter.style.display = 'inline-block';
+      } else {
+        el.paletteFilterStatus.textContent = 'Mostrando todas as cores';
+        el.btnClearColorFilter.style.display = 'none';
+      }
+
+      el.checklistTargetHint.textContent =
+        `${state.currentCharacter.profile.label} • Máx "Sim": ${maxSel} (${yesCount}/${maxSel})`;
+      el.checklistColumnLimit.textContent = `Sim: ${yesCount}/${maxSel}`;
+    }
+
+    function renderColorPaletteSidebar() {
+      el.paletteClothingGrid.innerHTML = PALETTE.map(
+        (c) => `
+          <button
+            type="button"
+            class="palette-chip"
+            data-palette-group="clothing"
+            data-palette-key="${c.key}"
+            data-palette-name="${c.name}"
+          >
+            <span class="palette-chip-dot" style="background-color: ${c.hex};" aria-hidden="true"></span>
+            <span>${c.name}</span>
+          </button>
+        `
+      ).join('');
+
+      el.paletteHairGrid.innerHTML = HAIR_COLORS.map(
+        (h) => `
+          <button
+            type="button"
+            class="palette-chip"
+            data-palette-group="hair"
+            data-palette-key="${h.key}"
+            data-palette-name="${h.name}"
+          >
+            <span class="palette-chip-dot" style="background-color: ${h.hex};" aria-hidden="true"></span>
+            <span>${h.name}</span>
+          </button>
+        `
+      ).join('');
+
+      document.querySelectorAll('.palette-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const group = chip.getAttribute('data-palette-group');
+          const key = chip.getAttribute('data-palette-key');
+          const name = chip.getAttribute('data-palette-name');
+
+          if (
+            state.activeColorFilter &&
+            state.activeColorFilter.group === group &&
+            state.activeColorFilter.key === key
+          ) {
+            state.activeColorFilter = null;
+          } else {
+            state.activeColorFilter = { group, key, name };
+          }
+          SoundEngine.playClick(true);
+          refreshChecklistConstraintsUI();
+        });
+      });
+    }
+
+    function triggerCardBlockedFeedback(btn) {
+      SoundEngine.playBlocked();
+      btn.classList.remove('blocked-feedback');
+      void btn.offsetWidth;
+      btn.classList.add('blocked-feedback');
+      setTimeout(() => {
+        btn.classList.remove('blocked-feedback');
+      }, 260);
+    }
+
+    function updateSelectionCounter() {
+      const maxSel = getMaxSelections();
+      const yesCount = getUsedYesCount();
+      el.selectionCounter.innerHTML =
+        `Marcados como "Sim": <strong>${yesCount} / ${maxSel}</strong>`;
+    }
+
+    function renderChecklistView() {
+      const char = state.currentCharacter;
+      const maxSel = getMaxSelections();
+      state.activeColorFilter = null;
+      state.questionAnswers = {};
+
+      const defs = getQuestionDefinitions(char);
+      defs.forEach((d) => {
+        state.questionAnswers[d.slot] = { used: null, colorKey: '' };
+      });
+
+      el.checklistPhaseBadge.textContent = `Fase ${state.phase} • Relatório de Campo`;
+      el.checklistTargetHint.textContent = `${char.profile.label} • Máx "Sim": ${maxSel}`;
+      el.checklistColumnLimit.textContent = `Sim: 0/${maxSel}`;
+      el.checklistInstructions.innerHTML =
+        `Responda para cada item se estava usando (<strong>Sim / Não</strong>, até <strong>${maxSel} "Sim"</strong>) e, se sim, escolha <strong>qual a cor</strong>.`;
+      el.feedbackBannerContainer.innerHTML = '';
+      el.reviewCharacterBox.style.display = 'none';
+      el.reviewCharacterSvg.innerHTML = '';
+      el.btnConfirmReport.style.display = 'inline-flex';
+      el.btnConfirmReport.disabled = false;
+      el.btnNextPhase.style.display = 'none';
+
+      renderColorPaletteSidebar();
+      updateSelectionCounter();
+
+      el.evidenceGrid.innerHTML = defs
+        .map((def) => {
+          const optionsHtml = def.hasColor
+            ? `
+              <option value="">Qual a cor?</option>
+              ${def.colorPool.map((c) => `<option value="${c.key}">${c.name}</option>`).join('')}
+            `
+            : '';
+
+          return `
+            <div class="question-row-card" data-slot="${def.slot}">
+              <div class="question-row-top">
+                <span class="question-prompt-text">${def.askText}</span>
+                <div class="yes-no-toggle" role="group" aria-label="${def.askText}">
+                  <button type="button" class="yes-no-btn" data-answer="yes">Sim</button>
+                  <button type="button" class="yes-no-btn" data-answer="no">Não</button>
+                </div>
+              </div>
+              ${
+                def.hasColor
+                  ? `
+                    <div class="color-select-row hidden-color">
+                      <span class="color-preview-dot" aria-hidden="true"></span>
+                      <select class="color-dropdown" aria-label="Cor de ${def.label}">
+                        ${optionsHtml}
+                      </select>
+                    </div>
+                  `
+                  : `<div style="font-size: 0.7rem; color: var(--text-dim);">Sem variação de cor</div>`
+              }
+            </div>
+          `;
+        })
+        .join('');
+
+      defs.forEach((def) => {
+        const rowEl = el.evidenceGrid.querySelector(`[data-slot="${def.slot}"]`);
+        if (!rowEl) return;
+
+        const btnYes = rowEl.querySelector('[data-answer="yes"]');
+        const btnNo = rowEl.querySelector('[data-answer="no"]');
+        const selectEl = rowEl.querySelector('.color-dropdown');
+
+        btnYes.addEventListener('click', () => {
+          if (state.mode !== 'checklist') return;
+          const current = state.questionAnswers[def.slot];
+          if (current.used === true) {
+            current.used = null;
+            current.colorKey = '';
+            SoundEngine.playClick(false);
+            syncSelectedIdsFromAnswers();
+            refreshChecklistConstraintsUI();
+            return;
+          }
+
+          if (getUsedYesCount() >= getMaxSelections()) {
+            triggerCardBlockedFeedback(rowEl);
+            return;
+          }
+
+          current.used = true;
+          SoundEngine.playClick(true);
+          syncSelectedIdsFromAnswers();
+          refreshChecklistConstraintsUI();
+        });
+
+        btnNo.addEventListener('click', () => {
+          if (state.mode !== 'checklist') return;
+          const current = state.questionAnswers[def.slot];
+          if (current.used === false) {
+            current.used = null;
+            SoundEngine.playClick(false);
+          } else {
+            current.used = false;
+            current.colorKey = '';
+            SoundEngine.playClick(true);
+          }
+          syncSelectedIdsFromAnswers();
+          refreshChecklistConstraintsUI();
+        });
+
+        if (selectEl) {
+          selectEl.addEventListener('change', (e) => {
+            if (state.mode !== 'checklist') return;
+            state.questionAnswers[def.slot].colorKey = e.target.value;
+            SoundEngine.playClick(Boolean(e.target.value));
+            syncSelectedIdsFromAnswers();
+            refreshChecklistConstraintsUI();
+          });
+        }
+      });
+
+      refreshChecklistConstraintsUI();
+    }
+
+    function confirmReport() {
+      if (state.mode !== 'checklist' || !state.currentCharacter) return;
+      state.mode = 'evaluated';
+      el.btnConfirmReport.disabled = true;
+      el.btnConfirmReport.style.display = 'none';
+
+      renderCharacterSVG(el.reviewCharacterSvg, state.currentCharacter);
+      el.reviewCharacterBox.style.display = 'flex';
+
+      const defs = getQuestionDefinitions(state.currentCharacter);
+      let hits = 0;
+      let errors = 0;
+      let missed = 0;
+
+      defs.forEach((def) => {
+        const rowEl = el.evidenceGrid.querySelector(`[data-slot="${def.slot}"]`);
+        if (!rowEl) return;
+
+        rowEl.querySelectorAll('button, select').forEach((ctrl) => {
+          ctrl.disabled = true;
+        });
+
+        const ans = state.questionAnswers[def.slot] || { used: null, colorKey: '' };
+        const userSaidYes = ans.used === true;
+        const colorMatches = !def.hasColor || (ans.colorKey && ans.colorKey === def.realColorKey);
+
+        let status = 'neutral';
+        let noteText = '';
+
+        if (def.isReal && userSaidYes && colorMatches) {
+          hits++;
+          status = 'correct';
+          noteText = def.hasColor
+            ? `Certo: estava usando (${def.realColorName}).`
+            : 'Certo: estava usando.';
+        } else if (def.isReal && (!userSaidYes || !colorMatches)) {
+          missed++;
+          status = 'missed';
+          noteText = def.hasColor
+            ? `Era ${def.realColorName} (estava usando).`
+            : 'Estava usando.';
+        } else if (!def.isReal && userSaidYes) {
+          errors++;
+          status = 'wrong';
+          noteText = 'Errado: não estava usando.';
+        } else {
+          status = 'neutral';
+          noteText = 'Não estava usando.';
+        }
+
+        rowEl.classList.remove('active-yes', 'filtered-dim');
+        rowEl.classList.add(`eval-${status}`);
+
+        const noteEl = document.createElement('div');
+        noteEl.className = 'question-eval-note';
+        noteEl.style.color =
+          status === 'correct'
+            ? '#6ee7b7'
+            : status === 'missed'
+            ? '#fde68a'
+            : status === 'wrong'
+            ? '#fda4af'
+            : 'var(--text-dim)';
+        noteEl.textContent = noteText;
+        rowEl.appendChild(noteEl);
+      });
+
+      const isPerfect = errors === 0 && missed === 0;
+      const basePointsPerHit = 100;
+      const phaseBonus = (state.phase - 1) * 25;
+      const perfectionBonus = isPerfect ? 150 + state.phase * 20 : 0;
+      const roundPoints = hits * (basePointsPerHit + phaseBonus) + perfectionBonus;
+
+      state.score += roundPoints;
+      saveBestScore();
+
+      if (!isPerfect) {
+        state.lives = Math.max(0, state.lives - 1);
+        SoundEngine.playAlert();
+      } else {
+        SoundEngine.playFanfare();
+      }
+
+      updateHUD();
+
+      const bannerClass = isPerfect ? 'perfect' : 'penalized';
+      const titleText = isPerfect
+        ? 'Gabarito Perfeito!'
+        : `Relatório com falhas (${errors} erro${errors === 1 ? '' : 's'}, ${missed} esquecido${missed === 1 ? '' : 's'}) • -1 Vida`;
+
+      const detailsText = `Acertos: ${hits} • Pegadinhas marcadas: ${errors} • Itens esquecidos: ${missed}`;
+
+      el.feedbackBannerContainer.innerHTML = `
+        <div class="feedback-banner ${bannerClass}">
+          <div>
+            <div class="feedback-title">${titleText}</div>
+            <div class="feedback-details">${detailsText}</div>
+          </div>
+          <div class="feedback-points">+${roundPoints} pts</div>
+        </div>
+      `;
+
+      if (state.lives <= 0) {
+        state.mode = 'gameover';
+        setTimeout(() => {
+          showGameOver();
+        }, 1250);
+      } else {
+        el.btnNextPhase.style.display = 'inline-flex';
+      }
+    }
+
+    function showGameOver() {
+      clearObservationTimer();
+      saveBestScore();
+      state.mode = 'gameover';
+      el.gameoverPhase.textContent = String(state.phase);
+      el.gameoverScore.textContent = String(state.score);
+      el.gameoverBest.textContent = String(state.bestScore);
+      showView('gameover');
+    }
+
+    function clearObservationTimer() {
+      if (state.timerId !== null) {
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+      state.lastTickSecond = null;
+    }
+
+    function finishObservation() {
+      clearObservationTimer();
+      if (state.mode !== 'observe') return;
+
+      SoundEngine.playShutter();
+      el.shutterOverlay.classList.remove('trigger');
+      void el.shutterOverlay.offsetWidth;
+      el.shutterOverlay.classList.add('trigger');
+      el.characterSvg.classList.add('hidden');
+
+      state.mode = 'checklist';
+      state.selectedIds.clear();
+      state.checklistItems = buildChecklistItems(state.currentCharacter);
+
+      setTimeout(() => {
+        if (state.mode === 'checklist') {
+          renderChecklistView();
+          showView('checklist');
+        }
+      }, 220);
+    }
+
+    function startPhase(phaseNumber) {
+      clearObservationTimer();
+
+      state.phase = phaseNumber;
+      state.mode = 'observe';
+      state.selectedIds.clear();
+      state.checklistItems = [];
+
+      const character = generateCharacter(phaseNumber);
+      state.currentCharacter = character;
+
+      updateHUD();
+
+      const totalSeconds = character.config.exposureSeconds;
+      const totalMs = totalSeconds * 1000;
+      const startTime = performance.now();
+      state.lastTickSecond = Math.ceil(totalSeconds);
+
+      el.observePhaseBadge.textContent = `Fase ${phaseNumber} • Observação`;
+      el.observeDifficultyMeta.textContent =
+        `${character.config.extraAccessoriesCount} acessório${character.config.extraAccessoriesCount === 1 ? '' : 's'} • ${character.config.distractorsCount} pegadinhas • ${totalSeconds.toFixed(1)}s`;
+
+      el.characterSvg.classList.remove('hidden');
+      renderCharacterSVG(el.characterSvg, character);
+
+      el.timerReadout.textContent = `${totalSeconds.toFixed(1)}s`;
+      el.timerReadout.classList.remove('urgent');
+      el.progressFill.style.width = '100%';
+      el.progressFill.classList.remove('urgent');
+
+      showView('observe');
+
+      state.timerId = setInterval(() => {
+        if (state.mode !== 'observe') {
+          clearObservationTimer();
+          return;
+        }
+
+        const elapsed = performance.now() - startTime;
+        const remainingMs = Math.max(0, totalMs - elapsed);
+        const remainingSec = remainingMs / 1000;
+        const pct = Math.max(0, Math.min(100, (remainingMs / totalMs) * 100));
+
+        el.timerReadout.textContent = `${remainingSec.toFixed(1)}s`;
+        el.progressFill.style.width = `${pct}%`;
+
+        const isUrgent = remainingSec <= 1.5;
+        el.timerReadout.classList.toggle('urgent', isUrgent);
+        el.progressFill.classList.toggle('urgent', isUrgent);
+
+        const wholeCeil = Math.ceil(remainingSec);
+        if (
+          remainingSec > 0 &&
+          wholeCeil <= 2 &&
+          wholeCeil !== state.lastTickSecond
+        ) {
+          state.lastTickSecond = wholeCeil;
+          SoundEngine.playTick(true);
+        }
+
+        if (remainingMs <= 0) {
+          finishObservation();
+        }
+      }, 60);
+    }
+
+    function startNewGame() {
+      SoundEngine.ensureContext();
+      clearObservationTimer();
+      state.score = 0;
+      state.lives = state.maxLives;
+      loadBestScore();
+      updateHUD();
+      startPhase(1);
+    }
+
+    /* =========================================================================
+       EVENTOS GLOBAIS E INICIALIZAÇÃO
+       ========================================================================= */
+    el.btnAudio.addEventListener('click', () => {
+      const nextMuted = !SoundEngine.isMuted();
+      SoundEngine.setMuted(nextMuted);
+      el.btnAudio.classList.toggle('muted', nextMuted);
+      el.btnAudio.setAttribute('aria-pressed', String(nextMuted));
+      el.audioIcon.textContent = nextMuted ? '🔇' : '🔊';
+      el.audioLabel.textContent = nextMuted ? 'Mudo' : 'Som Ativo';
+      if (!nextMuted) {
+        SoundEngine.ensureContext();
+        SoundEngine.playClick(true);
+      }
+    });
+
+    el.btnStartGame.addEventListener('click', startNewGame);
+    el.btnRestartGame.addEventListener('click', startNewGame);
+    el.btnConfirmReport.addEventListener('click', confirmReport);
+    el.btnClearColorFilter.addEventListener('click', () => {
+      state.activeColorFilter = null;
+      SoundEngine.playClick(false);
+      refreshChecklistConstraintsUI();
+    });
+    el.btnNextPhase.addEventListener('click', () => {
+      if (state.mode === 'evaluated' && state.lives > 0) {
+        startPhase(state.phase + 1);
+      }
+    });
+
+    // Inicialização limpa
+    loadBestScore();
+    updateHUD();
+    showView('intro');
+  </script>
+</body>
+</html>
