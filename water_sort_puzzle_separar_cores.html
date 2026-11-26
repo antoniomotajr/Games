@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Water Sort Puzzle (Separar Cores)</title>
+  <style>
+    /* =========================================================================
+       VARIÁVEIS DE TEMA E ESTILO GERAL (BANCADA DE LABORATÓRIO TÁTIL)
+       ========================================================================= */
+    :root {
+      --bg-canvas: #f2f5f9;
+      --bg-surface: #ffffff;
+      --bg-bench: #e8eef5;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --border-subtle: rgba(15, 23, 42, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.85);
+      --glass-stroke: rgba(15, 23, 42, 0.16);
+      --glass-shadow: 0 12px 24px -10px rgba(15, 23, 42, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --success: #059669;
+      --danger: #dc2626;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-pill: 999px;
+      --transition-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-canvas: #0b1120;
+        --bg-surface: #111827;
+        --bg-bench: #162032;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --border-subtle: rgba(248, 250, 252, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.16);
+        --glass-stroke: rgba(255, 255, 255, 0.14);
+        --glass-shadow: 0 14px 28px -10px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        --accent: #38bdf8;
+        --accent-hover: #0ea5e9;
+        --success: #10b981;
+        --danger: #f87171;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-canvas);
+      background-image:
+        radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 90%, rgba(16, 185, 129, 0.07), transparent 45%);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      line-height: 1.45;
+    }
+
+    /* =========================================================================
+       CABEÇALHO E CONTROLES DE NÍVEL
+       ========================================================================= */
+    .app-shell {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      flex: 1;
+    }
+
+    .topbar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      background: rgba(2, 132, 199, 0.12);
+      color: var(--accent);
+    }
+
+    .brand-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .stats-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-audio {
+      min-width: 44px;
+      height: 52px;
+      padding: 0 14px;
+      border-radius: var(--radius-md);
+      background: var(--bg-bench);
+      border: 1px solid var(--border-subtle);
+      font-weight: 700;
+      font-size: 0.88rem;
+      justify-content: center;
+    }
+
+    .btn-audio[aria-pressed="true"] {
+      color: var(--text-secondary);
+      opacity: 0.72;
+    }
+
+    .stat-pill {
+      background: var(--bg-bench);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      display: flex;
+      flex-direction: column;
+      min-width: 96px;
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+    }
+
+    .stat-value {
+      font-size: 1.15rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      padding: 10px 15px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s var(--transition-smooth), background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+      min-height: 42px;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--bg-bench);
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0) scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    button.btn-primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: #ffffff;
+    }
+
+    button.btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button.btn-success {
+      background: var(--success);
+      border-color: transparent;
+      color: #ffffff;
+    }
+
+    .feedback-banner {
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      font-weight: 500;
+    }
+
+    .feedback-banner.is-error {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .feedback-banner.is-success {
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    /* =========================================================================
+       BANCADA DOS TUBOS DE ENSAIO (CSS3 VIDRO + CAMADAS INVERTIDAS)
+       ========================================================================= */
+    .bench-container {
+      flex: 1;
+      background: var(--bg-bench);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: clamp(24px, 4vw, 44px) clamp(14px, 3vw, 32px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-content: center;
+      align-items: flex-end;
+      gap: clamp(20px, 3.6vw, 36px) clamp(18px, 3vw, 32px);
+      box-shadow: inset 0 2px 10px rgba(15, 23, 42, 0.05);
+      position: relative;
+    }
+
+    /* Wrapper de cada tubo para acomodar elevação e etiqueta discreta */
+    .tube-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.24s var(--transition-smooth);
+      user-select: none;
+    }
+
+    .tube-slot.selected {
+      transform: translateY(-15px);
+    }
+
+    .tube-slot.shake {
+      animation: shakeTube 0.34s ease;
+    }
+
+    .tube-slot.shake .tube {
+      border-color: var(--danger);
+      box-shadow:
+        0 14px 26px -8px rgba(220, 38, 38, 0.35),
+        0 0 0 3px rgba(220, 38, 38, 0.22);
+    }
+
+    @keyframes shakeTube {
+      0%, 100% { transform: translateX(0) translateY(-15px); }
+      20% { transform: translateX(-7px) translateY(-15px); }
+      40% { transform: translateX(7px) translateY(-15px); }
+      60% { transform: translateX(-5px) translateY(-15px); }
+      80% { transform: translateX(5px) translateY(-15px); }
+    }
+
+    /* Corpo do tubo de ensaio em vidro translúcido */
+    .tube {
+      position: relative;
+      width: 58px;
+      height: 196px;
+      border-radius: 0 0 25px 25px;
+      border: 2.5px solid var(--glass-stroke);
+      border-top: none;
+      background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.32) 0%,
+        rgba(255, 255, 255, 0.06) 35%,
+        rgba(255, 255, 255, 0.02) 70%,
+        rgba(255, 255, 255, 0.22) 100%
+      );
+      box-shadow: var(--glass-shadow);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column-reverse; /* Base do tubo fica embaixo; topo da pilha LIFO sobe */
+      justify-content: flex-start;
+      padding: 4px;
+      overflow: visible;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Borda superior aberta do tubo de ensaio */
+    .tube::before {
+      content: "";
+      position: absolute;
+      top: -6px;
+      left: -5px;
+      right: -5px;
+      height: 10px;
+      border-radius: 999px;
+      border: 2.5px solid var(--glass-stroke);
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.75),
+        rgba(255, 255, 255, 0.15)
+      );
+      pointer-events: none;
+    }
+
+    /* Reflexo vertical de vidro para dar profundidade tátil */
+    .tube::after {
+      content: "";
+      position: absolute;
+      top: 6px;
+      bottom: 8px;
+      left: 6px;
+      width: 7px;
+      border-radius: 999px;
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.52),
+        rgba(255, 255, 255, 0.12) 75%,
+        rgba(255, 255, 255, 0.35)
+      );
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .tube-slot.selected .tube {
+      border-color: var(--accent);
+      box-shadow:
+        0 18px 30px -8px rgba(2, 132, 199, 0.35),
+        0 0 0 3px rgba(2, 132, 199, 0.22),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .tube-slot.completed .tube {
+      border-color: var(--success);
+      box-shadow:
+        0 12px 24px -8px rgba(5, 150, 105, 0.28),
+        0 0 0 2px rgba(5, 150, 105, 0.18);
+      animation: tubeCompletePulse 0.75s var(--transition-smooth);
+    }
+
+    @keyframes tubeCompletePulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.06); box-shadow: 0 0 24px rgba(16, 185, 129, 0.55), 0 0 0 4px rgba(16, 185, 129, 0.25); }
+      100% { transform: scale(1); }
+    }
+
+    /* Partículas/confetes locais ao completar um tubo de 4 unidades */
+    .tube-burst {
+      position: absolute;
+      inset: -14px;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .burst-particle {
+      position: absolute;
+      left: 50%;
+      top: 28%;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--particle-color, var(--success));
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.4);
+      animation: burstOut 0.75s var(--transition-smooth) forwards;
+    }
+
+    @keyframes burstOut {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translate(0px, 0px) scale(0.6);
+      }
+      75% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(var(--tx, 0px), var(--ty, -36px)) scale(0.2);
+      }
+    }
+
+    /* Cada unidade de líquido ocupa exatamente 1/4 da altura útil */
+    .liquid-layer {
+      width: 100%;
+      height: 25%;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      transition: height 0.22s var(--transition-smooth), background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    /* Animação de entrada/subida ao despejar novas camadas no tubo de destino */
+    .liquid-layer.is-newly-poured {
+      animation: pourRise 0.36s var(--transition-smooth);
+    }
+
+    @keyframes pourRise {
+      0% {
+        height: 0%;
+        opacity: 0.55;
+        transform: translateY(-10px);
+      }
+      65% {
+        height: 26.5%;
+        opacity: 1;
+      }
+      100% {
+        height: 25%;
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Arredonda a camada inferior encostada no fundo curvo do tubo */
+    .liquid-layer:first-child {
+      border-bottom-left-radius: 20px;
+      border-bottom-right-radius: 20px;
+    }
+
+    /* Menisco superior sutil em cada camada de líquido */
+    .liquid-layer::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.32);
+      pointer-events: none;
+    }
+
+    /* Ondulação na superfície do líquido recém-despejado ou no topo */
+    .liquid-layer.is-newly-poured::before,
+    .liquid-layer.is-top::before {
+      animation: surfaceRipple 0.75s ease-out;
+    }
+
+    @keyframes surfaceRipple {
+      0% {
+        height: 7px;
+        background: rgba(255, 255, 255, 0.65);
+        transform: scaleX(0.86);
+      }
+      50% {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.42);
+        transform: scaleX(1.04);
+      }
+      100% {
+        height: 5px;
+        background: rgba(255, 255, 255, 0.3);
+        transform: scaleX(1);
+      }
+    }
+
+    /* Leve destaque na camada que está no topo da pilha LIFO */
+    .liquid-layer.is-top {
+      box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.35);
+    }
+
+    .tube-index {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      opacity: 0.75;
+    }
+
+    /* =========================================================================
+       MODAL DE VITÓRIA E CONFETES CELEBRATÓRIOS
+       ========================================================================= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.58);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+      overflow: hidden;
+    }
+
+    .modal-backdrop.is-open {
+      display: flex;
+      animation: fadeIn 0.22s ease;
+    }
+
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 51;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -16px;
+      width: 10px;
+      height: 16px;
+      border-radius: 3px;
+      opacity: 0.92;
+      animation: confettiFall var(--fall-duration, 2.4s) linear var(--fall-delay, 0s) forwards;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform: translate3d(0, -10px, 0) rotate(0deg);
+        opacity: 1;
+      }
+      85% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(var(--drift-x, 40px), 105dvh, 0) rotate(var(--spin-deg, 540deg));
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-card {
+      position: relative;
+      z-index: 52;
+      width: 100%;
+      max-width: 420px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      text-align: center;
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: popIn 0.28s var(--transition-smooth);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.08s !important;
+      }
+
+      .tube-slot.selected {
+        transform: translateY(-15px) !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Cabeçalho com identidade, nível atual e contador de movimentos -->
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-title">
+          <span>Water Sort Puzzle</span>
+          <span class="brand-badge">Pilha LIFO</span>
+        </div>
+        <p class="brand-subtitle">
+          Separe os líquidos até cada tubo ter uma única cor ou ficar vazio.
+        </p>
+      </div>
+
+      <div class="stats-group" aria-live="polite">
+        <button
+          type="button"
+          id="btn-som"
+          class="btn-audio"
+          aria-pressed="false"
+          title="Alternar efeitos sonoros (Web Audio API)"
+        >
+          <span id="som-icone">🔊</span>
+          <span id="som-texto">Som</span>
+        </button>
+        <div class="stat-pill">
+          <span class="stat-label">Nível</span>
+          <span class="stat-value" id="nivel-display">1</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Movimentos</span>
+          <span class="stat-value" id="movimentos-display">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Barra de ações e feedback imediato ao jogador -->
+    <section class="controls-bar" aria-label="Controles do jogo">
+      <div class="btn-group">
+        <button type="button" id="btn-desfazer" disabled title="Desfazer último movimento (pilha de histórico)">
+          <span>↩</span>
+          <span>Desfazer</span>
+        </button>
+        <button type="button" id="btn-reiniciar" title="Reiniciar exatamente este embaralhamento">
+          <span>↻</span>
+          <span>Reiniciar Fase</span>
+        </button>
+        <button type="button" id="btn-nova-aleatoria" class="btn-primary" title="Gerar um novo embaralhamento para o nível atual">
+          <span>✦</span>
+          <span>Nova Fase Aleatória</span>
+        </button>
+      </div>
+
+      <div class="feedback-banner" id="feedback-banner" role="status" aria-live="polite">
+        Selecione um tubo de origem para começar.
+      </div>
+    </section>
+
+    <!-- Bancada responsiva onde os tubos de ensaio são renderizados -->
+    <main class="bench-container" id="bench" aria-label="Bancada de tubos de ensaio"></main>
+  </div>
+
+  <!-- Modal exibido quando todos os tubos satisfazem a condição de vitória -->
+  <div class="modal-backdrop" id="victory-modal" role="dialog" aria-modal="true" aria-labelledby="victory-title">
+    <div class="confetti-layer" id="confetti-layer" aria-hidden="true"></div>
+    <div class="modal-card">
+      <div class="modal-icon">✓</div>
+      <h2 class="modal-title" id="victory-title">Fase Concluída!</h2>
+      <p class="modal-desc" id="victory-desc">
+        Todas as substâncias foram organizadas com precisão na bancada.
+      </p>
+      <div class="modal-summary">
+        <div class="stat-pill">
+          <span class="stat-label">Nível Finalizado</span>
+          <span class="stat-value" id="modal-nivel">1</span>
+        </div>
+        <div class="stat-pill">
+          <span class="stat-label">Total de Jogadas</span>
+          <span class="stat-value" id="modal-movimentos">0</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-proximo-nivel" class="btn-success">
+          Avançar para o Próximo Nível →
+        </button>
+        <button type="button" id="btn-jogar-novamente-mesmo">
+          Novo Embaralhamento neste Nível
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. ESTRUTURAS DE DADOS E CONSTANTES DO JOGO
+       ========================================================================= */
+
+    /**
+     * Capacidade máxima de unidades de líquido por tubo de ensaio.
+     * Cada tubo funciona como uma pilha LIFO (Last In, First Out):
+     * - O índice 0 é o fundo do tubo.
+     * - O último elemento (arr[arr.length - 1]) é o topo, onde ocorrem push() e pop().
+     */
+    const CAPACIDADE_MAXIMA = 4;
+
+    /**
+     * Quantidade fixa de tubos vazios adicionados ao final de cada fase
+     * para permitir manobras e troca de camadas entre tubos cheios.
+     */
+    const TUBOS_AUXILIARES = 2;
+
+    /**
+     * Paleta de 10 cores vibrantes e distintas.
+     * Cada objeto associa um identificador usado na pilha (`id`), um nome legível
+     * em português (`nome`) e a cor hexadecimal (`hex`) renderizada no CSS.
+     */
+    const PALETA_CORES = [
+      { id: "crimson",  nome: "Vermelho Carmim",  hex: "#ef4444" },
+      { id: "cobalt",   nome: "Azul Cobalto",     hex: "#2563eb" },
+      { id: "emerald",  nome: "Verde Esmeralda",  hex: "#10b981" },
+      { id: "amber",    nome: "Amarelo Âmbar",    hex: "#f59e0b" },
+      { id: "violet",   nome: "Roxo Violeta",     hex: "#8b5cf6" },
+      { id: "cyan",     nome: "Ciano Elétrico",   hex: "#06b6d4" },
+      { id: "magenta",  nome: "Rosa Magenta",     hex: "#ec4899" },
+      { id: "tangerine",nome: "Laranja Tangerina",hex: "#f97316" },
+      { id: "lime",     nome: "Verde Limão",      hex: "#84cc16" },
+      { id: "indigo",   nome: "Anil Profundo",    hex: "#4f46e5" }
+    ];
+
+    // Mapa auxiliar de acesso rápido (O(1)) de cor por `id` para renderização visual
+    const MAPA_CORES = Object.freeze(
+      PALETA_CORES.reduce((acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      }, {})
+    );
+
+    // Estado principal do jogo
+    let nivelAtual = 1;
+    let movimentos = 0;
+
+    // `tubos` é um array de pilhas (arrays de strings com IDs de cores)
+    let tubos = [];
+
+    // Cópia profunda do estado inicial da fase para permitir "Reiniciar Fase"
+    let estadoInicialNivel = [];
+
+    // Pilha de snapshots anteriores (cópia profunda) para suportar "Desfazer (Undo)"
+    let historico = [];
+
+    // Índice do tubo atualmente selecionado como origem (`null` quando nenhum está ativo)
+    let tuboSelecionado = null;
+
+    // Trava simples durante transições de vitória para evitar cliques duplicados
+    let faseConcluida = false;
+
+    // Rastreamento visual de camadas recém-despejadas e tubos recém-concluídos
+    let animacaoDespejo = {
+      tuboDestino: null,
+      quantidade: 0,
+      corId: null
+    };
+    let tubosCelebrados = new Set();
+
+    // Chave de persistência para o estado de mudo no localStorage
+    const CHAVE_STORAGE_SOM = "watersort_muted_v1";
+    let somMutado = false;
+    let audioCtx = null;
+
+    // Referências aos elementos do DOM
+    const elBench = document.getElementById("bench");
+    const elNivelDisplay = document.getElementById("nivel-display");
+    const elMovimentosDisplay = document.getElementById("movimentos-display");
+    const elFeedback = document.getElementById("feedback-banner");
+    const elBtnSom = document.getElementById("btn-som");
+    const elSomIcone = document.getElementById("som-icone");
+    const elSomTexto = document.getElementById("som-texto");
+    const elBtnDesfazer = document.getElementById("btn-desfazer");
+    const elBtnReiniciar = document.getElementById("btn-reiniciar");
+    const elBtnNovaAleatoria = document.getElementById("btn-nova-aleatoria");
+    const elVictoryModal = document.getElementById("victory-modal");
+    const elConfettiLayer = document.getElementById("confetti-layer");
+    const elModalNivel = document.getElementById("modal-nivel");
+    const elModalMovimentos = document.getElementById("modal-movimentos");
+    const elBtnProximoNivel = document.getElementById("btn-proximo-nivel");
+    const elBtnJogarNovamenteMesmo = document.getElementById("btn-jogar-novamente-mesmo");
+
+    /* =========================================================================
+       1B. MOTOR DE ÁUDIO SINTETIZADO (WEB AUDIO API - SEM ARQUIVOS EXTERNOS)
+       ========================================================================= */
+
+    /**
+     * Inicializa ou retoma o AudioContext sob demanda (respeitando políticas
+     * de autoplay do navegador após interação do usuário).
+     */
+    function obterAudioContext() {
+      if (somMutado) return null;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+
+      if (!audioCtx) {
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    /**
+     * Lê o estado salvo de mudo no localStorage e atualiza o botão do cabeçalho.
+     */
+    function carregarPreferenciaSom() {
+      try {
+        const salvo = window.localStorage.getItem(CHAVE_STORAGE_SOM);
+        somMutado = salvo === "true";
+      } catch (_) {
+        somMutado = false;
+      }
+      atualizarBotaoSom();
+    }
+
+    function atualizarBotaoSom() {
+      elBtnSom.setAttribute("aria-pressed", String(somMutado));
+      elSomIcone.textContent = somMutado ? "🔇" : "🔊";
+      elSomTexto.textContent = somMutado ? "Mudo" : "Som";
+      elBtnSom.title = somMutado
+        ? "Áudio desativado — clique para ativar os efeitos sonoros"
+        : "Áudio ativado — clique para silenciar";
+    }
+
+    function alternarSom() {
+      somMutado = !somMutado;
+      try {
+        window.localStorage.setItem(CHAVE_STORAGE_SOM, String(somMutado));
+      } catch (_) {
+        // Ignora falhas de storage em contextos restritos
+      }
+      atualizarBotaoSom();
+      if (!somMutado) {
+        obterAudioContext();
+        tocarSomSelecao(0);
+      }
+    }
+
+    /**
+     * Som suave de bolha/clique ao selecionar ou desmarcar um tubo.
+     */
+    function tocarSomSelecao(indiceTubo = 0, desmarcando = false) {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      const baseFreq = desmarcando ? 340 : 420 + (indiceTubo % 6) * 26;
+      const alvoFreq = desmarcando ? 240 : baseFreq * 1.35;
+
+      osc.frequency.setValueAtTime(baseFreq, agora);
+      osc.frequency.exponentialRampToValueAtTime(alvoFreq, agora + 0.085);
+
+      gain.gain.setValueAtTime(0.001, agora);
+      gain.gain.linearRampToValueAtTime(0.11, agora + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0008, agora + 0.095);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(agora);
+      osc.stop(agora + 0.1);
+    }
+
+    /**
+     * Som aquoso de despejo/gotejamento com pitch ajustado pela cor e
+     * múltiplas micro-gotas proporcionalmente à quantidade de unidades movidas.
+     */
+    function tocarSomDespejo(corId, quantidade = 1) {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const idxCor = Math.max(0, PALETA_CORES.findIndex((c) => c.id === corId));
+      const fatorCor = 0.88 + (idxCor / PALETA_CORES.length) * 0.34;
+      const gotas = Math.max(1, Math.min(CAPACIDADE_MAXIMA, quantidade));
+
+      for (let i = 0; i < gotas; i++) {
+        const inicio = ctx.currentTime + i * 0.055;
+        const osc = ctx.createOscillator();
+        const filtro = ctx.createBiquadFilter();
+        const gain = ctx.createGain();
+
+        osc.type = "triangle";
+        const freqInicial = 260 * fatorCor + i * 48;
+        const freqFinal = 560 * fatorCor + i * 65;
+
+        osc.frequency.setValueAtTime(freqInicial, inicio);
+        osc.frequency.exponentialRampToValueAtTime(freqFinal, inicio + 0.075);
+
+        filtro.type = "bandpass";
+        filtro.frequency.setValueAtTime(900 * fatorCor, inicio);
+        filtro.Q.setValueAtTime(2.2, inicio);
+
+        gain.gain.setValueAtTime(0.001, inicio);
+        gain.gain.linearRampToValueAtTime(0.13, inicio + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, inicio + 0.085);
+
+        osc.connect(filtro);
+        filtro.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(inicio);
+        osc.stop(inicio + 0.09);
+      }
+    }
+
+    /**
+     * Som curto e suave de bloqueio quando `podeDespejar` retorna falso.
+     */
+    function tocarSomInvalido() {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(175, agora);
+      osc.frequency.linearRampToValueAtTime(125, agora + 0.14);
+
+      gain.gain.setValueAtTime(0.001, agora);
+      gain.gain.linearRampToValueAtTime(0.075, agora + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0008, agora + 0.15);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(agora);
+      osc.stop(agora + 0.16);
+    }
+
+    /**
+     * Som curto e descendente/reverso para desfazer jogada (Undo).
+     */
+    function tocarSomUndo() {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime;
+      const notas = [460, 310];
+
+      notas.forEach((freq, idx) => {
+        const t = agora + idx * 0.05;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.82, t + 0.07);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.1, t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.08);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(t);
+        osc.stop(t + 0.085);
+      });
+    }
+
+    /**
+     * Acorde ascendente satisfatório ao completar um tubo com 4 unidades da mesma cor.
+     */
+    function tocarSomTuboConcluido() {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime;
+      const acorde = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+
+      acorde.forEach((freq, idx) => {
+        const t = agora + idx * 0.055;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, t);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.11, t + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t + 0.24);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(t);
+        osc.stop(t + 0.25);
+      });
+    }
+
+    /**
+     * Arpeggio festivo de vitória ao resolver toda a bancada.
+     */
+    function tocarSomVitoria() {
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+
+      const agora = ctx.currentTime;
+      const fanfarra = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+
+      fanfarra.forEach((freq, idx) => {
+        const t = agora + idx * 0.085;
+        const duracao = idx === fanfarra.length - 1 ? 0.45 : 0.18;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, t);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.13, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0008, t + duracao);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(t);
+        osc.stop(t + duracao + 0.02);
+      });
+    }
+
+    /* =========================================================================
+       2. FUNÇÕES AUXILIARES DE CLONAGEM E EMBARALHAMENTO (FISHER-YATES)
+       ========================================================================= */
+
+    /**
+     * Cria uma cópia profunda (deep clone) do array de tubos.
+     * Essencial para `estadoInicialNivel` e `historico` porque arrays internos
+     * são mutados via `push()` e `pop()` durante o jogo; sem clonagem profunda,
+     * snapshots antigos apontariam para os mesmos arrays modificados.
+     */
+    function clonarEstadoTubos(listaTubos) {
+      return JSON.parse(JSON.stringify(listaTubos));
+    }
+
+    /**
+     * Embaralha um array in-place usando o algoritmo Fisher-Yates (Knuth shuffle).
+     * Garante distribuição uniformemente aleatória em tempo O(n), percorrendo de
+     * trás para frente e trocando cada posição `i` por um índice aleatório `j` em [0, i].
+     */
+    function embaralharFisherYates(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+      }
+      return array;
+    }
+
+    /**
+     * Verifica se algum dos tubos iniciais já nasce 100% resolvido
+     * (4 unidades exatamente iguais no mesmo tubo).
+     */
+    function possuiTuboJaResolvido(listaTubos) {
+      return listaTubos.some((tubo) => {
+        if (tubo.length !== CAPACIDADE_MAXIMA) return false;
+        const primeiraCor = tubo[0];
+        return tubo.every((unidade) => unidade === primeiraCor);
+      });
+    }
+
+    /* =========================================================================
+       3. GERADOR DE FASES COM ESCALA DE DIFICULDADE
+       ========================================================================= */
+
+    /**
+     * Gera a configuração de pilhas para `numeroNivel`.
+     * - Nível 1 começa com 3 cores e sobe gradualmente até o máximo de 10 cores.
+     * - Monta um pool com exatamente `CAPACIDADE_MAXIMA` (4) unidades de cada cor.
+     * - Embaralha via Fisher-Yates e refaz se algum tubo já surgir 100% resolvido.
+     * - Fatia em `numCores` pilhas de tamanho 4 e anexa 2 tubos vazios `[]`.
+     */
+    function gerarNivel(numeroNivel) {
+      const nivelSeguro = Math.max(1, Number(numeroNivel) || 1);
+      const numCores = Math.min(3 + Math.floor((nivelSeguro - 1) / 2), PALETA_CORES.length);
+
+      // Embaralha a paleta para sortear `numCores` cores distintas para a fase
+      const coresEmbaralhadas = embaralharFisherYates([...PALETA_CORES]);
+      const coresSelecionadas = coresEmbaralhadas.slice(0, numCores);
+
+      // Constrói o pool contendo exatamente 4 unidades de cada cor selecionada
+      const poolBase = [];
+      for (const corObj of coresSelecionadas) {
+        for (let u = 0; u < CAPACIDADE_MAXIMA; u++) {
+          poolBase.push(corObj.id);
+        }
+      }
+
+      let tubosGerados = [];
+      let tentativas = 0;
+      const MAX_TENTATIVAS = 50;
+
+      // Embaralha e fatia em pilhas de tamanho 4; repete caso algum tubo nasça pronto
+      do {
+        const poolEmbaralhado = embaralharFisherYates([...poolBase]);
+        tubosGerados = [];
+
+        for (let i = 0; i < numCores; i++) {
+          const inicio = i * CAPACIDADE_MAXIMA;
+          const fatia = poolEmbaralhado.slice(inicio, inicio + CAPACIDADE_MAXIMA);
+          tubosGerados.push(fatia);
+        }
+
+        tentativas++;
+      } while (possuiTuboJaResolvido(tubosGerados) && tentativas < MAX_TENTATIVAS);
+
+      // Adiciona os 2 tubos auxiliares vazios ao final da bancada
+      for (let v = 0; v < TUBOS_AUXILIARES; v++) {
+        tubosGerados.push([]);
+      }
+
+      return tubosGerados;
+    }
+
+    /* =========================================================================
+       4. REGRAS DE TRANSFERÊNCIA (PILHA LIFO) E BLOCO CONTÍGUO
+       ========================================================================= */
+
+    /**
+     * Retorna a cor que está no topo da pilha (último elemento do array),
+     * ou `null` caso o tubo esteja vazio.
+     */
+    function corDoTopo(tubo) {
+      if (!tubo || tubo.length === 0) return null;
+      return tubo[tubo.length - 1];
+    }
+
+    /**
+     * Valida se é permitido despejar líquido do tubo `origem` no tubo `destino`.
+     * Regras:
+     * 1. Índices distintos (`indiceOrigem !== indiceDestino`).
+     * 2. Tubo de origem não pode estar vazio.
+     * 3. Tubo de destino deve ter espaço (`destino.length < CAPACIDADE_MAXIMA`).
+     * 4. Tubo de destino vazio OU cor do topo do destino igual à cor do topo da origem.
+     */
+    function podeDespejar(indiceOrigem, indiceDestino) {
+      if (indiceOrigem === indiceDestino) return false;
+
+      const origem = tubos[indiceOrigem];
+      const destino = tubos[indiceDestino];
+
+      if (!origem || !destino) return false;
+      if (origem.length === 0) return false;
+      if (destino.length >= CAPACIDADE_MAXIMA) return false;
+
+      const corOrigem = corDoTopo(origem);
+      if (destino.length === 0) return true;
+
+      const corDestino = corDoTopo(destino);
+      return corOrigem === corDestino;
+    }
+
+    /**
+     * Executa a transferência em bloco da cor do topo de `origem` para `destino`.
+     * Como o final do array representa o topo da pilha LIFO:
+     * - Removemos do topo de `origem` com `origem.pop()`.
+     * - Inserimos no topo de `destino` com `destino.push()`.
+     * - Repetimos enquanto a cor no topo de `origem` for a mesma cor inicial do bloco
+     *   e `destino` ainda não tiver atingido `CAPACIDADE_MAXIMA`.
+     *
+     * Retorna a quantidade de unidades transferidas (0 se o movimento for inválido).
+     */
+    function transferirBloco(indiceOrigem, indiceDestino) {
+      if (!podeDespejar(indiceOrigem, indiceDestino)) {
+        return 0;
+      }
+
+      const origem = tubos[indiceOrigem];
+      const destino = tubos[indiceDestino];
+      const corAlvo = corDoTopo(origem);
+
+      // Salva uma cópia profunda antes de mutar o estado atual (para o botão Desfazer)
+      historico.push(clonarEstadoTubos(tubos));
+
+      let unidadesMovidas = 0;
+
+      while (
+        origem.length > 0 &&
+        destino.length < CAPACIDADE_MAXIMA &&
+        corDoTopo(origem) === corAlvo
+      ) {
+        const unidade = origem.pop();
+        destino.push(unidade);
+        unidadesMovidas++;
+      }
+
+      // Caso extremo de segurança: se por algum motivo nada foi movido, reverte histórico
+      if (unidadesMovidas === 0) {
+        historico.pop();
+        return 0;
+      }
+
+      movimentos++;
+      return unidadesMovidas;
+    }
+
+    /* =========================================================================
+       5. CONDIÇÃO DE VITÓRIA
+       ========================================================================= */
+
+    /**
+     * Verifica se o nível foi resolvido.
+     * Cada tubo da bancada deve atender a uma de duas condições:
+     * - Estar completamente vazio (`tubo.length === 0`), OU
+     * - Estar completamente cheio (`tubo.length === CAPACIDADE_MAXIMA`) e todas
+     *   as 4 unidades possuírem exatamente a mesma cor.
+     */
+    function verificarVitoria() {
+      return tubos.every((tubo) => {
+        if (tubo.length === 0) return true;
+        if (tubo.length !== CAPACIDADE_MAXIMA) return false;
+
+        const primeiraCor = tubo[0];
+        return tubo.every((cor) => cor === primeiraCor);
+      });
+    }
+
+    /**
+     * Auxiliar visual: indica se um tubo individual já está completo (4 cores iguais).
+     */
+    function tuboEstaCompleto(tubo) {
+      if (tubo.length !== CAPACIDADE_MAXIMA) return false;
+      const corBase = tubo[0];
+      return tubo.every((cor) => cor === corBase);
+    }
+
+    /* =========================================================================
+       6. HISTÓRICO (UNDO), REINÍCIO E NAVEGAÇÃO DE NÍVEIS
+       ========================================================================= */
+
+    /**
+     * Desfaz o último movimento válido removendo o último snapshot da pilha `historico`
+     * e restaurando `tubos` para aquele estado anterior.
+     */
+    function desfazerJogada() {
+      if (faseConcluida || historico.length === 0) return;
+
+      tubos = historico.pop();
+      movimentos = Math.max(0, movimentos - 1);
+      tuboSelecionado = null;
+      animacaoDespejo = { tuboDestino: null, quantidade: 0, corId: null };
+
+      tocarSomUndo();
+      definirFeedback("Último movimento desfeito.", "neutral");
+      renderizarTudo();
+    }
+
+    /**
+     * Reinicia a fase atual exatamente com o mesmo embaralhamento inicial.
+     */
+    function reiniciarFaseAtual() {
+      fecharModalVitoria();
+      tubos = clonarEstadoTubos(estadoInicialNivel);
+      historico = [];
+      movimentos = 0;
+      tuboSelecionado = null;
+      faseConcluida = false;
+      animacaoDespejo = { tuboDestino: null, quantidade: 0, corId: null };
+      tubosCelebrados.clear();
+
+      definirFeedback("Fase reiniciada com o embaralhamento original.", "neutral");
+      renderizarTudo();
+    }
+
+    /**
+     * Carrega um novo embaralhamento para o nível informado (ou inicia/avança nível).
+     */
+    function iniciarNivel(novoNivel, mensagem = null) {
+      fecharModalVitoria();
+      nivelAtual = Math.max(1, novoNivel);
+      const gerados = gerarNivel(nivelAtual);
+
+      tubos = clonarEstadoTubos(gerados);
+      estadoInicialNivel = clonarEstadoTubos(gerados);
+      historico = [];
+      movimentos = 0;
+      tuboSelecionado = null;
+      faseConcluida = false;
+      animacaoDespejo = { tuboDestino: null, quantidade: 0, corId: null };
+      tubosCelebrados.clear();
+
+      const qtdCores = tubos.filter((t) => t.length > 0).length;
+      definirFeedback(
+        mensagem || `Nível ${nivelAtual} iniciado com ${qtdCores} cores e ${TUBOS_AUXILIARES} tubos vazios.`,
+        "neutral"
+      );
+      renderizarTudo();
+    }
+
+    /* =========================================================================
+       7. INTERAÇÃO DO JOGADOR, EFEITOS VISUAIS E RENDERIZAÇÃO DO DOM
+       ========================================================================= */
+
+    function definirFeedback(texto, tipo = "neutral") {
+      elFeedback.textContent = texto;
+      elFeedback.classList.remove("is-error", "is-success");
+      if (tipo === "error") elFeedback.classList.add("is-error");
+      if (tipo === "success") elFeedback.classList.add("is-success");
+    }
+
+    /**
+     * Gera partículas celebratórias no modal de vitória.
+     */
+    function gerarConfetesVitoria() {
+      elConfettiLayer.innerHTML = "";
+      const totalPecas = 42;
+
+      for (let i = 0; i < totalPecas; i++) {
+        const peca = document.createElement("span");
+        peca.className = "confetti-piece";
+        const cor = PALETA_CORES[i % PALETA_CORES.length].hex;
+        const leftPct = (i * 100) / totalPecas + (Math.random() * 4 - 2);
+        const driftX = (Math.random() - 0.5) * 160;
+        const spinDeg = (Math.random() > 0.5 ? 1 : -1) * (360 + Math.random() * 420);
+        const duracao = 1.9 + Math.random() * 1.4;
+        const atraso = Math.random() * 0.45;
+
+        peca.style.left = `${Math.max(2, Math.min(98, leftPct))}%`;
+        peca.style.backgroundColor = cor;
+        peca.style.setProperty("--drift-x", `${driftX.toFixed(1)}px`);
+        peca.style.setProperty("--spin-deg", `${spinDeg.toFixed(0)}deg`);
+        peca.style.setProperty("--fall-duration", `${duracao.toFixed(2)}s`);
+        peca.style.setProperty("--fall-delay", `${atraso.toFixed(2)}s`);
+
+        elConfettiLayer.appendChild(peca);
+      }
+    }
+
+    function abrirModalVitoria() {
+      elModalNivel.textContent = String(nivelAtual);
+      elModalMovimentos.textContent = String(movimentos);
+      gerarConfetesVitoria();
+      tocarSomVitoria();
+      elVictoryModal.classList.add("is-open");
+      elBtnProximoNivel.focus();
+    }
+
+    function fecharModalVitoria() {
+      elVictoryModal.classList.remove("is-open");
+      elConfettiLayer.innerHTML = "";
+    }
+
+    /**
+     * Adiciona um pequeno burst de partículas ao redor de um tubo recém-concluído.
+     */
+    function anexarParticulasTubo(slotEl, corHex) {
+      const burst = document.createElement("div");
+      burst.className = "tube-burst";
+      burst.setAttribute("aria-hidden", "true");
+
+      const direcoes = [
+        { tx: "-28px", ty: "-34px" },
+        { tx: "28px",  ty: "-34px" },
+        { tx: "-34px", ty: "4px" },
+        { tx: "34px",  ty: "4px" },
+        { tx: "-18px", ty: "-46px" },
+        { tx: "18px",  ty: "-46px" }
+      ];
+
+      direcoes.forEach((dir) => {
+        const p = document.createElement("span");
+        p.className = "burst-particle";
+        p.style.setProperty("--particle-color", corHex);
+        p.style.setProperty("--tx", dir.tx);
+        p.style.setProperty("--ty", dir.ty);
+        burst.appendChild(p);
+      });
+
+      slotEl.appendChild(burst);
+      setTimeout(() => burst.remove(), 800);
+    }
+
+    /**
+     * Trata o clique/toque em um tubo de índice `indice`.
+     */
+    function aoClicarTubo(indice) {
+      if (faseConcluida) return;
+
+      // Caso 1: Nenhum tubo selecionado ainda
+      if (tuboSelecionado === null) {
+        if (tubos[indice].length === 0) {
+          tocarSomInvalido();
+          definirFeedback("Esse tubo está vazio. Escolha um tubo com líquido para ser a origem.", "error");
+          animarShake(indice);
+          return;
+        }
+        tuboSelecionado = indice;
+        animacaoDespejo = { tuboDestino: null, quantidade: 0, corId: null };
+        tocarSomSelecao(indice, false);
+        const corNome = MAPA_CORES[corDoTopo(tubos[indice])]?.nome || "cor";
+        definirFeedback(`Tubo #${indice + 1} selecionado (topo: ${corNome}). Escolha o destino.`, "neutral");
+        renderizarBancada();
+        return;
+      }
+
+      // Caso 2: Clicou no mesmo tubo já selecionado -> desmarca
+      if (tuboSelecionado === indice) {
+        tuboSelecionado = null;
+        tocarSomSelecao(indice, true);
+        definirFeedback("Seleção cancelada.", "neutral");
+        renderizarBancada();
+        return;
+      }
+
+      // Caso 3: Há uma origem selecionada e o jogador clicou em outro tubo como destino
+      const origemIdx = tuboSelecionado;
+      const corMovidaId = corDoTopo(tubos[origemIdx]);
+      const movidas = transferirBloco(origemIdx, indice);
+
+      if (movidas > 0) {
+        tuboSelecionado = null;
+        animacaoDespejo = {
+          tuboDestino: indice,
+          quantidade: movidas,
+          corId: corMovidaId
+        };
+        tocarSomDespejo(corMovidaId, movidas);
+
+        const nomeCor = MAPA_CORES[corMovidaId]?.nome || "líquido";
+        definirFeedback(
+          `Transferida${movidas > 1 ? "s" : ""} ${movidas} unidade${movidas > 1 ? "s" : ""} (${nomeCor}) do tubo #${origemIdx + 1} para o #${indice + 1}.`,
+          "neutral"
+        );
+
+        if (verificarVitoria()) {
+          faseConcluida = true;
+          definirFeedback(`Parabéns! Nível ${nivelAtual} concluído em ${movimentos} movimentos!`, "success");
+          renderizarTudo();
+          setTimeout(abrirModalVitoria, 320);
+          return;
+        }
+
+        renderizarTudo();
+      } else {
+        // Movimento inválido: toca som de bloqueio, aplica tremor e borda vermelha
+        tocarSomInvalido();
+        if (tubos[indice].length > 0 && corDoTopo(tubos[indice]) !== corDoTopo(tubos[origemIdx])) {
+          tuboSelecionado = indice;
+          const corNome = MAPA_CORES[corDoTopo(tubos[indice])]?.nome || "cor";
+          definirFeedback(
+            `Não coube no tubo #${indice + 1}. Seleção alterada para o tubo #${indice + 1} (${corNome}).`,
+            "error"
+          );
+          renderizarBancada();
+          animarShake(indice);
+        } else {
+          definirFeedback(
+            `Movimento inválido do tubo #${origemIdx + 1} para o tubo #${indice + 1}.`,
+            "error"
+          );
+          animarShake(indice);
+        }
+      }
+    }
+
+    /**
+     * Aplica animação curta de tremor ao tubo alvo quando ocorre uma jogada inválida.
+     */
+    function animarShake(indice) {
+      const slot = elBench.querySelector(`[data-tube-index="${indice}"]`);
+      if (!slot) return;
+      slot.classList.remove("shake");
+      // Força reflow para reiniciar a animação CSS mesmo em cliques repetidos
+      void slot.offsetWidth;
+      slot.classList.add("shake");
+    }
+
+    /**
+     * Renderiza os tubos de ensaio e suas camadas de líquido na bancada.
+     * Como o `.tube` usa `flex-direction: column-reverse`, o primeiro filho no DOM
+     * (`tubo[0]`) fica na base e o último filho (`tubo[tubo.length - 1]`) fica no topo.
+     */
+    function renderizarBancada() {
+      elBench.innerHTML = "";
+      let algumTuboCompletouAgora = false;
+
+      tubos.forEach((pilha, idx) => {
+        const slot = document.createElement("div");
+        slot.className = "tube-slot";
+        slot.dataset.tubeIndex = String(idx);
+
+        if (tuboSelecionado === idx) {
+          slot.classList.add("selected");
+        }
+
+        const estaCompleto = tuboEstaCompleto(pilha);
+        if (estaCompleto) {
+          slot.classList.add("completed");
+          if (!tubosCelebrados.has(idx)) {
+            tubosCelebrados.add(idx);
+            algumTuboCompletouAgora = true;
+            const corHex = MAPA_CORES[pilha[0]]?.hex || "#10b981";
+            anexarParticulasTubo(slot, corHex);
+          }
+        } else {
+          tubosCelebrados.delete(idx);
+        }
+
+        const tubeEl = document.createElement("div");
+        tubeEl.className = "tube";
+        tubeEl.setAttribute("role", "button");
+        tubeEl.setAttribute("tabindex", "0");
+
+        const topoId = corDoTopo(pilha);
+        const topoNome = topoId ? MAPA_CORES[topoId]?.nome : "vazio";
+        tubeEl.setAttribute(
+          "aria-label",
+          `Tubo ${idx + 1}, ${pilha.length} de ${CAPACIDADE_MAXIMA} unidades, topo ${topoNome}`
+        );
+
+        tubeEl.addEventListener("click", () => aoClicarTubo(idx));
+        tubeEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            aoClicarTubo(idx);
+          }
+        });
+
+        // Determina o intervalo de camadas recém-despejadas neste tubo
+        const inicioRecemDespejado =
+          animacaoDespejo.tuboDestino === idx
+            ? Math.max(0, pilha.length - animacaoDespejo.quantidade)
+            : pilha.length;
+
+        // Cria as camadas de líquido da base (índice 0) até o topo (índice pilha.length - 1)
+        pilha.forEach((corId, camadaIdx) => {
+          const infoCor = MAPA_CORES[corId] || { nome: corId, hex: "#94a3b8" };
+          const layerEl = document.createElement("div");
+          layerEl.className = "liquid-layer";
+          layerEl.style.backgroundColor = infoCor.hex;
+          layerEl.title = `${infoCor.nome} (Camada ${camadaIdx + 1}/${CAPACIDADE_MAXIMA})`;
+
+          if (camadaIdx >= inicioRecemDespejado) {
+            layerEl.classList.add("is-newly-poured");
+          }
+
+          if (camadaIdx === pilha.length - 1) {
+            layerEl.classList.add("is-top");
+          }
+
+          tubeEl.appendChild(layerEl);
+        });
+
+        const labelEl = document.createElement("span");
+        labelEl.className = "tube-index";
+        labelEl.textContent = estaCompleto ? `#${idx + 1} ✓` : `#${idx + 1}`;
+
+        slot.appendChild(tubeEl);
+        slot.appendChild(labelEl);
+        elBench.appendChild(slot);
+      });
+
+      // Toca o acorde de tubo concluído quando não for a vitória final (que já tem fanfarra)
+      if (algumTuboCompletouAgora && !faseConcluida) {
+        tocarSomTuboConcluido();
+      }
+    }
+
+    /**
+     * Atualiza placar, estado dos botões e bancada.
+     */
+    function renderizarTudo() {
+      elNivelDisplay.textContent = String(nivelAtual);
+      elMovimentosDisplay.textContent = String(movimentos);
+      elBtnDesfazer.disabled = faseConcluida || historico.length === 0;
+      renderizarBancada();
+    }
+
+    /* =========================================================================
+       8. EVENTOS GLOBAIS E INICIALIZAÇÃO
+       ========================================================================= */
+
+    elBtnSom.addEventListener("click", alternarSom);
+    elBtnDesfazer.addEventListener("click", desfazerJogada);
+    elBtnReiniciar.addEventListener("click", reiniciarFaseAtual);
+    elBtnNovaAleatoria.addEventListener("click", () => {
+      iniciarNivel(nivelAtual, `Novo embaralhamento gerado para o Nível ${nivelAtual}.`);
+    });
+
+    elBtnProximoNivel.addEventListener("click", () => {
+      iniciarNivel(nivelAtual + 1);
+    });
+
+    elBtnJogarNovamenteMesmo.addEventListener("click", () => {
+      iniciarNivel(nivelAtual, `Novo embaralhamento gerado para o Nível ${nivelAtual}.`);
+    });
+
+    // Atalho de teclado prático: Ctrl+Z ou Cmd+Z para Desfazer, Esc para cancelar seleção
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        desfazerJogada();
+      } else if (event.key === "Escape" && tuboSelecionado !== null) {
+        tuboSelecionado = null;
+        tocarSomSelecao(0, true);
+        definirFeedback("Seleção cancelada.", "neutral");
+        renderizarBancada();
+      }
+    });
+
+    // Inicia o jogo no Nível 1 ao carregar a página
+    window.addEventListener("DOMContentLoaded", () => {
+      carregarPreferenciaSom();
+      iniciarNivel(1);
+    });
+  </script>
+</body>
+</html>
