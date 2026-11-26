@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Shift</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050505;
+    font-family: "Segoe UI", system-ui, sans-serif; color: #cfefff; user-select: none; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; background: #050505; text-align: center; }
+  .hidden { display: none; }
+  h1 { font-size: clamp(32px, 8vw, 72px); font-weight: 200; letter-spacing: .35em; padding-left: .35em;
+    color: #00f3ff; text-shadow: 0 0 12px #00f3ff, 0 0 40px #00f3ff88; }
+  p { opacity: .6; letter-spacing: .08em; font-size: 14px; padding: 0 16px; }
+  button { background: transparent; color: #00f3ff; border: 1px solid #00f3ff; padding: 12px 48px;
+    font-size: 16px; letter-spacing: .3em; text-transform: uppercase; cursor: pointer;
+    box-shadow: 0 0 12px #00f3ff55; transition: .2s; }
+  button:hover, button:focus-visible { background: #00f3ff; color: #050505; box-shadow: 0 0 28px #00f3ff; }
+  small { opacity: .35; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="menu" class="screen">
+    <h1>ECHO SHIFT</h1>
+    <p>Na escuridão, o som é a sua única luz. Mas eles também escutam.</p>
+    <button id="playBtn">Jogar</button>
+    <button id="continueBtn" class="hidden">Continuar</button>
+    <small>Use fones de ouvido · teclado e mouse</small>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   CONFIGURAÇÃO  (ajuste aqui o "game feel")
+   ========================================================================= */
+const W = 960, H = 540, TILE = 30, COLS = 32, ROWS = 18;
+const STEP = 1 / 120;                       // passo fixo da simulação
+
+const PHYS = { gravity: 1500, accel: 1500, friction: 1900, airFriction: 600,
+  maxSpeed: 200, sneakSpeed: 80, jump: 480, maxFall: 620, coyote: 0.09, buffer: 0.11 };
+
+const SOUND = {
+  fade: 2.5,                                // segundos até o brilho sumir
+  waveSpeed: 520,
+  pulseMin: 120, pulseMax: 520, chargeMax: 1.5, pulseCooldown: 0.35,
+  stepRadius: 50, landRadius: 65, stoneRadius: 260
+};
+
+const STONE = { speed: 640, forwardSpeed: 600, forwardAngle: 18, gravity: 600, cooldown: 0.8 };
+const ENEMY = { patrol: 28, run: 175, returnSpeed: 40, wait: 2.5 };
+
+const COLORS = { wall: "#00f3ff", spike: "#ff0055", exit: "#00ff66", enemy: "#ffaa00", alert: "#ff2233" };
+
+/* =========================================================================
+   FASES  (coordenadas em blocos de 30px; a grade tem 32 x 18)
+   blocks: [x, y, largura, altura]   spikes: [x, y, quantidade]
+   enemies: x = coluna, floor = linha do chão, h = altura em px,
+            min/max = limites opcionais de patrulha (colunas)
+            leash = coluna que o inimigo nunca ultrapassa à esquerda
+   ========================================================================= */
+const LEVELS = [
+  { // FASE 1 — pulso, saltos e espinhos
+    name: "O SUBSOLO", theme: "cave",
+    start: [2, 13], exit: [29, 8],
+    blocks: [ [1,14,7,3], [11,14,13,3], [15,12,2,2], [24,12,3,5], [27,10,4,7],
+              [7,1,4,4], [18,1,5,3] ],
+    spikes: [ [8,16,3], [20,13,2] ],
+    enemies: [],
+    hints: ["←→ / A D mover   ·   ↑ / W pular   ·   SHIFT andar em silêncio",
+            "SEGURE E SOLTE ESPAÇO para emitir um eco (mais tempo = mais longe)",
+            "Vermelho fere. Encontre a saída verde.   ·   R reinicia"]
+  },
+  { // FASE 2 — primeiro inimigo cego: pulsos curtos
+    name: "A MASMORRA", theme: "dungeon",
+    start: [2, 13], exit: [29, 12],
+    blocks: [ [1,14,6,3], [9,14,15,3], [26,14,5,3],
+              [11,12,2,1], [15,10,4,1], [21,12,2,1],
+              [5,1,5,5], [20,1,6,4] ],
+    spikes: [ [7,16,2], [24,16,2] ],
+    enemies: [ { x: 19, floor: 14, h: 22 } ],
+    hints: ["Algo respira aqui. Ele é cego, mas escuta.",
+            "Toques curtos em ESPAÇO fazem menos barulho. As plataformas altas são seguras."]
+  },
+  { // FASE 3 — o guardião: só uma pedra o afasta da saída
+    name: "O TÚNEL DA MINA", theme: "mine", aim: true,
+    start: [3, 13], exit: [20, 12],
+    blocks: [ [1,14,30,3], [1,1,30,5], [8,6,23,6], [1,13,1,1] ],
+    spikes: [],
+    enemies: [ { x: 17, floor: 14, h: 44, min: 16.5, max: 18, leash: 9 } ],
+    hints: ["O guardião é alto demais para ser saltado. Seu eco o traz até VOCÊ.",
+            "CLIQUE (ou tecla E) para arremessar uma pedra para além dele, no fundo do corredor."]
+  }
+];
+
+/* =========================================================================
+   FASES INFINITAS  (geradas a partir da fase 4)
+   Montadas por trechos com medidas que o pulo sempre alcança:
+   fosso de no máximo 3 blocos, subida de no máximo 2.
+   A mesma semente gera sempre a mesma fase (reiniciar não muda o mapa).
+   ========================================================================= */
+let runSeed = 1;
+
+function makeRng(seed) {                                // mulberry32
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const NAMES = {
+  cave:    ["GALERIAS PROFUNDAS", "A FENDA", "LENÇOL DE PEDRA", "O ABISMO"],
+  dungeon: ["AS CATACUMBAS", "CELAS ESQUECIDAS", "A CRIPTA", "O CALABOUÇO"],
+  mine:    ["POÇO ABANDONADO", "VEIO PERDIDO", "TÚNEL DESABADO", "A ESCAVAÇÃO"]
+};
+
+/* Curva de dificuldade: cresce com a fase e estabiliza em um teto jogável */
+function difficulty(i) {
+  const d = i - LEVELS.length + 1;                      // 1, 2, 3...
+  return { d,
+    patrol: Math.min(ENEMY.patrol + d * 2, 55),
+    run:    Math.min(ENEMY.run + d * 3, 225),
+    wait:   Math.max(ENEMY.wait - d * 0.08, 1.4),
+    enemies: Math.min(1 + Math.floor((d - 1) / 3), 2) };
+}
+
+function getLevel(i) {
+  if (i < LEVELS.length) return LEVELS[i];
+  const rnd = makeRng(runSeed + i * 7919);
+  const diff = difficulty(i);
+  const theme = ["cave", "dungeon", "mine"][i % 3];
+  // a cada 4 fases geradas, um corredor de guardião
+  return diff.d % 4 === 0 ? gateLevel(rnd, diff) : openLevel(rnd, diff, theme);
+}
+
+function gateLevel(rnd, diff) {
+  const exit = 16 + Math.floor(rnd() * 6), guard = exit - 2.5 - rnd() * 0.5;
+  return {
+    name: "COVIL DO GUARDIÃO", theme: ["mine", "dungeon", "cave"][Math.floor(rnd() * 3)], aim: true,
+    start: [3, 13], exit: [exit, 12],
+    blocks: [ [1,14,30,3], [1,1,30,5], [8,6,23,6], [1,13,1,1] ],
+    spikes: diff.d >= 8 ? [ [5,13,1] ] : [],
+    enemies: [ { x: guard, floor: 14, h: 44, min: guard - 0.5, max: guard + 1, leash: 9 } ],
+    speed: diff,
+    hints: ["Atraia o guardião para o fundo com uma pedra."]
+  };
+}
+
+function openLevel(rnd, diff, theme) {
+  const END = 26;                                       // início da área da saída
+  const heights = Array(COLS).fill(0);                  // linha do chão por coluna (0 = fosso)
+  const spikes = [], blocks = [], enemies = [];
+  let f = 14, x = 1, left = diff.enemies, last = "start";
+  const flat = n => { while (n-- > 0 && x < COLS - 1) heights[x++] = f; };
+  flat(5);
+
+  while (x < END) {
+    const room = END - x, r = rnd();
+    if (left > 0 && x >= 8 && room >= 8 && last !== "arena" && (r < 0.6 || x >= 14)) {
+      // ARENA: piso plano com criaturas e duas plataformas seguras
+      const a = x, n = Math.min(left, diff.d >= 6 && rnd() < 0.6 ? 2 : 1);
+      flat(8);
+      blocks.push([a + 1, f - 2, 2, 1], [a + 5, f - 2, 2, 1]);
+      for (let k = 0; k < n; k++)
+        enemies.push({ x: a + (k ? 7 : 4), floor: f, h: 22, min: a, max: a + 7 });
+      left -= n; last = "arena";
+    } else if (r < 0.4 && room >= 5) {                  // FOSSO com espinhos
+      const w = rnd() < Math.min(0.2 + diff.d * 0.08, 0.75) && room >= 6 ? 3 : 2;
+      spikes.push([x, 16, w]);
+      x += w;
+      if (f < 14 && rnd() < 0.4) f++;                   // pouso nunca é mais alto
+      flat(3); last = "pit";
+    } else if (r < 0.65 && room >= 6) {                 // ESPINHOS no chão
+      const w = diff.d >= 3 && rnd() < 0.5 ? 2 : 1;
+      flat(2); spikes.push([x, f - 1, w]); flat(w + 2); last = "spikes";
+    } else if (room >= 3) {                             // DEGRAU
+      const size = rnd() < 0.5 ? 1 : 2;
+      const up = f >= 14 || (f > 11 && rnd() < 0.55);
+      f = up ? Math.max(11, f - size) : Math.min(14, f + size);
+      flat(3); last = "step";
+    } else flat(room);
+  }
+  flat(COLS - 1 - x);                                   // área plana da saída
+
+  for (let c = 1; c < COLS - 1; c++)
+    if (heights[c]) blocks.push([c, heights[c], 1, ROWS - 1 - heights[c]]);
+
+  // Teto irregular, sempre com pelo menos 6 blocos livres acima do chão
+  for (let c = 6; c < COLS - 6; ) {
+    const w = 2 + Math.floor(rnd() * 4);
+    const near = heights.slice(Math.max(1, c - 4), c + w + 4).filter(Boolean);
+    const depth = Math.floor(rnd() * (Math.min(...near) - 6));
+    if (depth > 0) blocks.push([c, 1, w, depth]);
+    c += w + 1 + Math.floor(rnd() * 3);
+  }
+
+  const names = NAMES[theme];
+  return {
+    name: names[Math.floor(rnd() * names.length)], theme,
+    start: [2, 13], exit: [29, f - 2], blocks, spikes, enemies, speed: diff,
+    hints: diff.d === 1 ? ["Daqui para baixo, a caverna não tem fim."] : []
+  };
+}
+
+/* =========================================================================
+   ÁUDIO  (100% sintetizado com a Web Audio API)
+   ========================================================================= */
+const Sfx = {
+  ctx: null, master: null, echo: null, noise: null, charge: null, muted: false,
+
+  init() {
+    if (this.ctx) { this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;                                   // sem áudio, o jogo continua
+    const c = this.ctx = new AC();
+    this.master = c.createGain();
+    this.master.gain.value = this.muted ? 0 : 0.5;
+    this.master.connect(c.destination);
+    // Eco de caverna: delay com realimentação filtrada
+    this.echo = c.createGain();
+    const delay = c.createDelay(1), fb = c.createGain(), lp = c.createBiquadFilter();
+    delay.delayTime.value = 0.23; fb.gain.value = 0.35; lp.type = "lowpass"; lp.frequency.value = 1600;
+    this.echo.connect(delay); delay.connect(lp); lp.connect(fb); fb.connect(delay); lp.connect(this.master);
+    // Buffer de ruído branco reutilizável
+    this.noise = c.createBuffer(1, c.sampleRate, c.sampleRate);
+    const d = this.noise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  },
+
+  env(vol, dur, echo, delay = 0) {
+    const c = this.ctx, g = c.createGain(), t = c.currentTime + delay;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(this.master);
+    if (echo) g.connect(this.echo);
+    return g;
+  },
+  tone(type, f0, f1, dur, vol, echo = false, delay = 0) {
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator(), t = this.ctx.currentTime + delay;
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    o.connect(this.env(vol, dur, echo, delay));
+    o.start(t); o.stop(t + dur + 0.05);
+  },
+  hiss(freq, dur, vol, echo = false) {
+    if (!this.ctx) return;
+    const s = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter();
+    s.buffer = this.noise; f.type = "bandpass"; f.frequency.value = freq; f.Q.value = 1.2;
+    s.connect(f); f.connect(this.env(vol, dur, echo));
+    s.start(); s.stop(this.ctx.currentTime + dur + 0.05);
+  },
+
+  drip()   { this.tone("sine", 1300 + Math.random() * 500, 700, 0.08, 0.04, true); },
+  step()   { this.hiss(500 + Math.random() * 300, 0.07, 0.18); },
+  land()   { this.hiss(260, 0.12, 0.3); },
+  jump()   { this.tone("sine", 220, 380, 0.1, 0.08); },
+  pulse(p) {                                           // p = carga de 0 a 1
+    this.tone("sine", 900 - 450 * p, 180 - 90 * p, 0.5 + p * 0.6, 0.22 + p * 0.25, true);
+    this.tone("sine", 1800 - 600 * p, 1500 - 600 * p, 0.18, 0.07 + p * 0.05, true);
+    if (p > 0.5) this.tone("triangle", 110, 45, 0.9, 0.35 * p, true);
+  },
+  throwStone() { this.hiss(1400, 0.14, 0.12); },
+  impact() {
+    this.tone("triangle", 190, 50, 0.18, 0.5, true);
+    this.hiss(2200, 0.09, 0.35, true);
+    this.tone("sine", 700, 500, 0.35, 0.1, true, 0.03);
+  },
+  alert() {
+    this.tone("sawtooth", 90, 260, 0.28, 0.2, true);
+    this.tone("square", 620, 310, 0.22, 0.07, true, 0.08);
+  },
+  death() { this.tone("sawtooth", 300, 35, 0.7, 0.35, true); this.hiss(300, 0.5, 0.4); },
+  win()   { [523, 659, 784, 1047].forEach((f, i) => this.tone("sine", f, f, 0.5, 0.2, true, i * 0.11)); },
+
+  chargeStart() {
+    if (!this.ctx || this.charge) return;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain(), t = this.ctx.currentTime;
+    o.frequency.setValueAtTime(80, t); o.frequency.linearRampToValueAtTime(240, t + SOUND.chargeMax);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.4);
+    o.connect(g); g.connect(this.master); o.start();
+    this.charge = { o, g };
+  },
+  chargeStop() {
+    if (!this.charge) return;
+    this.charge.g.gain.cancelScheduledValues(this.ctx.currentTime);
+    this.charge.g.gain.setValueAtTime(0.0001, this.ctx.currentTime);
+    this.charge.o.stop(this.ctx.currentTime + 0.02);
+    this.charge = null;
+  },
+  toggleMute() { this.muted = !this.muted; if (this.master) this.master.gain.value = this.muted ? 0 : 0.5; }
+};
+
+/* =========================================================================
+   ESTADO E CARREGAMENTO DE FASE
+   ========================================================================= */
+let state = "menu";            // menu | play | paused | dead | win
+let levelIndex = 0, deaths = 0, now = 0, stateTimer = 0;
+let level, grid, edges, player, enemies, waves, stones, sparks, exitRect;
+
+const keys = new Set();
+const mouse = { x: W / 2, y: H / 2 };
+
+function tileAt(tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return "#";
+  return grid[ty][tx];
+}
+const solidAt = (px, py) => tileAt(Math.floor(px / TILE), Math.floor(py / TILE)) === "#";
+
+let cardAt = -99, cardLevel = -1;
+function loadLevel(i) {
+  if (i !== cardLevel) { cardLevel = i; cardAt = now; }   // título só ao entrar na fase
+  levelIndex = i;
+  const L = level = getLevel(i);
+  const speed = L.speed || ENEMY;                      // fases fixas usam os valores base
+  grid = Array.from({ length: ROWS }, (_, y) => Array.from({ length: COLS }, (_, x) =>
+    (x === 0 || y === 0 || x === COLS - 1 || y === ROWS - 1) ? "#" : "."));
+  for (const [bx, by, bw, bh] of L.blocks)
+    for (let y = by; y < by + bh && y < ROWS; y++)
+      for (let x = bx; x < bx + bw && x < COLS; x++) grid[y][x] = "#";
+  for (const [sx, sy, n] of L.spikes)
+    for (let x = sx; x < sx + n; x++) grid[sy][x] = "^";
+
+  exitRect = { x: L.exit[0] * TILE + 3, y: L.exit[1] * TILE, w: TILE - 6, h: TILE * 2, lit: null };
+  buildEdges();
+
+  player = { x: L.start[0] * TILE + 15, y: (L.start[1] + 1) * TILE - 9, vx: 0, vy: 0, r: 9,
+    onGround: true, coyote: 0, jumpBuffer: 0, face: 1, stepDist: 0, anim: 0,
+    charging: false, charge: 0, pulseCd: 0, stoneCd: 0 };
+
+  enemies = L.enemies.map(e => ({
+    x: e.x * TILE + 15, y: e.floor * TILE - e.h / 2, w: 22, h: e.h, dir: -1,
+    min: e.min !== undefined ? e.min * TILE + 15 : -Infinity,
+    max: e.max !== undefined ? e.max * TILE + 15 : Infinity,
+    leash: e.leash !== undefined ? e.leash * TILE + 15 : -Infinity,
+    patrol: speed.patrol, run: speed.run, wait: speed.wait,
+    mode: "patrol", target: 0, timer: 0, lit: null
+  }));
+  waves = []; stones = []; sparks = []; drips = [];
+  Sfx.chargeStop();
+}
+
+/* =========================================================================
+   CENÁRIOS  (texturas e objetos por tema)
+   Tudo vira segmentos curtos, revelados pelas ondas como as paredes.
+   São apenas decoração: não têm colisão.
+   "texture" = relevo dentro da rocha · "prop" = objetos ao fundo
+   ========================================================================= */
+const THEMES = {
+  cave:    { texture: "#2f8aa3", prop: "#8ea4cc" },
+  dungeon: { texture: "#6277c4", prop: "#a993d6" },
+  mine:    { texture: "#3d858c", prop: "#b08760" }
+};
+
+function buildScenery(theme, addSeg) {
+  let seed = 1234 + theme.length * 977 + levelIndex * 131;                 // sorteio sempre igual por fase
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // Polilinha quebrada em pedaços pequenos, para o som revelar aos poucos
+  const poly = (pts, type, k = 1) => {
+    for (let i = 1; i < pts.length; i++) {
+      const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+      const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) / 14));
+      for (let j = 0; j < n; j++)
+        addSeg(ax + (bx - ax) * j / n, ay + (by - ay) * j / n,
+               ax + (bx - ax) * (j + 1) / n, ay + (by - ay) * (j + 1) / n, type, k);
+    }
+  };
+  const prop = (pts, k) => poly(pts, "prop", k);
+  const arc = (cx, cy, rx, ry, a0, a1, n = 10) => Array.from({ length: n + 1 }, (_, i) => {
+    const a = a0 + (a1 - a0) * i / n;
+    return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+  });
+  const solid = (tx, ty) => tileAt(tx, ty) === "#";
+
+  // Distância (em blocos) até o ar: a textura enfraquece para dentro da rocha
+  const depth = (tx, ty) => {
+    for (let d = 1; d <= 3; d++)
+      for (let dy = -d; dy <= d; dy++)
+        for (let dx = -d; dx <= d; dx++) {
+          const x = tx + dx, y = ty + dy;
+          if (x >= 0 && y >= 0 && x < COLS && y < ROWS && !solid(x, y)) return d;
+        }
+    return 4;
+  };
+
+  /* ---- Textura da rocha / alvenaria ---- */
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    if (!solid(tx, ty)) continue;
+    const d = depth(tx, ty);
+    if (d > 3) continue;
+    const k = [0, 0.8, 0.5, 0.28][d], x = tx * TILE, y = ty * TILE;
+    const t = (pts, m = 1) => poly(pts, "texture", k * m);
+
+    if (theme === "dungeon") {                          // tijolos desencontrados
+      for (let row = 0; row < 2; row++) {
+        const yy = y + row * 15, off = (row + ty * 2) % 2 ? 8 : 23;
+        t([[x + 1, yy + 14], [x + TILE - 1, yy + 14]]);
+        t([[x + off, yy + 2], [x + off, yy + 12]]);
+        if (rnd() < 0.12) t([[x + off - 6, yy + 3], [x + off - 3, yy + 8], [x + off - 7, yy + 12]]);
+      }
+    } else if (theme === "mine") {                      // camadas de sedimento
+      for (const base of [9, 21]) {
+        const yy = x2 => y + base + Math.sin(x2 / 23 + ty) * 3;
+        t([[x, yy(x)], [x + 10, yy(x + 10)], [x + 20, yy(x + 20)], [x + TILE, yy(x + TILE)]]);
+      }
+      if (rnd() < 0.1) t([[x + 12, y + 12], [x + 16, y + 9], [x + 20, y + 14], [x + 15, y + 18], [x + 12, y + 12]], 1.4);
+    } else {                                            // pedras irregulares
+      if (rnd() < 0.65) {
+        const cx = x + 9 + rnd() * 12, cy = y + 9 + rnd() * 12;
+        const pts = Array.from({ length: 6 }, (_, i) => {
+          const r = 5 + rnd() * 6;
+          return [cx + Math.cos(i * 1.047) * r, cy + Math.sin(i * 1.047) * r];
+        });
+        t([...pts, pts[0]]);
+      } else t([[x + 4, y + 5 + rnd() * 8], [x + 13, y + 14], [x + 17, y + 12 + rnd() * 10], [x + 26, y + 25]]);
+    }
+  }
+
+  /* ---- Detalhes presos ao teto e ao chão ---- */
+  for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+    if (tileAt(tx, ty) !== ".") continue;
+    const x = tx * TILE, y = ty * TILE;
+    const ceil = solid(tx, ty - 1), floor = solid(tx, ty + 1);
+    const tight = ceil && floor;
+
+    if (theme === "cave") {
+      if (ceil && !tight && rnd() < 0.55) {             // estalactites
+        const len = 8 + rnd() * 20, cx = x + 6 + rnd() * 18;
+        prop([[cx - 5, y], [cx - 1, y + len * 0.6], [cx, y + len], [cx + 2, y + len * 0.5], [cx + 5, y]]);
+      }
+      if (ceil && rnd() < 0.18) {                       // raízes
+        const cx = x + rnd() * TILE;
+        prop([[cx, y], [cx - 4, y + 10], [cx + 2, y + 19], [cx - 2, y + 28]], 0.7);
+        prop([[cx - 4, y + 10], [cx - 10, y + 17]], 0.6);
+      }
+      if (floor && rnd() < 0.35) {                      // pedregulhos
+        const cx = x + 8 + rnd() * 14, b = y + TILE;
+        prop([[cx - 6, b], [cx - 4, b - 4], [cx + 1, b - 6], [cx + 5, b - 3], [cx + 7, b]], 0.8);
+      }
+    } else if (theme === "dungeon") {
+      if (ceil && !tight && rnd() < 0.2) {              // correntes com grilhão
+        const cx = x + 15, n = 3 + Math.floor(rnd() * 5);
+        for (let i = 0; i < n; i++) prop(arc(cx, y + 5 + i * 9, i % 2 ? 1 : 3, 5.5, 0, Math.PI * 2, 8));
+        prop(arc(cx, y + n * 9 + 6, 6, 6, -0.9, Math.PI + 0.9, 8));
+      }
+      if (floor && rnd() < 0.14) {                      // caveira e ossos
+        const cx = x + 12, b = y + TILE;
+        prop(arc(cx, b - 6, 5, 5, Math.PI * 0.8, Math.PI * 2.2, 9));
+        prop([[cx - 3, b - 2], [cx - 2, b], [cx + 2, b], [cx + 3, b - 2]]);
+        prop([[cx - 3, b - 6], [cx - 1, b - 6]]); prop([[cx + 1, b - 6], [cx + 3, b - 6]]);
+        prop([[cx + 7, b - 1], [cx + 17, b - 4]]); prop([[cx + 8, b - 5], [cx + 16, b]]);
+      }
+      if (ceil && solid(tx - 1, ty) && !tight) {        // teia no canto
+        for (const [ex, ey] of [[22, 2], [16, 14], [3, 22]]) prop([[x, y], [x + ex, y + ey]], 0.6);
+        prop([[x + 14, y + 1], [x + 10, y + 9], [x + 2, y + 14]], 0.6);
+      }
+    } else {                                            // mina
+      if (floor) {                                      // trilhos e dormentes
+        const b = y + TILE;
+        prop([[x, b - 4], [x + TILE, b - 4]]);
+        prop([[x + 4, b], [x + 5, b - 3], [x + 13, b - 3], [x + 14, b]], 0.8);
+        prop([[x + 19, b], [x + 20, b - 3], [x + 28, b - 3], [x + 29, b]], 0.8);
+      }
+      if (ceil) {                                       // tubulação
+        prop([[x, y + 5], [x + TILE, y + 5]], 0.8); prop([[x, y + 9], [x + TILE, y + 9]], 0.8);
+        if (tx % 4 === 0) prop([[x + 8, y], [x + 8, y + 11], [x + 12, y + 11], [x + 12, y]]);
+      }
+    }
+  }
+
+  /* ---- Elementos grandes de arquitetura ---- */
+  // Para cada coluna escolhida, acha o chão e mede o vão livre acima dele
+  const spans = tx => {
+    const list = [];
+    for (let ty = 1; ty < ROWS - 1; ty++) {
+      if (solid(tx, ty) || !solid(tx, ty + 1)) continue;
+      let top = ty;
+      while (top > 0 && !solid(tx, top - 1)) top--;
+      list.push({ top: top * TILE, bottom: (ty + 1) * TILE });
+    }
+    return list;
+  };
+
+  if (theme === "mine") {                               // escoras de madeira
+    for (let tx = 2; tx < COLS - 2; tx += 4) for (const { top, bottom } of spans(tx)) {
+      const x = tx * TILE, x2 = x + TILE * 2;
+      for (const px of [x, x2]) {
+        prop([[px - 3, bottom], [px - 3, top + 3]]); prop([[px + 3, bottom], [px + 3, top + 3]]);
+      }
+      prop([[x - 8, top + 3], [x2 + 8, top + 3]]); prop([[x - 8, top + 11], [x2 + 8, top + 11]]);
+      prop([[x + 3, top + 24], [x + 16, top + 11]]); prop([[x2 - 3, top + 24], [x2 - 16, top + 11]]);
+      const lx = x + TILE;                              // lampião apagado
+      prop([[lx, top + 11], [lx, top + 17]]);
+      prop([[lx - 4, top + 17], [lx + 4, top + 17], [lx + 5, top + 25], [lx - 5, top + 25], [lx - 4, top + 17]]);
+    }
+  } else if (theme === "dungeon") {                     // colunatas com arcos e grades
+    for (const tx of [2, 11, 17, 27]) for (const { top, bottom } of spans(tx).slice(-1)) {   // só no piso principal
+      const h = Math.min(bottom - top, 190);
+      if (h < 90) continue;
+      const x = tx * TILE, w = 74, spring = bottom - h + 40;
+      for (const px of [x, x + w]) {
+        prop([[px - 4, bottom], [px - 4, spring]], 0.7); prop([[px + 4, bottom], [px + 4, spring]], 0.7);
+        prop([[px - 8, spring], [px + 8, spring]]); prop([[px - 8, bottom - 7], [px + 8, bottom - 7]]);
+      }
+      prop(arc(x + w / 2, spring, w / 2 + 4, 38, Math.PI, Math.PI * 2, 14), 0.7);
+      prop(arc(x + w / 2, spring, w / 2 - 4, 30, Math.PI, Math.PI * 2, 14), 0.7);
+      const wx = x + w / 2, wy = spring + 6;            // janela com grades
+      prop([[wx - 14, wy + 30], [wx - 14, wy + 6], ...arc(wx, wy + 6, 14, 12, Math.PI, Math.PI * 2, 8),
+            [wx + 14, wy + 30], [wx - 14, wy + 30]]);
+      for (const dx of [-7, 0, 7]) prop([[wx + dx, wy - 4], [wx + dx, wy + 30]], 0.8);
+    }
+  } else {                                              // colunas naturais ao fundo
+    for (const tx of [5, 13, 19, 26]) for (const { top, bottom } of spans(tx)) {
+      if (bottom - top < 90) continue;
+      const x = tx * TILE + 15;
+      for (const side of [-1, 1]) {
+        const pts = [];
+        for (let i = 0; i <= 8; i++) {
+          const f = i / 8, waist = 4 + Math.pow(Math.abs(f - 0.5) * 2, 2) * 16 + rnd() * 3;
+          pts.push([x + side * waist, top + (bottom - top) * f]);
+        }
+        prop(pts, 0.55);
+      }
+    }
+  }
+}
+
+/* Gera os pequenos segmentos de contorno que o som pode iluminar */
+function buildEdges() {
+  edges = [];
+  const add = (x1, y1, x2, y2, type, k = 1) =>
+    edges.push({ x1, y1, x2, y2, mx: (x1 + x2) / 2, my: (y1 + y2) / 2, type, k, litAt: -99, power: 0 });
+  buildScenery(level.theme, add);        // desenhado primeiro = fica ao fundo
+  const line = (x1, y1, x2, y2, type) => {
+    for (let k = 0; k < 3; k++)
+      add(x1 + (x2 - x1) * k / 3, y1 + (y2 - y1) * k / 3,
+          x1 + (x2 - x1) * (k + 1) / 3, y1 + (y2 - y1) * (k + 1) / 3, type);
+  };
+  for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+    const t = grid[ty][tx], x = tx * TILE, y = ty * TILE;
+    if (t === "#") {          // só faces expostas ao ar
+      if (tileAt(tx, ty - 1) !== "#") line(x, y, x + TILE, y, "wall");
+      if (tileAt(tx, ty + 1) !== "#") line(x, y + TILE, x + TILE, y + TILE, "wall");
+      if (tileAt(tx - 1, ty) !== "#") line(x, y, x, y + TILE, "wall");
+      if (tileAt(tx + 1, ty) !== "#") line(x + TILE, y, x + TILE, y + TILE, "wall");
+    } else if (t === "^") {   // dois dentes por bloco
+      for (let k = 0; k < 2; k++) {
+        const sx = x + k * 15;
+        add(sx, y + TILE, sx + 7.5, y + 12, "spike");
+        add(sx + 7.5, y + 12, sx + 15, y + TILE, "spike");
+        add(sx + 7.5, y + 15, sx + 6, y + TILE - 2, "spike", 0.45);
+      }
+      add(x, y + TILE - 1, x + TILE, y + TILE - 1, "spike", 0.6);
+    }
+  }
+  const e = exitRect;
+  const door = (inset, k) => {                        // portal em arco
+    const cx = e.x + e.w / 2, r = e.w / 2 - inset, spring = e.y + e.w / 2, base = e.y + e.h;
+    line(cx - r, base, cx - r, spring, "exit");
+    line(cx + r, base, cx + r, spring, "exit");
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI * (1 + i / 8), b = Math.PI * (1 + (i + 1) / 8);
+      add(cx + Math.cos(a) * r, spring + Math.sin(a) * r, cx + Math.cos(b) * r, spring + Math.sin(b) * r, "exit", k);
+    }
+  };
+  door(-2, 1); door(4, 0.7);
+  for (let i = 1; i <= 3; i++)                         // degraus de luz
+    add(e.x + 5, e.y + e.h - i * 11, e.x + e.w - 5, e.y + e.h - i * 11, "exit", 0.6 - i * 0.1);
+}
+
+/* =========================================================================
+   SISTEMA DE ONDAS SONORAS
+   Cada onda é um anel que cresce. O que a frente de onda cruza fica
+   iluminado; inimigos cruzados escutam e vão até a ORIGEM do som.
+   (O som atravessa paredes, para o jogo ficar legível.)
+   ========================================================================= */
+function emitWave(x, y, maxR, kind) {
+  const speed = kind === "step" ? 220 : SOUND.waveSpeed;
+  waves.push({ x, y, r: 0, maxR, speed, kind, heard: new Set() });
+}
+
+function updateWaves(dt) {
+  for (const w of waves) {
+    const prev = w.r;
+    w.r = Math.min(w.maxR, w.r + w.speed * dt);
+    const strength = d => (w.kind === "step" ? 0.55 : 1) * (1 - 0.45 * d / w.maxR);
+
+    for (const s of edges) {
+      const d = Math.hypot(s.mx - w.x, s.my - w.y);
+      if (d <= w.r && (d > prev || prev === 0)) {
+        const p = strength(d);
+        if (p >= glow(s.litAt, s.power)) { s.litAt = now; s.power = p; }
+      }
+    }
+    for (const e of enemies) {
+      if (w.heard.has(e)) continue;
+      // distância até o ponto mais próximo do corpo do inimigo
+      const dx = Math.max(Math.abs(e.x - w.x) - e.w / 2, 0);
+      const dy = Math.max(Math.abs(e.y - w.y) - e.h / 2, 0);
+      if (Math.hypot(dx, dy) <= w.r) {
+        w.heard.add(e);
+        e.lit = { x: e.x, y: e.y, dir: e.dir, at: now };
+        alertEnemy(e, w.x);
+      }
+    }
+  }
+  waves = waves.filter(w => w.r < w.maxR);
+}
+
+/* Intensidade atual de algo iluminado (fade suave) */
+function glow(litAt, power) {
+  const k = 1 - (now - litAt) / SOUND.fade;
+  return k > 0 ? power * Math.pow(k, 1.4) : 0;
+}
+
+function startCharge() {
+  if (player.charging || player.pulseCd > 0) return;
+  player.charging = true; player.charge = 0; Sfx.chargeStart();
+}
+
+function releasePulse() {
+  if (!player.charging) return;
+  const p = Math.min(player.charge / SOUND.chargeMax, 1);
+  emitWave(player.x, player.y, SOUND.pulseMin + (SOUND.pulseMax - SOUND.pulseMin) * p, "pulse");
+  player.charging = false; player.charge = 0; player.pulseCd = SOUND.pulseCooldown;
+  Sfx.chargeStop(); Sfx.pulse(p);
+}
+
+/* ---------------- Pedras ---------------- */
+function throwStone(useCursor) {
+  if (state !== "play" || player.stoneCd > 0) return;
+  let vx, vy;
+  if (useCursor) {
+    const a = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+    vx = Math.cos(a) * STONE.speed; vy = Math.sin(a) * STONE.speed;
+    if (Math.abs(vx) > 1) player.face = Math.sign(vx);
+  } else {
+    const a = STONE.forwardAngle * Math.PI / 180;
+    vx = Math.cos(a) * STONE.forwardSpeed * player.face; vy = -Math.sin(a) * STONE.forwardSpeed;
+  }
+  stones.push({ x: player.x, y: player.y - 2, vx, vy, trail: [] });
+  player.stoneCd = STONE.cooldown;
+  Sfx.throwStone();
+}
+
+function updateStones(dt) {
+  for (const s of stones) {
+    s.vy += STONE.gravity * dt;
+    const n = Math.ceil(Math.hypot(s.vx, s.vy) * dt / 3);     // subpassos anti-atravessamento
+    for (let i = 0; i < n && !s.dead; i++) {
+      const nx = s.x + s.vx * dt / n, ny = s.y + s.vy * dt / n;
+      if (solidAt(nx, ny) || tileAt(Math.floor(nx / TILE), Math.floor(ny / TILE)) === "^") {
+        s.dead = true;
+        emitWave(s.x, s.y, SOUND.stoneRadius, "stone");
+        burst(s.x, s.y, "#cfefff", 12);
+        Sfx.impact();
+      } else { s.x = nx; s.y = ny; }
+    }
+    s.trail.push([s.x, s.y]);
+    if (s.trail.length > 8) s.trail.shift();
+  }
+  stones = stones.filter(s => !s.dead);
+}
+
+/* =========================================================================
+   FÍSICA DO JOGADOR
+   ========================================================================= */
+function collides(x, y, r) {
+  const x0 = Math.floor((x - r) / TILE), x1 = Math.floor((x + r - 0.001) / TILE);
+  const y0 = Math.floor((y - r) / TILE), y1 = Math.floor((y + r - 0.001) / TILE);
+  for (let ty = y0; ty <= y1; ty++)
+    for (let tx = x0; tx <= x1; tx++) if (tileAt(tx, ty) === "#") return true;
+  return false;
+}
+
+function updatePlayer(dt) {
+  const p = player;
+  const left = keys.has("ArrowLeft") || keys.has("KeyA");
+  const right = keys.has("ArrowRight") || keys.has("KeyD");
+  const jumpHeld = keys.has("ArrowUp") || keys.has("KeyW");
+  const sneak = keys.has("ShiftLeft") || keys.has("ShiftRight");
+  const dir = (right ? 1 : 0) - (left ? 1 : 0);
+  const max = sneak ? PHYS.sneakSpeed : PHYS.maxSpeed;
+
+  // Aceleração e fricção horizontais
+  if (dir) {
+    p.face = dir;
+    p.vx += dir * PHYS.accel * dt;
+    p.vx = Math.max(-max, Math.min(max, p.vx));
+  } else {
+    const f = (p.onGround ? PHYS.friction : PHYS.airFriction) * dt;
+    p.vx = Math.abs(p.vx) <= f ? 0 : p.vx - Math.sign(p.vx) * f;
+  }
+
+  // Pulo com "coyote time", buffer e altura variável
+  p.coyote = p.onGround ? PHYS.coyote : p.coyote - dt;
+  p.jumpBuffer -= dt;
+  if (p.jumpBuffer > 0 && p.coyote > 0) {
+    p.vy = -PHYS.jump; p.jumpBuffer = 0; p.coyote = 0; p.onGround = false;
+    Sfx.jump();
+  }
+  if (!jumpHeld && p.vy < -180) p.vy = -180;
+  p.vy = Math.min(p.vy + PHYS.gravity * dt, PHYS.maxFall);
+
+  // Colisão eixo X
+  let nx = p.x + p.vx * dt;
+  if (collides(nx, p.y, p.r)) {
+    nx = p.vx > 0 ? Math.floor((nx + p.r) / TILE) * TILE - p.r
+                  : Math.floor((nx - p.r) / TILE + 1) * TILE + p.r;
+    p.vx = 0;
+  }
+  p.x = nx;
+
+  // Colisão eixo Y
+  let ny = p.y + p.vy * dt;
+  const wasAir = !p.onGround, fallSpeed = p.vy;
+  p.onGround = false;
+  if (collides(p.x, ny, p.r)) {
+    if (p.vy > 0) {
+      ny = Math.floor((ny + p.r) / TILE) * TILE - p.r;
+      p.onGround = true;
+      if (wasAir && fallSpeed > 250) {          // aterrissagem barulhenta
+        if (!sneak) emitWave(p.x, ny + p.r, SOUND.landRadius, "step");
+        Sfx.land();
+      }
+    } else ny = Math.floor((ny - p.r) / TILE + 1) * TILE + p.r;
+    p.vy = 0;
+  }
+  p.y = ny;
+
+  p.anim += Math.abs(p.vx) * dt;              // ciclo da animação de corrida
+
+  // Passos rápidos geram micro-ondas
+  if (p.onGround && Math.abs(p.vx) > 140) {
+    p.stepDist += Math.abs(p.vx) * dt;
+    if (p.stepDist > 48) {
+      p.stepDist = 0;
+      emitWave(p.x, p.y + p.r, SOUND.stepRadius, "step");
+      Sfx.step();
+    }
+  }
+
+  // Carga do pulso e recargas
+  p.pulseCd -= dt; p.stoneCd -= dt;
+  if (keys.has("Space")) startCharge();
+  if (p.charging) p.charge = Math.min(p.charge + dt, SOUND.chargeMax);
+
+  // Espinhos (hitbox só na metade inferior do bloco, um pouco generosa)
+  const m = p.r - 2;
+  for (let ty = Math.floor((p.y - m) / TILE); ty <= Math.floor((p.y + m) / TILE); ty++)
+    for (let tx = Math.floor((p.x - m) / TILE); tx <= Math.floor((p.x + m) / TILE); tx++)
+      if (tileAt(tx, ty) === "^" && p.y + m > ty * TILE + 16) return die("spike");
+
+  // Inimigos (círculo x retângulo)
+  for (const e of enemies) {
+    const cx = Math.max(e.x - e.w / 2, Math.min(p.x, e.x + e.w / 2));
+    const cy = Math.max(e.y - e.h / 2, Math.min(p.y, e.y + e.h / 2));
+    if (Math.hypot(p.x - cx, p.y - cy) < p.r - 1) { e.lit = { x: e.x, y: e.y, dir: e.dir, at: now }; return die("enemy"); }
+  }
+
+  // Saída
+  const x = exitRect;
+  if (p.x > x.x && p.x < x.x + x.w && p.y > x.y && p.y < x.y + x.h) {
+    state = "win"; stateTimer = 1.5; keys.clear(); Sfx.chargeStop(); Sfx.win();
+    emitWave(p.x, p.y, 1100, "fx");
+    waves[waves.length - 1].heard = new Set(enemies);     // onda visual: ninguém escuta
+  }
+}
+
+function die(cause) {
+  if (state !== "play") return;
+  state = "dead"; stateTimer = 1.1; deaths++;
+  player.cause = cause; player.charging = false;
+  if (levelIndex > 0) saveProgress();
+  Sfx.chargeStop(); Sfx.death();
+  burst(player.x, player.y, COLORS.spike, 40);
+}
+
+/* =========================================================================
+   IA DOS INIMIGOS CEGOS
+   patrol -> (ouve som) -> alert -> wait -> patrol/return
+   ========================================================================= */
+function alertEnemy(e, sourceX) {
+  if (e.mode !== "alert") Sfx.alert();
+  e.mode = "alert";
+  e.target = sourceX;
+}
+
+/* Pode avançar? Exige espaço livre à frente e chão sob os pés */
+function canWalk(e, dir) {
+  const front = e.x + dir * (e.w / 2 + 2);
+  const top = e.y - e.h / 2 + 1, bottom = e.y + e.h / 2 - 1;
+  for (let y = top; ; y += TILE / 2) {
+    const yy = Math.min(y, bottom);
+    if (solidAt(front, yy) || tileAt(Math.floor(front / TILE), Math.floor(yy / TILE)) === "^") return false;
+    if (yy === bottom) break;
+  }
+  return solidAt(front, e.y + e.h / 2 + 2);
+}
+
+function updateEnemies(dt) {
+  for (const e of enemies) {
+    if (e.mode === "alert") {
+      const dx = e.target - e.x, dir = Math.sign(dx) || e.dir;
+      e.dir = dir;
+      if (Math.abs(dx) < 4 || (dir < 0 && e.x <= e.leash) || !canWalk(e, dir)) { e.mode = "wait"; e.timer = e.wait; }
+      else e.x += dir * Math.min(e.run * dt, Math.abs(dx));
+    } else if (e.mode === "wait") {
+      e.timer -= dt;
+      if (e.timer <= 0) e.mode = "patrol";
+    } else {
+      let speed = e.patrol;
+      if (e.x < e.min - 1) { e.dir = 1; speed = ENEMY.returnSpeed; }        // volta ao posto
+      else if (e.x > e.max + 1) { e.dir = -1; speed = ENEMY.returnSpeed; }
+      else if (e.x >= e.max) e.dir = -1;
+      else if (e.x <= e.min) e.dir = 1;
+      if (canWalk(e, e.dir)) e.x += e.dir * speed * dt;
+      else e.dir *= -1;
+    }
+  }
+}
+
+/* ---------------- Partículas ---------------- */
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = 30 + Math.random() * 160;
+    sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.5 + Math.random() * 0.5, color });
+  }
+}
+
+/* ---------------- Goteiras (ambiente, não atraem inimigos) ---------------- */
+let drips = [], dripTimer = 1;
+function updateDrips(dt) {
+  dripTimer -= dt;
+  if (dripTimer <= 0) {
+    dripTimer = 0.5 + Math.random() * 1.2;
+    const tx = 1 + Math.floor(Math.random() * (COLS - 2)), open = [];
+    for (let ty = 1; ty < ROWS - 1; ty++)
+      if (tileAt(tx, ty) === "." && tileAt(tx, ty - 1) === "#") open.push(ty);
+    if (open.length)
+      drips.push({ x: tx * TILE + 5 + Math.random() * 20, y: open[Math.floor(Math.random() * open.length)] * TILE, vy: 0, splash: 0 });
+  }
+  for (const d of drips) {
+    if (d.splash) { d.splash += dt; continue; }
+    d.vy += 700 * dt; d.y += d.vy * dt;
+    if (solidAt(d.x, d.y)) {
+      d.y = Math.floor(d.y / TILE) * TILE; d.splash = dt;
+      if (Math.hypot(d.x - player.x, d.y - player.y) < 220) Sfx.drip();
+    }
+  }
+  drips = drips.filter(d => d.splash < 0.35);
+}
+function drawDrips() {
+  ctx.strokeStyle = "#7fd8ff"; ctx.lineWidth = 1;
+  for (const d of drips) {
+    ctx.beginPath();
+    if (d.splash) {
+      ctx.globalAlpha = 0.35 * (1 - d.splash / 0.35);
+      ctx.ellipse(d.x, d.y - 1, 2 + d.splash * 22, 1 + d.splash * 4, 0, 0, Math.PI * 2);
+    } else { ctx.globalAlpha = 0.3; ctx.moveTo(d.x, d.y - 4); ctx.lineTo(d.x, d.y); }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =========================================================================
+   ATUALIZAÇÃO GERAL
+   ========================================================================= */
+function update(dt) {
+  if (state === "menu" || state === "paused") return;
+  now += dt;
+  if (state === "play") {
+    updateEnemies(dt);
+    updatePlayer(dt);
+    updateStones(dt);
+  } else {
+    stateTimer -= dt;
+    if (stateTimer <= 0) {
+      if (state === "dead") { loadLevel(levelIndex); state = "play"; }
+      else { loadLevel(levelIndex + 1); saveProgress(); state = "play"; }
+    }
+  }
+  updateWaves(dt);
+  updateDrips(dt);
+  for (const s of sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 200 * dt; s.life -= dt; }
+  sparks = sparks.filter(s => s.life > 0);
+}
+
+/* =========================================================================
+   RENDERIZAÇÃO  (neon = traço largo translúcido + traço fino brilhante)
+   ========================================================================= */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const wrap = document.getElementById("wrap");
+
+function resize() {
+  const scale = Math.min(innerWidth / W, innerHeight / H);
+  wrap.style.width = W * scale + "px";
+  wrap.style.height = H * scale + "px";
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.round(W * scale * dpr);
+  canvas.height = Math.round(H * scale * dpr);
+  ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
+}
+
+function neonStroke(color, alpha, pathFn, weight = 1) {   // weight < 1 = traço fino (figuras)
+  ctx.strokeStyle = color;
+  ctx.beginPath(); pathFn();
+  ctx.globalAlpha = alpha * 0.10; ctx.lineWidth = 9 * weight; ctx.stroke();
+  ctx.globalAlpha = alpha * 0.28; ctx.lineWidth = 4.5 * weight; ctx.stroke();
+  ctx.globalAlpha = alpha;        ctx.lineWidth = 1.5 * weight; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function orb(x, y, radius, color, alpha) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  g.addColorStop(0, color); g.addColorStop(1, "transparent");
+  ctx.globalAlpha = alpha; ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/* ---------------- Personagem ----------------
+   Desenhado a partir dos pés. A colisão continua sendo o círculo de raio p.r;
+   a figura encolhe um pouco quando há teto logo acima.                      */
+function drawPlayer(p, charge) {
+  const feet = p.y + p.r;
+  let room = 28;
+  while (room > 18 && solidAt(p.x, feet - room)) room--;
+  const running = p.onGround && Math.abs(p.vx) > 5;
+  const phase = p.anim / 9;
+  const swing = running ? Math.sin(phase) : 0;
+  const bob = running ? Math.abs(Math.cos(phase)) * 1.2 : Math.sin(now * 2.5) * 0.4;
+  const air = !p.onGround;
+  const crouch = charge * 2.5;                       // agacha ao carregar o eco
+
+  ctx.save();
+  const fine = (color, alpha, path) => neonStroke(color, alpha, path, 0.65);
+  ctx.translate(p.x, feet);
+  ctx.scale(p.face, room / 28);
+  ctx.lineJoin = "round";
+
+  const hipY = -10 + crouch - bob, neckY = -19 + crouch * 1.6 - bob, headY = neckY - 4.5;
+  const lean = running ? 2 : 0;
+
+  // Cachecol esvoaçante
+  const flow = Math.min(Math.abs(p.vx) / PHYS.maxSpeed, 1);
+  const wave = Math.sin(now * 12) * 1.5 * flow;
+  fine("#ff66cc", 0.9, () => {
+    ctx.moveTo(lean, neckY + 1);
+    ctx.quadraticCurveTo(-5, neckY + 2 + wave, -5 - flow * 7, neckY + 7 - flow * 6 - wave);
+  });
+
+  // Pernas (joelho + pé) e braços
+  const limbs = () => {
+    for (const side of [1, -1]) {
+      let kx, ky, fx, fy;
+      if (air) { kx = side * 3 + 1; ky = -6; fx = side * 4 - 2; fy = side > 0 ? -2 : -1; }
+      else {
+        const s = swing * side;
+        kx = s * 3 + side * (1 + crouch); ky = -5 + crouch * 0.5;
+        fx = s * 6 + side * 2; fy = running ? -Math.max(0, Math.cos(phase) * side) * 3 : 0;
+      }
+      ctx.moveTo(0, hipY); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.lineTo(fx + 2.5, fy);
+      const hx = air ? side * 7 : lean - swing * side * 6 + side * 2;
+      const hy = air ? neckY - 2 : neckY + 9 - Math.abs(swing) * 2;
+      ctx.moveTo(lean, neckY + 1.5);
+      ctx.lineTo((lean + hx) / 2 - 1.5, (neckY + hy) / 2 + 1); ctx.lineTo(hx, hy);
+    }
+  };
+  fine("#bfefff", 1, limbs);
+
+  // Tronco (casaco)
+  const torso = () => {
+    ctx.moveTo(lean - 3, neckY); ctx.lineTo(lean + 3, neckY);
+    ctx.lineTo(3, hipY + 1); ctx.lineTo(-3.5, hipY + 1); ctx.closePath();
+  };
+  ctx.fillStyle = "#ffffff"; ctx.beginPath(); torso(); ctx.fill();
+  fine(COLORS.wall, 1, torso);
+
+  // Cabeça, cabelo e olho
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(lean + 0.5, headY, 4.2, 0, Math.PI * 2); ctx.fill();
+  fine(COLORS.wall, 1, () => {
+    ctx.arc(lean + 0.5, headY, 4.6, Math.PI * 0.85, Math.PI * 1.85);
+    ctx.moveTo(lean - 3.5, headY - 2); ctx.lineTo(lean - 6, headY + 1);
+  });
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#050505"; ctx.fillRect(lean + 2, headY - 1, 1.5, 1.8);
+  ctx.restore();                                     // restaura também o modo "lighter"
+}
+
+/* ---------------- Monstros cegos ----------------
+   Coordenadas locais: origem nos pés, olhando para a direita.
+   Sem olhos: orelhas enormes, bocarra com presas, espinhos e garras.
+   Os monstros altos (guardião) ficam eretos; os baixos rastejam.            */
+function drawEnemy(x, y, e, color, alpha, dir = e.dir) {
+  const alert = e.mode === "alert";
+  const tall = e.h > 30;
+  const phase = x / (tall ? 7 : 4.5);                // o passo acompanha o deslocamento
+  const breath = Math.sin(now * (alert ? 11 : 2.5));
+  const open = alert ? 1 : 0.3 + 0.12 * breath;      // abertura da boca
+  const w = e.w, h = e.h;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";     // mantém o laranja fiel
+  const fine = (c, a, path, k = 0.5) => neonStroke(c, a, path, k);
+  ctx.translate(x, y + h / 2);
+  ctx.scale(dir, 1);
+  ctx.lineJoin = "round";
+
+  // Formas em proporções (u: -0.5..0.5 da largura, v: 0..1 da altura)
+  const X = u => u * w, Y = v => -v * h;
+  const path = pts => pts.forEach(([u, v], i) => i ? ctx.lineTo(X(u), Y(v)) : ctx.moveTo(X(u), Y(v)));
+
+  const body = tall
+    ? [[-.30,.22],[-.52,.42],[-.40,.50],[-.60,.62],[-.38,.66],[-.48,.80],[-.18,.82],
+       [-.08,.94],[.22,.98],[.48,.88],[.56,.74],[.18,.68],[.50,.58 - open * .08],[.34,.46],[.24,.22]]
+    : [[-.55,.28],[-.58,.55],[-.38,.58],[-.40,.80],[-.18,.72],[-.12,.94],[.06,.80],
+       [.30,.88],[.56,.70],[.62,.54],[.14,.46],[.58,.34 - open * .16],[.28,.14],[-.30,.16]];
+
+  // Pernas articuladas com garras
+  const legs = () => {
+    const hips = tall ? [[-.18, .24], [.14, .24]] : [[-.36, .24], [-.12, .18], [.12, .18], [.34, .22]];
+    hips.forEach(([u, v], i) => {
+      const s = Math.sin(phase + i * Math.PI * (tall ? 1 : 0.9));
+      const lift = Math.max(0, s) * (tall ? .06 : .12);
+      const fu = u + s * (tall ? .22 : .16);
+      const ku = (u + fu) / 2 + (tall ? -.18 : (u < 0 ? -.16 : .16));
+      path([[u, v], [ku, (v + lift) / 2 + .02], [fu, lift]]);
+      for (const c of [.04, .13, .22]) { ctx.moveTo(X(fu), Y(lift + .03)); ctx.lineTo(X(fu + c), Y(lift)); }
+    });
+  };
+  fine(color, alpha, legs);
+
+  // Corpo preenchido de leve + contorno
+  ctx.globalAlpha = alpha * 0.16; ctx.fillStyle = color;
+  ctx.beginPath(); path(body); ctx.closePath(); ctx.fill();
+  fine(color, alpha, () => { path(body); ctx.closePath(); });
+
+  // Presas: fileiras superior e inferior, seguindo as bordas da boca
+  const jaw = tall
+    ? { a: [.56, .74], hinge: [.18, .68], b: [.50, .58 - open * .08], len: .055 }
+    : { a: [.62, .54], hinge: [.14, .46], b: [.58, .34 - open * .16], len: .09 };
+  fine(alert ? "#ffffff" : color, alpha, () => {
+    for (const [end, sign] of [[jaw.a, -1], [jaw.b, 1]]) {
+      for (let i = 0; i < 4; i++) {
+        const at = k => [jaw.hinge[0] + (end[0] - jaw.hinge[0]) * k, jaw.hinge[1] + (end[1] - jaw.hinge[1]) * k];
+        const p0 = at(.2 + i * .2), p1 = at(.32 + i * .2), tip = at(.26 + i * .2);
+        path([p0, [tip[0], tip[1] + sign * jaw.len], p1]);
+      }
+    }
+  }, 0.35);
+
+  // Orelhas membranosas que tremem
+  const twitch = Math.sin(now * (alert ? 25 : 4)) * .03;
+  fine(color, alpha, () => {
+    if (tall) {
+      path([[-.04,.93],[-.42,1.12 + twitch],[-.26,.99],[-.56,.98 - twitch],[-.16,.84]]);
+      ctx.moveTo(X(-.08), Y(.90)); ctx.lineTo(X(-.40), Y(1.10 + twitch));
+    } else {
+      path([[.10,.82],[-.04,1.30 + twitch],[.16,1.04],[.30,1.34 - twitch],[.34,.86]]);
+      ctx.moveTo(X(.20), Y(.84)); ctx.lineTo(X(.29), Y(1.28));
+    }
+  });
+
+  // Costelas, órbitas seladas e focinho
+  fine(color, alpha * 0.7, () => {
+    if (tall) {
+      for (const v of [.38, .46, .54]) { ctx.moveTo(X(-.28), Y(v + .06)); ctx.quadraticCurveTo(X(-.05), Y(v - .02), X(.18), Y(v)); }
+      path([[.14,.88],[.22,.84],[.32,.87]]);
+      for (const u of [.17, .23, .29]) { ctx.moveTo(X(u), Y(.86)); ctx.lineTo(X(u), Y(.82)); }
+    } else {
+      for (const u of [-.34, -.18, -.02]) { ctx.moveTo(X(u), Y(.62)); ctx.quadraticCurveTo(X(u + .12), Y(.46), X(u + .02), Y(.28)); }
+      path([[.30,.70],[.40,.64],[.48,.70]]);
+    }
+  }, 0.35);
+
+  // Braços longos (só o guardião)
+  if (tall) {
+    const reach = alert ? .35 : 0;
+    const sw = Math.sin(phase) * .12;
+    fine(color, alpha, () => {
+      for (const side of [1, -1]) {
+        const hu = side * .30 + sw * side + reach + .12, hv = .20 + reach * .6 + (side > 0 ? .04 : 0);
+        path([[-.02,.66],[hu - .30, .46 + reach * .2],[hu, hv]]);
+        for (const c of [-.06, .08, .22]) { ctx.moveTo(X(hu), Y(hv)); ctx.lineTo(X(hu + c), Y(hv - .12)); }
+      }
+    });
+  }
+  ctx.restore();
+}
+
+function text(str, x, y, size, color, alpha = 1, align = "center") {
+  ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.textAlign = align;
+  ctx.font = `300 ${size}px "Segoe UI", system-ui, sans-serif`;
+  ctx.fillText(str, x, y); ctx.globalAlpha = 1;
+}
+
+function render() {
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#050505";
+  ctx.fillRect(0, 0, W, H);
+  if (!player) return;
+  ctx.globalCompositeOperation = "lighter";
+  ctx.lineCap = "round";
+
+  // Contornos revelados (agrupados por camada e intensidade para desempenho)
+  const theme = THEMES[level.theme];
+  const buckets = new Map();
+  for (const s of edges) {
+    const a = glow(s.litAt, s.power) * s.k;
+    if (a < 0.02) continue;
+    const key = s.type + "|" + Math.ceil(a * 12);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(s);
+  }
+  // ordem de desenho: textura e objetos ao fundo, contornos de jogo por cima
+  const order = ["texture", "prop", "wall", "spike", "exit"];
+  const sorted = [...buckets].sort((p, q) => order.indexOf(p[0].split("|")[0]) - order.indexOf(q[0].split("|")[0]));
+  for (const [key, list] of sorted) {
+    const [type, level] = key.split("|");
+    const alpha = Math.min(1, level / 12);
+    const path = () => { for (const s of list) { ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); } };
+    if (theme[type]) {                                // decoração: traço fino, sem neon forte
+      ctx.strokeStyle = theme[type]; ctx.globalAlpha = alpha * 0.8; ctx.lineWidth = 1;
+      ctx.beginPath(); path(); ctx.stroke(); ctx.globalAlpha = 1;
+    } else neonStroke(COLORS[type], alpha, path);
+  }
+  drawDrips();
+
+  // Anéis das ondas
+  for (const w of waves) {
+    const k = 1 - w.r / w.maxR;
+    ctx.strokeStyle = w.kind === "stone" ? "#ffffff" : COLORS.wall;
+    ctx.globalAlpha = (w.kind === "step" ? 0.18 : 0.45) * k;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Inimigos: em alerta ficam visíveis em vermelho; calmos, só o "retrato" do eco
+  for (const e of enemies) {
+    if (e.mode === "alert") {
+      orb(e.x, e.y, 34, COLORS.alert, 0.35);
+      drawEnemy(e.x, e.y, e, COLORS.alert, 1);
+    } else if (e.lit) {
+      const a = glow(e.lit.at, 1);
+      if (a > 0.02) {
+        if (e.mode === "wait") drawEnemy(e.x, e.y, e, COLORS.enemy, a);
+        else drawEnemy(e.lit.x, e.lit.y, e, COLORS.enemy, a, e.lit.dir);
+      }
+    }
+  }
+
+  // Pedras
+  for (const s of stones) {
+    s.trail.forEach(([x, y], i) => orb(x, y, 4, "#ffffff", i / 20));
+    orb(s.x, s.y, 6, "#ffffff", 1);
+  }
+  for (const s of sparks) {
+    ctx.globalAlpha = Math.min(1, s.life * 1.6); ctx.fillStyle = s.color;
+    ctx.fillRect(s.x - 1.5, s.y - 1.5, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+
+  // Jogador
+  const p = player;
+  if (state !== "dead") {
+    const c = p.charging ? p.charge / SOUND.chargeMax : 0;
+    orb(p.x, p.y - 4, 28 + c * 14, COLORS.wall, 0.28 + c * 0.3);   // halo luminoso
+    drawPlayer(p, c);
+    if (p.charging) {
+      neonStroke(c >= 1 ? "#ffffff" : COLORS.wall, 0.9, () =>
+        ctx.arc(p.x, p.y - 4, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * c));
+      ctx.globalAlpha = 0.14; ctx.strokeStyle = COLORS.wall; ctx.setLineDash([3, 9]); ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, SOUND.pulseMin + (SOUND.pulseMax - SOUND.pulseMin) * c, 0, Math.PI * 2);
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+    // Guia curta de mira da pedra
+    if (level.aim && state === "play") {
+      const a = Math.atan2(mouse.y - p.y, mouse.x - p.x);
+      const vx = Math.cos(a) * STONE.speed, vy = Math.sin(a) * STONE.speed;
+      for (let i = 1; i <= 6; i++) {
+        const t = i * 0.025;
+        orb(p.x + vx * t, p.y - 2 + vy * t + STONE.gravity * t * t / 2, 2.5, "#ffffff", 0.5 - i * 0.06);
+      }
+    }
+  }
+
+  // ---------------- HUD ----------------
+  ctx.globalCompositeOperation = "source-over";
+  text(`FASE ${levelIndex + 1}  ·  ${level.name}  ·  ✕ ${deaths}`, W - 16, 22, 14, "#ffffff", 0.55, "right");
+  text("M som · ESC pausa", 16, 22, 11, "#ffffff", 0.25, "left");
+  const hints = level.hints;
+  ctx.fillStyle = "rgba(5,5,5,0.7)";                  // fundo para as dicas continuarem legíveis
+  if (hints.length) ctx.fillRect(W / 2 - 320, 31, 640, hints.length * 21 + 4);
+  const card = Math.min(1, (3 - (now - cardAt)));
+  if (card > 0 && state === "play") text(level.name, W / 2, 160, 34, "#ffffff", card * 0.85);
+  hints.forEach((h, i) =>
+    text(h, W / 2, 48 + i * 21, 14, "#bfefff", levelIndex === 0 ? 0.55 : 0.4));
+
+  if (state === "dead") {
+    ctx.fillStyle = "rgba(255,0,85,0.12)"; ctx.fillRect(0, 0, W, H);
+    text(p.cause === "enemy" ? "ELE TE ENCONTROU" : "ESPINHOS", W / 2, H / 2, 30, COLORS.spike);
+  }
+  if (state === "win") text("SAÍDA ENCONTRADA", W / 2, H / 2, 30, COLORS.exit);
+  if (state === "paused") {
+    ctx.fillStyle = "rgba(5,5,5,0.85)"; ctx.fillRect(0, 0, W, H);
+    text("PAUSADO", W / 2, H / 2, 34, COLORS.wall);
+    text("ESC para continuar  ·  o progresso fica salvo", W / 2, H / 2 + 34, 14, "#ffffff", 0.5);
+  }
+}
+
+/* =========================================================================
+   ENTRADA, INTERFACE E LOOP PRINCIPAL
+   ========================================================================= */
+const menuEl = document.getElementById("menu"), continueBtn = document.getElementById("continueBtn");
+
+/* Progresso salvo no navegador (o jogo funciona mesmo se isso falhar) */
+const SAVE_KEY = "echoShift.save";
+function readSave() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVE_KEY));
+    return v && Number.isInteger(v.level) && v.level > 0 && Number.isInteger(v.seed) ? v : null;
+  } catch { return null; }
+}
+function saveProgress() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ level: levelIndex, seed: runSeed, deaths }));
+  } catch { /* armazenamento indisponível */ }
+}
+
+function startGame(save) {
+  Sfx.init();
+  menuEl.classList.add("hidden");
+  document.activeElement.blur();      // evita que ESPAÇO "clique" no botão
+  runSeed = save ? save.seed : 1 + Math.floor(Math.random() * 1e9);
+  deaths = save ? save.deaths || 0 : 0;
+  keys.clear(); cardLevel = -1;
+  loadLevel(save ? save.level : 0);
+  state = "play";
+}
+function pause() {
+  if (state !== "play") return;
+  state = "paused"; keys.clear(); player.charging = false; Sfx.chargeStop();
+}
+
+document.getElementById("playBtn").addEventListener("click", () => startGame(null));
+continueBtn.addEventListener("click", () => startGame(readSave()));
+const saved = readSave();
+if (saved) {
+  continueBtn.textContent = `Continuar · fase ${saved.level + 1}`;
+  continueBtn.classList.remove("hidden");
+}
+
+addEventListener("keydown", e => {
+  if (state === "menu") return;
+  if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+  if (e.code === "Escape" || e.code === "KeyP") {
+    if (state === "paused") state = "play"; else pause();
+    return;
+  }
+  if (e.code === "KeyM") return Sfx.toggleMute();
+  if (state !== "play") return;
+  keys.add(e.code);
+  if (e.repeat) return;
+  if (e.code === "ArrowUp" || e.code === "KeyW") player.jumpBuffer = PHYS.buffer;
+  if (e.code === "Space") startCharge();
+  if (e.code === "KeyE") throwStone(false);
+  if (e.code === "KeyR") loadLevel(levelIndex);
+});
+addEventListener("keyup", e => {
+  keys.delete(e.code);
+  if (e.code === "Space" && state === "play") releasePulse();
+});
+addEventListener("blur", () => { keys.clear(); pause(); });
+
+function updateMouse(e) {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - r.left) * W / r.width;
+  mouse.y = (e.clientY - r.top) * H / r.height;
+}
+canvas.addEventListener("mousemove", updateMouse);
+canvas.addEventListener("mousedown", e => { if (e.button === 0) { updateMouse(e); throwStone(true); } });
+canvas.addEventListener("contextmenu", e => e.preventDefault());
+addEventListener("resize", resize);
+
+let last = performance.now(), acc = 0;
+function loop(t) {
+  acc += Math.min((t - last) / 1000, 0.1);
+  last = t;
+  while (acc >= STEP) { update(STEP); acc -= STEP; }
+  render();
+  requestAnimationFrame(loop);
+}
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

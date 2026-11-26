@@ -1,0 +1,2969 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PARASITA DE CÓDIGO // v2.0.4</title>
+  <style>
+    /* =========================================================================
+       ESTÉTICA TERMINAL HACKER / CYBERPUNK (LAYOUT REFERÊNCIA)
+       ========================================================================= */
+    :root {
+      --bg-color: #070b12;
+      --panel-bg: rgba(7, 12, 20, 0.94);
+      --hud-cyan: #7be8ff;
+      --hud-border: rgba(0, 210, 255, 0.35);
+      --neon-green: #6be828;
+      --neon-red: #ff1138;
+      --neon-orange: #ff9900;
+      --neon-cyan: #00f3ff;
+      --neon-purple: #d500f9;
+      --text-dim: #5d8aa8;
+      --font-mono: 'Consolas', 'Courier New', Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-color);
+      color: var(--hud-cyan);
+      font-family: var(--font-mono);
+      overflow: hidden;
+    }
+
+    /* Canvas principal ocupa 100% da janela */
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+    }
+
+    /* Efeito sutil de Scanlines CRT por cima da tela */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%,
+        rgba(0, 0, 0, 0.22) 50%
+      );
+      background-size: 100% 4px;
+      z-index: 5;
+    }
+
+    /* =========================================================================
+       HUD SUPERIOR MINIMALISTA EM 4 COLUNAS (ESTILO IMAGEM REFERÊNCIA)
+       ========================================================================= */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 54px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 1.45fr 1.25fr 0.75fr 1.25fr auto;
+      align-items: center;
+      gap: 14px;
+      pointer-events: none;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(6, 12, 22, 0.96) 0%, rgba(7, 14, 26, 0.88) 100%);
+      border-bottom: 1.5px solid var(--hud-border);
+      box-shadow: 0 2px 18px rgba(0, 210, 255, 0.14);
+    }
+
+    .hud-col {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: clamp(0.82rem, 1.35vw, 1.08rem);
+      font-weight: 600;
+      letter-spacing: 1.4px;
+      color: var(--hud-cyan);
+      text-shadow: 0 0 8px rgba(0, 225, 255, 0.45);
+      white-space: nowrap;
+    }
+
+    .hud-col.center {
+      justify-content: center;
+    }
+
+    .hud-col.right {
+      justify-content: flex-end;
+    }
+
+    /* Barra compacta de Integridade integrada na coluna 2 */
+    .integrity-bar-bg {
+      width: 96px;
+      height: 10px;
+      background: rgba(0, 210, 255, 0.12);
+      border: 1px solid rgba(0, 210, 255, 0.45);
+      border-radius: 3px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #integrityFill {
+      height: 100%;
+      width: 100%;
+      background: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green);
+      transition: width 0.12s ease-out, background-color 0.2s;
+    }
+
+    /* Botão de Mute discreto */
+    #muteBtn {
+      pointer-events: auto;
+      background: rgba(0, 210, 255, 0.08);
+      border: 1px solid var(--hud-border);
+      color: var(--hud-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 1px;
+    }
+
+    #muteBtn:hover {
+      background: var(--neon-cyan);
+      color: var(--bg-color);
+      box-shadow: 0 0 12px var(--neon-cyan);
+    }
+
+    /* Banner de Aviso de Onda / Sistema */
+    #hudAlertMsg {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 20px;
+      background: rgba(7, 12, 20, 0.9);
+      border: 1px solid var(--neon-red);
+      color: var(--neon-red);
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 0.95rem;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px var(--neon-red);
+      box-shadow: 0 0 18px rgba(255, 0, 68, 0.25);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      z-index: 12;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* =========================================================================
+       TELAS DE OVERLAY (INÍCIO & GAME OVER)
+       ========================================================================= */
+    .screen-layer {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 14, 0.85);
+      backdrop-filter: blur(5px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      z-index: 20;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .terminal-card {
+      width: 100%;
+      max-width: 790px;
+      background: var(--panel-bg);
+      border: 1.5px solid var(--neon-cyan);
+      border-radius: 10px;
+      box-shadow: 0 0 38px rgba(0, 243, 255, 0.18), inset 0 0 22px rgba(0, 243, 255, 0.05);
+      overflow: hidden;
+      animation: bootUp 0.35s ease-out;
+    }
+
+    @keyframes bootUp {
+      from { opacity: 0; transform: scale(0.96) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .terminal-header {
+      background: rgba(0, 243, 255, 0.1);
+      border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+      padding: 10px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: var(--hud-cyan);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 7px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .terminal-body {
+      padding: 24px 28px;
+    }
+
+    .game-title {
+      font-size: clamp(1.7rem, 3.8vw, 2.5rem);
+      color: #7df438;
+      text-shadow: 0 0 14px rgba(125, 244, 56, 0.6);
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #a8cbe0;
+      font-size: 0.93rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    /* Grade dos 3 tipos de hospedeiros */
+    .hosts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .host-card {
+      background: rgba(255, 255, 255, 0.025);
+      border-radius: 8px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: transform 0.2s;
+    }
+
+    .host-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .host-card.exe { border-color: rgba(255, 153, 0, 0.6); box-shadow: inset 0 0 14px rgba(255, 153, 0, 0.08); }
+    .host-card.mp3 { border-color: rgba(0, 243, 255, 0.6); box-shadow: inset 0 0 14px rgba(0, 243, 255, 0.08); }
+    .host-card.zip { border-color: rgba(213, 0, 249, 0.6); box-shadow: inset 0 0 14px rgba(213, 0, 249, 0.08); }
+
+    .host-title {
+      font-weight: bold;
+      font-size: 1rem;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .host-desc {
+      font-size: 0.82rem;
+      color: #b8d0e4;
+      line-height: 1.45;
+    }
+
+    .controls-bar {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px dashed rgba(0, 243, 255, 0.35);
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 0.84rem;
+      color: #cce5f5;
+      margin-bottom: 22px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+    }
+
+    .key-badge {
+      background: rgba(0, 243, 255, 0.14);
+      border: 1px solid var(--neon-cyan);
+      color: var(--neon-cyan);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 14px 24px;
+      background: rgba(125, 244, 56, 0.14);
+      border: 2px solid #7df438;
+      color: #7df438;
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: bold;
+      letter-spacing: 2px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-shadow: 0 0 8px rgba(125, 244, 56, 0.6);
+      box-shadow: 0 0 20px rgba(125, 244, 56, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .action-btn:hover {
+      background: #7df438;
+      color: #05080c;
+      box-shadow: 0 0 30px rgba(125, 244, 56, 0.7);
+      text-shadow: none;
+    }
+
+    /* Game Over específico */
+    .gameover-card {
+      border-color: var(--neon-red);
+      box-shadow: 0 0 40px rgba(255, 17, 56, 0.28);
+    }
+
+    .gameover-header {
+      background: rgba(255, 17, 56, 0.15);
+      border-bottom-color: rgba(255, 17, 56, 0.4);
+      color: var(--neon-red);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 20px 0 24px;
+    }
+
+    .stat-box {
+      background: rgba(255, 17, 56, 0.06);
+      border: 1px solid rgba(255, 17, 56, 0.35);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #8aa8c2;
+      display: block;
+    }
+
+    .stat-num {
+      font-size: 1.45rem;
+      font-weight: bold;
+      color: #fff;
+      margin-top: 4px;
+    }
+
+    .retry-btn {
+      border-color: var(--neon-red);
+      color: var(--neon-red);
+      background: rgba(255, 17, 56, 0.14);
+      text-shadow: 0 0 8px rgba(255, 17, 56, 0.6);
+      box-shadow: 0 0 20px rgba(255, 17, 56, 0.2);
+    }
+
+    .retry-btn:hover {
+      background: var(--neon-red);
+      color: #fff;
+      box-shadow: 0 0 30px rgba(255, 17, 56, 0.7);
+    }
+
+    /* ===== Ajuste fino do HUD: idêntico à imagem de referência (texto puro, 4 colunas) ===== */
+    #hud {
+      height: 56px;
+      padding: 0 22px;
+      grid-template-columns: 1.45fr 1.3fr 1fr 1.3fr auto;
+      gap: 10px;
+      background: linear-gradient(180deg, #07111d 0%, #081624 100%);
+      border-bottom: 2px solid rgba(70, 140, 170, 0.6);
+      box-shadow: none;
+    }
+    .hud-col {
+      font-size: clamp(0.8rem, 1.75vw, 1.5rem);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      color: #8fd0e0;
+      text-shadow: none;
+    }
+    .hud-col.center { justify-content: flex-start; position: relative; height: 100%; }
+    .integrity-bar-bg {
+      position: absolute;
+      left: 0;
+      bottom: 5px;
+      width: 100%;
+      max-width: 240px;
+      height: 3px;
+      border: none;
+      border-radius: 0;
+      background: rgba(0, 210, 255, 0.14);
+    }
+    #muteBtn { opacity: 0.6; font-size: 0.7rem; padding: 4px 8px; }
+    #muteBtn:hover { opacity: 1; }
+
+    .host-card.mp4 { border-color: rgba(255, 200, 61, 0.6); box-shadow: inset 0 0 14px rgba(255, 200, 61, 0.08); }
+    .host-card.bat { border-color: rgba(57, 255, 106, 0.6); box-shadow: inset 0 0 14px rgba(57, 255, 106, 0.08); }
+    .host-card.doc { border-color: rgba(77, 141, 255, 0.6); box-shadow: inset 0 0 14px rgba(77, 141, 255, 0.08); }
+    .host-card.dll { border-color: rgba(255, 79, 154, 0.6); box-shadow: inset 0 0 14px rgba(255, 79, 154, 0.08); }
+    .host-card.iso { border-color: rgba(47, 224, 200, 0.6); box-shadow: inset 0 0 14px rgba(47, 224, 200, 0.08); }
+    .terminal-card { max-width: 1120px; }
+    .gameover-card { max-width: 790px; }
+    .hosts-grid { grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 1000px) { .hosts-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .hosts-grid { grid-template-columns: 1fr; } }
+    .host-card { padding: 11px; }
+    .host-desc { font-size: 0.78rem; }
+    .screen-layer { overflow-y: auto; }
+    .terminal-card { margin: auto; }
+
+    @media (max-width: 820px) {
+      #hud {
+        height: auto;
+        padding: 8px 12px;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+      }
+      .integrity-bar-bg { width: 64px; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .terminal-body { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Efeito visual de monitor CRT -->
+  <div class="scanlines"></div>
+
+  <!-- =========================================================================
+       HUD SUPERIOR MINIMALISTA EM 4 COLUNAS (IDÊNTICO À IMAGEM DE REFERÊNCIA)
+       ========================================================================= -->
+  <header id="hud">
+    <div class="hud-col" id="hudHostCol">
+      <span id="hudHostName">HOSPEDEIRO: VÍRUS BASE</span>
+    </div>
+
+    <div class="hud-col center">
+      <span id="hudIntegrityText">INTEGRIDADE: 100%</span>
+      <div class="integrity-bar-bg">
+        <div id="integrityFill"></div>
+      </div>
+    </div>
+
+    <div class="hud-col center">
+      <span id="hudWave">ONDA: 01</span>
+    </div>
+
+    <div class="hud-col right">
+      <span id="hudScore">PONTOS: 0 BYTES</span>
+    </div>
+
+    <button id="muteBtn" title="Alternar Áudio Sintetizado">SOM: ON</button>
+  </header>
+
+  <!-- Banner de Aviso de Onda / Sistema -->
+  <div id="hudAlertMsg">ALERTA DE INTRUSÃO DETECTADO</div>
+
+  <!-- =========================================================================
+       TELA INICIAL (TERMINAL BOOT)
+       ========================================================================= -->
+  <section id="startScreen" class="screen-layer">
+    <div class="terminal-card">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <span class="dot" style="background:#ff1138"></span>
+          <span class="dot" style="background:#ff9900"></span>
+          <span class="dot" style="background:#7df438"></span>
+        </div>
+        <span>ROOT@MEM_KERNEL:~/PARASITA_DE_CODIGO.BIN</span>
+      </div>
+      <div class="terminal-body">
+        <h1 class="game-title">&gt; PARASITA DE CÓDIGO_</h1>
+        <p class="subtitle">
+          Você é um vírus cartoon mutante infiltrado na memória RAM. Na forma base, você é rápido, mas frágil (morre com 1 golpe). <strong>Dispare raios de infecção ou invada arquivos do sistema</strong> para assumir suas formas, blindagens e armas contra os cristais Antivírus e escudos Firewall.
+        </p>
+
+        <div class="hosts-grid">
+          <div class="host-card exe">
+            <div class="host-title" style="color:#ff9900;">⚙ SISTEMA.EXE [TANQUE]</div>
+            <p class="host-desc">Blindagem pesada e movimento lento. Dispara projéteis laranja de alta potência com explosão em área.</p>
+          </div>
+          <div class="host-card mp3">
+            <div class="host-title" style="color:#00f3ff;">♫ AUDIO_STREAM.MP3 [SÔNICO]</div>
+            <p class="host-desc">Mobilidade equilibrada. Emite ondas sonoras ciano em arco que empurram e fragmentam cristais inimigos.</p>
+          </div>
+          <div class="host-card zip">
+            <div class="host-title" style="color:#d500f9;">❖ PACOTE.ZIP [VELOCISTA]</div>
+            <p class="host-desc">Velocidade extrema. Executa um <strong>Dash elétrico roxo</strong> que perfura inimigos e deixa rastro de choque.</p>
+          </div>
+          <div class="host-card mp4">
+            <div class="host-title" style="color:#ffc83d;">▶ VIDEO_HD.MP4 [RAIO DE LUZ]</div>
+            <p class="host-desc">Dispara um feixe de luz <strong>laser dourado</strong> instantâneo que atravessa os inimigos na linha de mira.</p>
+          </div>
+          <div class="host-card bat">
+            <div class="host-title" style="color:#39ff6a;">&gt;_ SCRIPT.BAT [TIRO TRIPLO]</div>
+            <p class="host-desc">Executa um <strong>tiro triplo</strong> em leque com rajadas rápidas de comando verde-neon.</p>
+          </div>
+          <div class="host-card doc">
+            <div class="host-title" style="color:#4d8dff;">▤ RELATORIO.DOC [MÍSSIL]</div>
+            <p class="host-desc">Lança <strong>mísseis teleguiados</strong> azuis que perseguem alvos e detonam com impacto explosivo.</p>
+          </div>
+          <div class="host-card dll">
+            <div class="host-title" style="color:#ff4f9a;">◈ BIBLIOTECA.DLL [PULSO 360°]</div>
+            <p class="host-desc">Libera um <strong>anel de pulso de dados</strong> em 360° que atinge e afasta inimigos ao redor.</p>
+          </div>
+          <div class="host-card iso">
+            <div class="host-title" style="color:#2fe0c8;">● IMAGEM.ISO [ONDA SÍSMICA]</div>
+            <p class="host-desc">Alta resistência. Gera uma <strong>onda sísmica</strong> expansiva que varre e estilhaça ameaças próximas.</p>
+          </div>
+        </div>
+
+        <div class="controls-bar">
+          <div><span class="key-badge">WASD / SETAS</span> Mover</div>
+          <div><span class="key-badge">MOUSE</span> Mirar</div>
+          <div><span class="key-badge">CLIQUE ESQ.</span> Habilidade / Tiro</div>
+          <div><span class="key-badge">ESPAÇO / CLIQUE DIR.</span> Infectar / Ejetar Arquivo</div>
+        </div>
+
+        <button id="startBtn" class="action-btn">&gt; EXECUTAR VÍRUS [INICIAR]</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       TELA DE GAME OVER (QUARENTENA / PURGA)
+       ========================================================================= -->
+  <section id="gameOverScreen" class="screen-layer hidden">
+    <div class="terminal-card gameover-card">
+      <div class="terminal-header gameover-header">
+        <span>[ERRO FATAL 0x000000EF] // AMEAÇA NEUTRALIZADA PELO ANTIVÍRUS</span>
+        <span>STATUS: QUARENTENA</span>
+      </div>
+      <div class="terminal-body">
+        <h2 class="game-title" style="color:#ff1138; text-shadow: 0 0 14px rgba(255,17,56,0.7);">
+          &gt; VÍRUS EXPURGADO_
+        </h2>
+        <p class="subtitle">
+          Sua assinatura digital foi isolada e removida da memória principal. Relatório de corrupção de dados abaixo:
+        </p>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">BYTES CORROMPIDOS</span>
+            <div class="stat-num" id="finalScore" style="color:#7df438;">0 BYTES</div>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">ONDA ALCANÇADA</span>
+            <div class="stat-num" id="finalWave" style="color:#ff9900;">01</div>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">ANTIVÍRUS DESTRUÍDOS</span>
+            <div class="stat-num" id="finalKills" style="color:#00f3ff;">0</div>
+          </div>
+        </div>
+
+        <button id="restartBtn" class="action-btn retry-btn">&gt; REINJETAR CÓDIGO [REINICIAR]</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Canvas Principal -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- =========================================================================
+       MOTOR DO JOGO EM JAVASCRIPT MODULAR
+       ========================================================================= -->
+  <script>
+    /**
+     * =========================================================================
+     * MÓDULO 1: CONSTANTES E CONFIGURAÇÕES GLOBAIS
+     * =========================================================================
+     */
+    const CONFIG = {
+      COLORS: {
+        BG: '#070b12',
+        CIRCUIT_LINE: 'rgba(18, 52, 86, 0.45)',
+        CIRCUIT_NODE: 'rgba(0, 195, 255, 0.28)',
+        VIRUS_LIGHT: '#a8f85a',
+        VIRUS_MID: '#6cc828',
+        VIRUS_DARK: '#3d8214',
+        ENEMY_BASIC: '#ff0033',
+        ENEMY_FAST: '#ff2a5f',
+        ENEMY_FIREWALL: '#e6002e',
+        EXE: '#ff9900',
+        MP3: '#00f3ff',
+        ZIP: '#d500f9',
+        MP4: '#ffc83d',
+        BAT: '#39ff6a',
+        DOC: '#4d8dff',
+        DLL: '#ff4f9a',
+        ISO: '#2fe0c8',
+        WHITE: '#ffffff'
+      },
+      HOST_TYPES: {
+        EXE: {
+          id: 'EXE',
+          label: 'SISTEMA.EXE',
+          tag: '.EXE',
+          color: '#ff9900',
+          maxHp: 140,
+          speed: 185,
+          radius: 26,
+          cooldown: 0.56
+        },
+        MP3: {
+          id: 'MP3',
+          label: 'AUDIO.MP3',
+          tag: '.MP3',
+          color: '#00f3ff',
+          maxHp: 90,
+          speed: 270,
+          radius: 24,
+          cooldown: 0.16
+        },
+        ZIP: {
+          id: 'ZIP',
+          label: 'PACOTE.ZIP',
+          tag: '.ZIP',
+          color: '#d500f9',
+          maxHp: 60,
+          speed: 360,
+          radius: 23,
+          cooldown: 0.90
+        },
+        MP4: { id: 'MP4', label: 'VIDEO_HD.MP4', tag: '.MP4', color: '#ffc83d', maxHp: 80, speed: 250, radius: 24, cooldown: 0.75 },
+        BAT: { id: 'BAT', label: 'SCRIPT.BAT', tag: '.BAT', color: '#39ff6a', maxHp: 110, speed: 235, radius: 24, cooldown: 0.3 },
+        DOC: { id: 'DOC', label: 'RELATORIO.DOC', tag: '.DOC', color: '#4d8dff', maxHp: 100, speed: 230, radius: 24, cooldown: 0.6 },
+        DLL: { id: 'DLL', label: 'BIBLIOTECA.DLL', tag: '.DLL', color: '#ff4f9a', maxHp: 120, speed: 215, radius: 25, cooldown: 1.1 },
+        ISO: { id: 'ISO', label: 'IMAGEM.ISO', tag: '.ISO', color: '#2fe0c8', maxHp: 190, speed: 170, radius: 27, cooldown: 1.6 }
+      },
+      VIRUS_BASE: {
+        speed: 405,
+        radius: 22,
+        infectRange: 135
+      }
+    };
+
+    /**
+     * =========================================================================
+     * MÓDULO 2: SINTETIZADOR DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+     * =========================================================================
+     */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+
+      _playTone({ type = 'square', startFreq, endFreq, duration, volume = 0.15, delay = 0 }) {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(startFreq, now);
+        if (endFreq) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+        }
+
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      playInfect(hostType) {
+        const base = hostType === 'EXE' ? 220 : hostType === 'MP3' ? 330 : 440;
+        this._playTone({ type: 'sawtooth', startFreq: base, endFreq: base * 1.5, duration: 0.08, volume: 0.16, delay: 0 });
+        this._playTone({ type: 'square', startFreq: base * 1.5, endFreq: base * 2.2, duration: 0.14, volume: 0.16, delay: 0.06 });
+        this._playTone({ type: 'triangle', startFreq: base * 2, endFreq: base * 3, duration: 0.18, volume: 0.18, delay: 0.12 });
+      }
+
+      playShootExe() {
+        this._playTone({ type: 'sawtooth', startFreq: 185, endFreq: 38, duration: 0.24, volume: 0.22 });
+        this._playTone({ type: 'square', startFreq: 95, endFreq: 28, duration: 0.28, volume: 0.18 });
+      }
+
+      playShootMp3() {
+        this._playTone({ type: 'sine', startFreq: 780, endFreq: 320, duration: 0.11, volume: 0.12 });
+        this._playTone({ type: 'triangle', startFreq: 1150, endFreq: 480, duration: 0.09, volume: 0.08 });
+      }
+
+      playDashZip() {
+        this._playTone({ type: 'sawtooth', startFreq: 300, endFreq: 1450, duration: 0.14, volume: 0.16 });
+        this._playTone({ type: 'square', startFreq: 900, endFreq: 220, duration: 0.18, volume: 0.12, delay: 0.05 });
+      }
+
+      playShootPdf() {
+        this._playTone({ type: 'sawtooth', startFreq: 1800, endFreq: 300, duration: 0.18, volume: 0.14 });
+        this._playTone({ type: 'sine', startFreq: 2600, endFreq: 500, duration: 0.14, volume: 0.1 });
+      }
+
+      playShootJpg() {
+        this._playTone({ type: 'square', startFreq: 520, endFreq: 140, duration: 0.14, volume: 0.15 });
+        this._playTone({ type: 'sawtooth', startFreq: 900, endFreq: 200, duration: 0.1, volume: 0.1 });
+      }
+
+      playShootDll() {
+        this._playTone({ type: 'triangle', startFreq: 300, endFreq: 900, duration: 0.2, volume: 0.15 });
+        this._playTone({ type: 'sine', startFreq: 450, endFreq: 1200, duration: 0.16, volume: 0.08, delay: 0.05 });
+      }
+
+      playPulse() {
+        this._playTone({ type: 'sine', startFreq: 520, endFreq: 70, duration: 0.3, volume: 0.2 });
+        this._playTone({ type: 'square', startFreq: 260, endFreq: 60, duration: 0.25, volume: 0.1 });
+      }
+
+      playQuake() {
+        this._playTone({ type: 'sawtooth', startFreq: 90, endFreq: 28, duration: 0.5, volume: 0.26 });
+        this._playTone({ type: 'square', startFreq: 55, endFreq: 24, duration: 0.55, volume: 0.2 });
+        this.playExplosion(true);
+      }
+
+      playPlantBat() {
+        this._playTone({ type: 'square', startFreq: 160, endFreq: 90, duration: 0.1, volume: 0.15 });
+        this._playTone({ type: 'square', startFreq: 640, endFreq: 640, duration: 0.05, volume: 0.1, delay: 0.1 });
+      }
+
+      playExplosion(large = false) {
+        if (this.muted || !this.ctx) return;
+        const duration = large ? 0.38 : 0.2;
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(large ? 520 : 850, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + duration);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(large ? 0.28 : 0.18, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+      }
+
+      playDamage(ejected = false) {
+        if (ejected) {
+          this._playTone({ type: 'sawtooth', startFreq: 520, endFreq: 75, duration: 0.35, volume: 0.25 });
+          this._playTone({ type: 'square', startFreq: 380, endFreq: 55, duration: 0.38, volume: 0.22, delay: 0.04 });
+        } else {
+          this._playTone({ type: 'square', startFreq: 210, endFreq: 85, duration: 0.12, volume: 0.16 });
+        }
+      }
+
+      playWaveStart() {
+        const notes = [261.63, 329.63, 392.00, 523.25];
+        notes.forEach((freq, idx) => {
+          this._playTone({
+            type: 'square',
+            startFreq: freq,
+            endFreq: freq * 1.02,
+            duration: 0.12,
+            volume: 0.12,
+            delay: idx * 0.075
+          });
+        });
+      }
+
+      playGameOver() {
+        const notes = [330, 293, 246, 164];
+        notes.forEach((freq, idx) => {
+          this._playTone({
+            type: 'sawtooth',
+            startFreq: freq,
+            endFreq: freq * 0.85,
+            duration: 0.22,
+            volume: 0.18,
+            delay: idx * 0.16
+          });
+        });
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MÓDULO 3: SISTEMA DE PARTÍCULAS PIXEL/GLITCH, RAIOS E CÓDIGO FLUTUANTE
+     * =========================================================================
+     */
+    class ParticleSystem {
+      constructor() {
+        this.particles = [];
+        this.floatingTexts = [];
+        this.shockwaves = [];
+        this.lightningBolts = [];
+      }
+
+      // Emite partículas quadradas estilo pixel/glitch (ciano, magenta, laranja, verde)
+      emit(x, y, color, count = 14, speedMax = 250, life = 0.48, size = 5) {
+        const glitchPalette = [color, '#00f3ff', '#d500f9', '#ff9900', '#ffffff'];
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 35 + Math.random() * speedMax;
+          const chosenColor = Math.random() < 0.65
+            ? color
+            : glitchPalette[Math.floor(Math.random() * glitchPalette.length)];
+          this.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            color: chosenColor,
+            life,
+            maxLife: life,
+            size: size * (0.65 + Math.random() * 0.9)
+          });
+        }
+      }
+
+      // Cria raio elétrico zigue-zague ciano/branco entre dois pontos (como na referência)
+      addLightning(x1, y1, x2, y2, color = '#00f3ff', duration = 0.24) {
+        const segments = 10;
+        const points = [{ x: x1, y: y1 }];
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        for (let i = 1; i < segments; i++) {
+          const t = i / segments;
+          const jitter = (Math.random() - 0.5) * 34;
+          points.push({
+            x: x1 + dx * t + nx * jitter,
+            y: y1 + dy * t + ny * jitter
+          });
+        }
+        points.push({ x: x2, y: y2 });
+
+        this.lightningBolts.push({
+          points,
+          color,
+          life: duration,
+          maxLife: duration
+        });
+      }
+
+      addShockwave(x, y, maxRadius, color, duration = 0.35) {
+        this.shockwaves.push({
+          x,
+          y,
+          radius: 8,
+          maxRadius,
+          color,
+          life: duration,
+          maxLife: duration
+        });
+      }
+
+      addText(x, y, text, color = '#7df438') {
+        this.floatingTexts.push({
+          x,
+          y,
+          vy: -42,
+          text,
+          color,
+          life: 0.95,
+          maxLife: 0.95
+        });
+      }
+
+      update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= 0.93;
+          p.vy *= 0.93;
+          p.life -= dt;
+          if (p.life <= 0) this.particles.splice(i, 1);
+        }
+
+        for (let i = this.lightningBolts.length - 1; i >= 0; i--) {
+          this.lightningBolts[i].life -= dt;
+          if (this.lightningBolts[i].life <= 0) this.lightningBolts.splice(i, 1);
+        }
+
+        for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+          const s = this.shockwaves[i];
+          s.life -= dt;
+          const progress = 1 - Math.max(0, s.life / s.maxLife);
+          s.radius = 8 + (s.maxRadius - 8) * (1 - Math.pow(1 - progress, 3));
+          if (s.life <= 0) this.shockwaves.splice(i, 1);
+        }
+
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+          const t = this.floatingTexts[i];
+          t.y += t.vy * dt;
+          t.life -= dt;
+          if (t.life <= 0) this.floatingTexts.splice(i, 1);
+        }
+      }
+
+      draw(ctx) {
+        // Ondas de choque
+        for (const s of this.shockwaves) {
+          const alpha = Math.max(0, s.life / s.maxLife);
+          ctx.save();
+          ctx.strokeStyle = s.color;
+          ctx.globalAlpha = alpha * 0.78;
+          ctx.lineWidth = 2.5;
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = s.color;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Raios elétricos ciano/branco com brilho neon
+        for (const bolt of this.lightningBolts) {
+          const alpha = Math.max(0, bolt.life / bolt.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          // Aura externa colorida
+          ctx.strokeStyle = bolt.color;
+          ctx.lineWidth = 5;
+          ctx.shadowBlur = 18;
+          ctx.shadowColor = bolt.color;
+          ctx.beginPath();
+          bolt.points.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.stroke();
+
+          // Núcleo branco intenso
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Clarão de impacto na ponta do raio
+          const end = bolt.points[bolt.points.length - 1];
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowBlur = 28;
+          ctx.shadowColor = bolt.color;
+          ctx.beginPath();
+          ctx.arc(end.x, end.y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(end.x - 14, end.y); ctx.lineTo(end.x + 14, end.y);
+          ctx.moveTo(end.x, end.y - 14); ctx.lineTo(end.x, end.y + 14);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Partículas pixeladas quadradas (glitch)
+        for (const p of this.particles) {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          ctx.save();
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = alpha;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = p.color;
+          ctx.fillRect(Math.round(p.x - p.size / 2), Math.round(p.y - p.size / 2), p.size, p.size);
+          ctx.restore();
+        }
+
+        // Textos flutuantes
+        ctx.save();
+        ctx.font = 'bold 13px Consolas, "Courier New", monospace';
+        ctx.textAlign = 'center';
+        for (const t of this.floatingTexts) {
+          const alpha = Math.max(0, t.life / t.maxLife);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = t.color;
+          ctx.shadowBlur = 6;
+          ctx.shadowColor = t.color;
+          ctx.fillText(t.text, t.x, t.y);
+        }
+        ctx.restore();
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MÓDULO 4: ENTIDADES DO JOGO (JOGADOR, ARQUIVOS NEUTROS, PROJÉTEIS, INIMIGOS)
+     * =========================================================================
+     */
+
+    class Player {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.angle = 0;
+        this.host = null; // null = Vírus Base | objeto CONFIG.HOST_TYPES[key]
+        this.hp = 0;
+        this.maxHp = 0;
+        this.cooldownTimer = 0;
+        this.invulnTimer = 0;
+        this.pulsePhase = 0;
+
+        // Estado específico de Dash (.ZIP)
+        this.dashTimer = 0;
+        this.dashDirX = 0;
+        this.dashDirY = 0;
+        this.dashTrailTimer = 0;
+      }
+
+      get radius() {
+        return this.host ? this.host.radius : CONFIG.VIRUS_BASE.radius;
+      }
+
+      get speed() {
+        return this.host ? this.host.speed : CONFIG.VIRUS_BASE.speed;
+      }
+
+      get color() {
+        return this.host ? this.host.color : CONFIG.COLORS.VIRUS_LIGHT;
+      }
+
+      infect(hostTypeKey) {
+        const template = CONFIG.HOST_TYPES[hostTypeKey];
+        this.host = template;
+        this.maxHp = template.maxHp;
+        this.hp = template.maxHp;
+        this.cooldownTimer = 0.1;
+        this.invulnTimer = 0.45;
+        this.dashTimer = 0;
+      }
+
+      eject() {
+        this.host = null;
+        this.hp = 0;
+        this.maxHp = 0;
+        this.dashTimer = 0;
+        this.invulnTimer = 1.25;
+      }
+
+      update(dt, input, bounds) {
+        this.pulsePhase += dt * 4.5;
+        if (this.cooldownTimer > 0) this.cooldownTimer -= dt;
+        if (this.invulnTimer > 0) this.invulnTimer -= dt;
+
+        this.angle = Math.atan2(input.mouseY - this.y, input.mouseX - this.x);
+
+        if (this.dashTimer > 0) {
+          this.dashTimer -= dt;
+          const dashSpeed = 960;
+          this.x += this.dashDirX * dashSpeed * dt;
+          this.y += this.dashDirY * dashSpeed * dt;
+        } else {
+          let moveX = 0;
+          let moveY = 0;
+          if (input.keys['KeyW'] || input.keys['ArrowUp']) moveY -= 1;
+          if (input.keys['KeyS'] || input.keys['ArrowDown']) moveY += 1;
+          if (input.keys['KeyA'] || input.keys['ArrowLeft']) moveX -= 1;
+          if (input.keys['KeyD'] || input.keys['ArrowRight']) moveX += 1;
+
+          if (moveX !== 0 || moveY !== 0) {
+            const len = Math.hypot(moveX, moveY);
+            moveX /= len;
+            moveY /= len;
+          }
+
+          this.vx = moveX * this.speed;
+          this.vy = moveY * this.speed;
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+        }
+
+        const pad = this.radius + 10;
+        this.x = Math.max(pad, Math.min(bounds.width - pad, this.x));
+        this.y = Math.max(pad + 58, Math.min(bounds.height - pad, this.y));
+      }
+    }
+
+    // Arquivo Neutro espalhado pelo mapa (.EXE, .MP3, .ZIP)
+    class NeutralFile {
+      constructor(x, y, typeKey) {
+        this.x = x;
+        this.y = y;
+        this.typeKey = typeKey;
+        this.config = CONFIG.HOST_TYPES[typeKey];
+        this.radius = this.config.radius;
+        this.pulsePhase = Math.random() * Math.PI * 2;
+        this.life = 32;
+      }
+
+      update(dt) {
+        this.pulsePhase += dt * 3.2;
+        this.life -= dt;
+      }
+    }
+
+    // Projéteis (.EXE Canhão e .MP3 Onda Sônica)
+    class Projectile {
+      constructor({ x, y, vx, vy, radius, damage, color, type, life, knockback = 0, splashRadius = 0, armTime = 0 }) {
+        this.armTime = armTime;
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.radius = radius;
+        this.damage = damage;
+        this.color = color;
+        this.type = type; // 'EXE_SHELL' | 'MP3_WAVE'
+        this.life = life;
+        this.maxLife = life;
+        this.knockback = knockback;
+        this.splashRadius = splashRadius;
+        this.angle = Math.atan2(vy, vx);
+        this.hitEnemies = new Set();
+      }
+
+      update(dt, enemies) {
+        // Míssil .DLL: teleguiado, persegue o inimigo mais próximo
+        if (this.type === 'DOC_MISSILE' && enemies && enemies.length) {
+          let best = null, bd = Infinity;
+          for (const e of enemies) {
+            const d = Math.hypot(e.x - this.x, e.y - this.y);
+            if (d < bd) { bd = d; best = e; }
+          }
+          if (best) {
+            const desired = Math.atan2(best.y - this.y, best.x - this.x);
+            let diff = desired - this.angle;
+            diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+            this.angle += Math.max(-5 * dt, Math.min(5 * dt, diff));
+            const sp = Math.min(560, Math.hypot(this.vx, this.vy) + 260 * dt);
+            this.vx = Math.cos(this.angle) * sp;
+            this.vy = Math.sin(this.angle) * sp;
+          }
+        }
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+
+        if (this.type === 'MP3_WAVE') {
+          this.radius += 125 * dt;
+        } else if (this.type === 'DLL_PULSE') {
+          this.radius += 650 * dt;
+        } else if (this.type === 'ISO_QUAKE') {
+          this.radius += 540 * dt;
+        }
+      }
+    }
+
+    // Rastro Elétrico deixado pelo Dash do .ZIP
+    class ElectricTrail {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 25;
+        this.life = 1.6;
+        this.maxLife = 1.6;
+        this.tickTimer = 0;
+      }
+
+      update(dt) {
+        this.life -= dt;
+        this.tickTimer -= dt;
+      }
+    }
+
+    // Inimigos Antivírus (Cristais Vermelhos) e Firewalls (Escudos com Cruz)
+    class Enemy {
+      constructor(x, y, variant, waveScale) {
+        this.x = x;
+        this.y = y;
+        this.variant = variant; // 'HUNTER' | 'SWIFT' | 'FIREWALL'
+        this.angle = 0;
+        this.hitFlash = 0;
+        this.knockVx = 0;
+        this.knockVy = 0;
+
+        if (variant === 'SWIFT') {
+          this.radius = 15;
+          this.speed = 235 + Math.min(110, waveScale * 8);
+          this.maxHp = 24 + waveScale * 4;
+          this.damage = 18;
+          this.scoreValue = 128;
+          this.color = CONFIG.COLORS.ENEMY_FAST;
+        } else if (variant === 'FIREWALL') {
+          this.radius = 30;
+          this.speed = 92 + Math.min(48, waveScale * 3);
+          this.maxHp = 155 + waveScale * 35;
+          this.damage = 42;
+          this.scoreValue = 512;
+          this.color = CONFIG.COLORS.ENEMY_FIREWALL;
+        } else {
+          // HUNTER padrão (Cristal vermelho multifacetado)
+          this.radius = 18;
+          this.speed = 150 + Math.min(90, waveScale * 6);
+          this.maxHp = 40 + waveScale * 8;
+          this.damage = 25;
+          this.scoreValue = 64;
+          this.color = CONFIG.COLORS.ENEMY_BASIC;
+        }
+
+        this.hp = this.maxHp;
+      }
+
+      update(dt, targetX, targetY) {
+        if (this.hitFlash > 0) this.hitFlash -= dt;
+
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        this.angle = Math.atan2(dy, dx);
+
+        const moveVx = (dx / dist) * this.speed;
+        const moveVy = (dy / dist) * this.speed;
+
+        this.x += (moveVx + this.knockVx) * dt;
+        this.y += (moveVy + this.knockVy) * dt;
+
+        this.knockVx *= 0.86;
+        this.knockVy *= 0.86;
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MÓDULO 5: GERENCIADOR DE HOSPEDEIROS E ONDAS
+     * =========================================================================
+     */
+    class HostSpawner {
+      constructor() {
+        this.files = [];
+        this.spawnTimer = 0;
+        this.maxFiles = 10;
+      }
+
+      reset(width, height) {
+        this.files = [];
+        this.spawnTimer = 1.4;
+        // Espalha vários ícones iniciais como na cena de referência
+        const initialTypes = ['EXE', 'MP3', 'ZIP', 'MP4', 'BAT', 'DOC', 'DLL', 'ISO'];
+        initialTypes.forEach((type, i) => {
+          const angle = (i / initialTypes.length) * Math.PI * 2 + 0.35;
+          const dist = Math.min(width, height) * (0.24 + (i % 2) * 0.1);
+          const x = Math.max(70, Math.min(width - 70, width / 2 + Math.cos(angle) * dist));
+          const y = Math.max(105, Math.min(height - 70, height / 2 + Math.sin(angle) * dist));
+          this.files.push(new NeutralFile(x, y, type));
+        });
+      }
+
+      spawnRandom(width, height, player) {
+        if (this.files.length >= this.maxFiles) return;
+        const keys = ['EXE', 'MP3', 'ZIP', 'MP4', 'BAT', 'DOC', 'DLL', 'ISO'];
+        const existingTypes = new Set(this.files.map(f => f.typeKey));
+        const missing = keys.filter(k => !existingTypes.has(k));
+        const pool = missing.length > 0 ? missing : keys;
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+
+        let x, y, tries = 0;
+        do {
+          x = 70 + Math.random() * (width - 140);
+          y = 100 + Math.random() * (height - 160);
+          tries++;
+        } while (Math.hypot(x - player.x, y - player.y) < 130 && tries < 10);
+
+        this.files.push(new NeutralFile(x, y, chosen));
+      }
+
+      findNearest(x, y, maxRange) {
+        let nearest = null;
+        let bestDist = maxRange;
+        for (const f of this.files) {
+          const d = Math.hypot(f.x - x, f.y - y) - f.radius;
+          if (d <= bestDist) {
+            bestDist = d;
+            nearest = f;
+          }
+        }
+        return nearest;
+      }
+
+      update(dt, width, height, player) {
+        this.spawnTimer -= dt;
+        if (this.spawnTimer <= 0) {
+          this.spawnRandom(width, height, player);
+          this.spawnTimer = this.files.length < 4 ? 2.0 : 3.8;
+        }
+
+        for (let i = this.files.length - 1; i >= 0; i--) {
+          this.files[i].update(dt);
+          if (this.files[i].life <= 0) {
+            this.files.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    class WaveManager {
+      constructor() {
+        this.wave = 1;
+        this.enemiesToSpawn = 0;
+        this.spawnTimer = 0;
+      }
+
+      startWave(waveNum) {
+        this.wave = waveNum;
+        this.enemiesToSpawn = 6 + waveNum * 4;
+        this.spawnTimer = 0.6;
+      }
+
+      spawnEnemy(width, height) {
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        const margin = 45;
+        if (side === 0) { x = Math.random() * width; y = -margin; }
+        else if (side === 1) { x = width + margin; y = Math.random() * height; }
+        else if (side === 2) { x = Math.random() * width; y = height + margin; }
+        else { x = -margin; y = Math.random() * height; }
+
+        const roll = Math.random();
+        let variant = 'HUNTER';
+        if (this.wave >= 2 && roll < Math.min(0.28, 0.12 + this.wave * 0.02)) {
+          variant = 'FIREWALL';
+        } else if (this.wave >= 2 && roll < 0.54) {
+          variant = 'SWIFT';
+        }
+
+        return new Enemy(x, y, variant, this.wave);
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MÓDULO 6: MOTOR DE RENDERIZAÇÃO VETORIAL NEON & CARTOON (CANVAS 2D)
+     * =========================================================================
+     */
+    class Renderer {
+      constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.circuitTraces = [];
+        this.codeSnippets = [];
+        this.lastW = 0;
+        this.lastH = 0;
+      }
+
+      // Gera trilhas de placa de circuito (PCB) densas, barramentos verticais e blocos de código
+      _initBackgroundCircuit(width, height) {
+        this.lastW = width;
+        this.lastH = height;
+        this.circuitTraces = [];
+        this.codeBlocks = [];
+        const top = 60;
+        const snap = (v) => Math.round(v / 10) * 10;
+
+        // Trilhas ortogonais com dobras de 45°
+        const count = Math.ceil((width * height) / 8500);
+        for (let i = 0; i < count; i++) {
+          let cx = snap(Math.random() * width);
+          let cy = top + snap(Math.random() * (height - top));
+          const pts = [{ x: cx, y: cy }];
+          const steps = 2 + Math.floor(Math.random() * 4);
+          let dir = Math.floor(Math.random() * 4);
+          for (let s = 0; s < steps; s++) {
+            const len = 30 + snap(Math.random() * 80);
+            const diag = Math.random() < 0.35;
+            const dx = [1, 0, -1, 0][dir];
+            const dy = [0, 1, 0, -1][dir];
+            if (diag) { cx += (dx || (Math.random() < 0.5 ? 1 : -1)) * len * 0.7; cy += (dy || 1) * len * 0.7; }
+            else { cx += dx * len; cy += dy * len; }
+            pts.push({ x: cx, y: cy });
+            dir = (dir + (Math.random() < 0.5 ? 1 : 3)) % 4;
+          }
+          this.circuitTraces.push({ pts, pad: Math.random() < 0.6 });
+        }
+
+        // Barramentos verticais pendurados na barra superior (como na imagem)
+        for (let x = 70; x < width - 40; x += 28 + Math.floor(Math.random() * 40)) {
+          const len = 50 + Math.random() * 130;
+          this.circuitTraces.push({ pts: [{ x, y: top }, { x, y: top + len }], pad: true });
+        }
+
+        // Blocos de código "glitch" em ciano-claro
+        const pool = [
+          '#NODUL.EXE', 'if("Firewall_Update");', 'io("li0Dpath:");', 'is("IMA");',
+          'lineOpath;', 'a.DIRtoxdiq;', 'auth: 0B1011 0100', 'ALLOC_RAM: 0x00FF66',
+          'FIREWALL_BYPASS --force', 'SYS_OVERRIDE // 0101', 'mem.corrupt(0x7F);', '10110 01101 1010'
+        ];
+        const anchors = [
+          [0.66, 0.12], [0.84, 0.30], [0.74, 0.62], [0.08, 0.80], [0.30, 0.18], [0.52, 0.86]
+        ];
+        for (const [ax, ay] of anchors) {
+          const lines = [];
+          const n = 3 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < n; i++) lines.push(pool[Math.floor(Math.random() * pool.length)]);
+          this.codeBlocks.push({ x: ax * width, y: top + ay * (height - top), lines, phase: Math.random() * 6 });
+        }
+      }
+
+      clearAndDrawBackground(width, height) {
+        if (width !== this.lastW || height !== this.lastH) {
+          this._initBackgroundCircuit(width, height);
+        }
+
+        const ctx = this.ctx;
+        const bgGrad = ctx.createRadialGradient(
+          width * 0.5, height * 0.5, 40,
+          width * 0.5, height * 0.5, Math.max(width, height) * 0.75
+        );
+        bgGrad.addColorStop(0, '#0b1626');
+        bgGrad.addColorStop(1, '#050910');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.lineWidth = 1.6;
+        ctx.lineJoin = 'round';
+        for (const trace of this.circuitTraces) {
+          const pts = trace.pts;
+          ctx.strokeStyle = 'rgba(24, 74, 112, 0.55)';
+          ctx.beginPath();
+          pts.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.stroke();
+
+          const last = pts[pts.length - 1];
+          ctx.strokeStyle = 'rgba(0, 195, 255, 0.4)';
+          ctx.fillStyle = 'rgba(0, 195, 255, 0.35)';
+          if (trace.pad) {
+            ctx.beginPath();
+            ctx.arc(last.x, last.y, 3.5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.arc(pts[0].x, pts[0].y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Blocos de código com leve cintilação
+        const t = performance.now() / 1000;
+        ctx.font = '11px Consolas, "Courier New", monospace';
+        ctx.textAlign = 'left';
+        for (const blk of this.codeBlocks) {
+          const flicker = 0.24 + 0.1 * Math.sin(t * 2.2 + blk.phase);
+          ctx.fillStyle = `rgba(170, 235, 255, ${flicker})`;
+          blk.lines.forEach((ln, i) => {
+            ctx.fillText(ln, blk.x + (i % 2) * 8, blk.y + i * 14);
+          });
+        }
+        ctx.restore();
+      }
+
+      // Ícone de arquivo neon: documento arredondado com dobra, símbolo e plaquinha com a extensão
+      _drawFileDocument(ctx, typeKey, color, radius, isTargetable, pulse = 0) {
+        const w = radius * 1.8;
+        const h = radius * 2.25;
+        const fold = radius * 0.42;
+        const rr = 6;
+        const x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = h / 2;
+
+        ctx.save();
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = color;
+        ctx.fillStyle = 'rgba(8, 14, 26, 0.92)';
+        ctx.lineWidth = 2.6;
+        ctx.shadowBlur = isTargetable ? 26 : 16;
+        ctx.shadowColor = color;
+
+        ctx.beginPath();
+        ctx.moveTo(x0 + rr, y0);
+        ctx.lineTo(x1 - fold, y0);
+        ctx.lineTo(x1, y0 + fold);
+        ctx.lineTo(x1, y1 - rr);
+        ctx.quadraticCurveTo(x1, y1, x1 - rr, y1);
+        ctx.lineTo(x0 + rr, y1);
+        ctx.quadraticCurveTo(x0, y1, x0, y1 - rr);
+        ctx.lineTo(x0, y0 + rr);
+        ctx.quadraticCurveTo(x0, y0, x0 + rr, y0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Dobra do canto
+        ctx.beginPath();
+        ctx.moveTo(x1 - fold, y0);
+        ctx.lineTo(x1 - fold, y0 + fold);
+        ctx.lineTo(x1, y0 + fold);
+        ctx.stroke();
+
+        ctx.shadowBlur = 8;
+        const k = radius / 24;
+
+        // Símbolo interno
+        ctx.save();
+        ctx.translate(0, -h * 0.13);
+        ctx.scale(k, k);
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = 2;
+
+        if (typeKey === 'EXE') {
+          // Engrenagem dentro de um anel
+          ctx.beginPath();
+          ctx.arc(0, 0, 13, 0, Math.PI * 2);
+          ctx.stroke();
+          const teeth = 8, innerR = 6, outerR = 9.5;
+          ctx.beginPath();
+          for (let i = 0; i < teeth * 2; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const a = (i / (teeth * 2)) * Math.PI * 2;
+            const px = Math.cos(a) * r, py = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, 2.8, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (typeKey === 'MP3') {
+          // Nota musical dupla
+          ctx.beginPath();
+          ctx.arc(-6, 8, 4, 0, Math.PI * 2);
+          ctx.arc(6, 6, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(-2.5, 8);
+          ctx.lineTo(-2.5, -9);
+          ctx.lineTo(9.5, -11.5);
+          ctx.lineTo(9.5, 6);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-2.5, -4);
+          ctx.lineTo(9.5, -6.5);
+          ctx.stroke();
+        } else if (typeKey === 'ZIP') {
+          // Zíper central com dentes alternados
+          ctx.beginPath();
+          ctx.moveTo(0, -13);
+          ctx.lineTo(0, 12);
+          ctx.stroke();
+          for (let zy = -11; zy <= 9; zy += 5) {
+            const side = ((zy + 11) / 5) % 2 === 0 ? -1 : 1;
+            ctx.fillRect(side < 0 ? -6 : 1, zy, 5, 3);
+          }
+          ctx.strokeRect(-4, 8, 8, 6);
+        } else if (typeKey === 'DOC') {
+          // Página com linhas de texto
+          ctx.strokeRect(-9, -13, 18, 26);
+          for (let ly = -7; ly <= 7; ly += 5) {
+            ctx.beginPath();
+            ctx.moveTo(-5, ly);
+            ctx.lineTo(5, ly);
+            ctx.stroke();
+          }
+        } else if (typeKey === 'MP4') {
+          // Botão de play dentro de uma tela
+          ctx.strokeRect(-12, -9, 24, 18);
+          ctx.beginPath();
+          ctx.moveTo(-4, -5);
+          ctx.lineTo(-4, 5);
+          ctx.lineTo(6, 0);
+          ctx.closePath();
+          ctx.fill();
+        } else if (typeKey === 'ISO') {
+          // Disco óptico
+          ctx.beginPath();
+          ctx.arc(0, 0, 12, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, 8, 0.3, 1.2);
+          ctx.stroke();
+        } else if (typeKey === 'DLL') {
+          // Cubo de biblioteca (hexágono com arestas)
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+            const px = Math.cos(a) * 12, py = Math.sin(a) * 12;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, 0); ctx.lineTo(0, 12);
+          ctx.moveTo(0, 0); ctx.lineTo(-10.4, -6);
+          ctx.moveTo(0, 0); ctx.lineTo(10.4, -6);
+          ctx.stroke();
+        } else if (typeKey === 'BAT') {
+          // Terminal com prompt >_
+          ctx.strokeRect(-12, -9, 24, 18);
+          ctx.beginPath();
+          ctx.moveTo(-8, -3); ctx.lineTo(-3, 0); ctx.lineTo(-8, 3);
+          ctx.moveTo(0, 4); ctx.lineTo(7, 4);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // Plaquinha com a extensão
+        const pw = w * 0.82, ph = 16, py = y1 - 26;
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(-pw / 2 + 4, py);
+        ctx.lineTo(pw / 2 - 4, py);
+        ctx.quadraticCurveTo(pw / 2, py, pw / 2, py + 4);
+        ctx.lineTo(pw / 2, py + ph - 4);
+        ctx.quadraticCurveTo(pw / 2, py + ph, pw / 2 - 4, py + ph);
+        ctx.lineTo(-pw / 2 + 4, py + ph);
+        ctx.quadraticCurveTo(-pw / 2, py + ph, -pw / 2, py + ph - 4);
+        ctx.lineTo(-pw / 2, py + 4);
+        ctx.quadraticCurveTo(-pw / 2, py, -pw / 2 + 4, py);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = color;
+        ctx.font = 'bold 12px Consolas, "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`.${typeKey}`, 0, py + ph / 2 + 1);
+
+        // Anel tracejado de alcance de infecção
+        if (isTargetable) {
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = '#7df438';
+          ctx.lineWidth = 1.8;
+          ctx.setLineDash([5, 4]);
+          ctx.beginPath();
+          ctx.arc(0, 0, radius + 14 + pulse, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      drawNeutralFile(file, isTargetable) {
+        const pulse = Math.sin(file.pulsePhase) * 3;
+        this.ctx.save();
+        this.ctx.translate(file.x, file.y);
+        this._drawFileDocument(this.ctx, file.typeKey, file.config.color, file.radius, isTargetable, pulse);
+        this.ctx.restore();
+      }
+
+      // Raio elétrico de conexão quando próximo de um arquivo infectável
+      drawInfectionLink(player, targetFile) {
+        if (!targetFile) return;
+        const ctx = this.ctx;
+        ctx.save();
+
+        // Raio elétrico sutil entre o vírus e o arquivo alvo
+        ctx.strokeStyle = '#00f3ff';
+        ctx.lineWidth = 1.8;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00f3ff';
+        ctx.beginPath();
+        const steps = 6;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps;
+          const jx = i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 10;
+          const jy = i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 10;
+          const px = player.x + (targetFile.x - player.x) * t + jx;
+          const py = player.y + (targetFile.y - player.y) * t + jy;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = '#7df438';
+        ctx.font = 'bold 11px Consolas, "Courier New", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('[ESPAÇO / DIR] INFECTAR', targetFile.x, targetFile.y - targetFile.radius - 22);
+        ctx.restore();
+      }
+
+      /**
+       * Desenha o PERSONAGEM VÍRUS CARTOON idêntico à imagem de referência:
+       * - Espículas escuras no plano de fundo
+       * - 10 espículas verdes com pontas arredondadas e contorno preto grosso
+       * - Corpo esférico verde-limão com gradiente, brilho especular e poros na testa
+       * - Sobrancelhas pretas franzidas raivosas, olhos brancos com íris vermelha e pupila preta
+       * - Sorriso maligno com duas presas brancas pontiagudas
+       */
+      _drawCartoonVirusSprite(ctx, radius, pulsePhase) {
+        const scale = radius / 26;
+        const breathe = 1 + Math.sin(pulsePhase) * 0.035;
+
+        ctx.save();
+        ctx.scale(scale * breathe, scale * breathe);
+
+        // Aura neon sutil ao redor do vírus para destacar no fundo escuro
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = 'rgba(115, 240, 45, 0.55)';
+
+        // 1. Espículas de silhueta escura no plano de fundo (profundidade 3D cartoon)
+        const backSpikes = [-2.7, -2.0, -1.15, -0.45, 0.45, 1.15, 2.0, 2.7];
+        ctx.fillStyle = '#091108';
+        ctx.strokeStyle = '#050805';
+        ctx.lineWidth = 2;
+        for (const ang of backSpikes) {
+          ctx.save();
+          ctx.rotate(ang);
+          ctx.beginPath();
+          ctx.moveTo(18, -3);
+          ctx.lineTo(31, -5.5);
+          ctx.arc(31, 0, 5.5, -Math.PI / 2, Math.PI / 2);
+          ctx.lineTo(18, 3);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 2. Espículas principais verdes com contorno preto grosso e topo brilhante
+        const frontSpikes = 10;
+        for (let i = 0; i < frontSpikes; i++) {
+          const ang = (i / frontSpikes) * Math.PI * 2 - Math.PI / 2;
+          ctx.save();
+          ctx.rotate(ang);
+
+          // Haste e bulbo da espícula
+          ctx.fillStyle = '#68c426';
+          ctx.strokeStyle = '#0b1209';
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.moveTo(20, -3.6);
+          ctx.lineTo(33, -6.2);
+          ctx.ellipse(34.5, 0, 4.8, 7.8, 0, -Math.PI / 2, Math.PI / 2);
+          ctx.lineTo(20, 3.6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Disco claro na ponta da espícula
+          ctx.fillStyle = '#a4f258';
+          ctx.beginPath();
+          ctx.ellipse(34.5, 0, 2.8, 5.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        // 3. Corpo esférico principal com gradiente verde-limão
+        const bodyGrad = ctx.createRadialGradient(-7, -9, 3, 0, 0, 24);
+        bodyGrad.addColorStop(0, '#bcf974');
+        bodyGrad.addColorStop(0.55, '#6ec92b');
+        bodyGrad.addColorStop(1, '#3b7e13');
+
+        ctx.fillStyle = bodyGrad;
+        ctx.strokeStyle = '#0b1209';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 23, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Desliga sombra para detalhes faciais nítidos
+        ctx.shadowBlur = 0;
+
+        // Reflexo especular na testa esquerda
+        ctx.fillStyle = 'rgba(235, 255, 200, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(-9, -11, 6.5, 3.5, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Manchas/poros verdes mais escuros na testa
+        ctx.fillStyle = 'rgba(55, 118, 18, 0.55)';
+        const spots = [
+          { x: -3, y: -15, r: 2.2 },
+          { x: 3, y: -16, r: 1.7 },
+          { x: 0, y: -11.5, r: 2.5 },
+          { x: 6, y: -12, r: 1.6 },
+          { x: -6, y: -12, r: 1.4 }
+        ];
+        for (const s of spots) {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 4. Olhos brancos grandes com íris vermelha e pupila preta
+        const drawEye = (ex, ey, isLeft) => {
+          ctx.save();
+          ctx.translate(ex, ey);
+
+          // Esclera branca
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#0b1209';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 6.6, 7.2, isLeft ? -0.15 : 0.15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Íris vermelha vibrante
+          ctx.fillStyle = '#e6192e';
+          ctx.beginPath();
+          ctx.arc(isLeft ? 1.2 : -1.2, 0.5, 3.6, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Pupila preta
+          ctx.fillStyle = '#090909';
+          ctx.beginPath();
+          ctx.arc(isLeft ? 1.3 : -1.3, 0.5, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Brilho branco no olho
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(isLeft ? 0.2 : -2.3, -1.0, 1.1, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        };
+
+        drawEye(-7.5, -1.5, true);
+        drawEye(7.5, -1.5, false);
+
+        // 5. Sobrancelhas pretas grossas franzidas em "V" raivoso
+        ctx.strokeStyle = '#090d08';
+        ctx.lineWidth = 3.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        // Sobrancelha esquerda
+        ctx.moveTo(-15.5, -8.5);
+        ctx.quadraticCurveTo(-8, -7.5, -1.5, -2.5);
+        // Sobrancelha direita
+        ctx.moveTo(15.5, -8.5);
+        ctx.quadraticCurveTo(8, -7.5, 1.5, -2.5);
+        ctx.stroke();
+
+        // 6. Sorriso maligno com duas presas brancas pontiagudas
+        ctx.strokeStyle = '#090d08';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(-11, 8.5);
+        ctx.quadraticCurveTo(0, 13.5, 11, 8.5);
+        ctx.stroke();
+
+        // Presa esquerda
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#090d08';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-8.2, 9.6);
+        ctx.lineTo(-6.2, 15.2);
+        ctx.lineTo(-3.8, 10.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Presa direita
+        ctx.beginPath();
+        ctx.moveTo(8.2, 9.6);
+        ctx.lineTo(6.2, 15.2);
+        ctx.lineTo(3.8, 10.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Desenha o Jogador (Vírus Cartoon Base ou acoplado ao Hospedeiro)
+      drawPlayer(player) {
+        const ctx = this.ctx;
+        if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 20) % 2 === 0) {
+          return;
+        }
+
+        ctx.save();
+        ctx.translate(player.x, player.y);
+
+        if (!player.host) {
+          // FORMA BASE: Vírus Cartoon completo e expressivo
+          // Pequeno indicador de mira na direção do mouse
+          ctx.save();
+          ctx.rotate(player.angle);
+          ctx.strokeStyle = 'rgba(125, 244, 56, 0.55)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.radius + 11, -0.35, 0.35);
+          ctx.stroke();
+          ctx.restore();
+
+          this._drawCartoonVirusSprite(ctx, player.radius, player.pulsePhase);
+        } else {
+          // HOSPEDEIRO INFECTADO: Ícone do arquivo energizado + Vírus Cartoon no núcleo
+          const color = player.host.color;
+
+          // Anel de energia orbital na cor do hospedeiro
+          ctx.save();
+          ctx.rotate(player.angle);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = color;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.radius + 9, -0.65, 0.65);
+          ctx.stroke();
+          ctx.restore();
+
+          // Chassi do arquivo possuído
+          this._drawFileDocument(ctx, player.host.id, color, player.radius, false);
+
+          // Mini-vírus cartoon acoplado no topo/centro comandando o arquivo
+          ctx.save();
+          ctx.translate(0, -4);
+          this._drawCartoonVirusSprite(ctx, 13, player.pulsePhase);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      drawElectricTrails(trails) {
+        const ctx = this.ctx;
+        for (const t of trails) {
+          const alpha = Math.max(0, t.life / t.maxLife);
+          ctx.save();
+          ctx.strokeStyle = CONFIG.COLORS.ZIP;
+          ctx.globalAlpha = alpha * 0.9;
+          ctx.lineWidth = 2.2;
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = CONFIG.COLORS.ZIP;
+
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + t.life * 7;
+            const r = t.radius * (0.65 + Math.random() * 0.45);
+            const px = t.x + Math.cos(a) * r;
+            const py = t.y + Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      drawProjectiles(projectiles) {
+        const ctx = this.ctx;
+        for (const p of projectiles) {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.angle);
+
+          if (p.type === 'EXE_SHELL') {
+            // Bala pixelada laranja com rastro de brasas (como na imagem de referência)
+            const r = p.radius;
+            for (let i = 1; i <= 5; i++) {
+              ctx.globalAlpha = 0.6 - i * 0.1;
+              ctx.fillStyle = i % 2 ? '#ff9900' : '#ffcf66';
+              const sz = Math.max(2, 7 - i);
+              ctx.fillRect(-r * 1.2 - i * 7, -sz / 2 + (i % 2 ? 2 : -2), sz * 1.6, sz);
+            }
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = p.color;
+            ctx.fillStyle = '#fff1c4';
+            ctx.fillRect(-r * 1.2, -r * 0.55, r * 2.4, r * 1.1);
+            ctx.fillStyle = '#ff7a00';
+            ctx.fillRect(-r * 1.2, -r * 0.55, r * 0.9, r * 1.1);
+            ctx.strokeStyle = '#ff7a00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-r * 1.2, -r * 0.55, r * 2.4, r * 1.1);
+          } else if (p.type === 'MP3_WAVE') {
+            // Ondas sonoras em arco ciano (como na imagem de referência)
+            const alpha = Math.max(0, p.life / p.maxLife);
+            ctx.strokeStyle = p.color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = 3.2;
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius, -0.62, 0.62);
+            ctx.stroke();
+
+            // Segundo arco interno mais fino
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(-6, 0, p.radius * 0.72, -0.5, 0.5);
+            ctx.stroke();
+          } else if (p.type === 'MP4_BEAM') {
+            // Raio de luz dourado
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 5;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.moveTo(-90, 0);
+            ctx.lineTo(24, 0);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-70, 0);
+            ctx.lineTo(24, 0);
+            ctx.stroke();
+          } else if (p.type === 'BAT_BULLET') {
+            // Rajada verde-neon
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = p.color;
+            ctx.fillStyle = 'rgba(57, 255, 106, 0.35)';
+            ctx.fillRect(-24, -2, 16, 4);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-7, -3, 15, 6);
+            ctx.fillStyle = '#eaffee';
+            ctx.fillRect(-2, -1.2, 8, 2.4);
+          } else if (p.type === 'DOC_MISSILE') {
+            // Míssil azul com chama
+            ctx.fillStyle = '#bcd6ff';
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.moveTo(12, 0);
+            ctx.lineTo(2, -5);
+            ctx.lineTo(-9, -5);
+            ctx.lineTo(-9, 5);
+            ctx.lineTo(2, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ffb347';
+            ctx.beginPath();
+            ctx.moveTo(-9, -3);
+            ctx.lineTo(-18 - Math.random() * 7, 0);
+            ctx.lineTo(-9, 3);
+            ctx.fill();
+          } else if (p.type === 'DLL_PULSE') {
+            // Anel de pulso de dados 360°
+            const alpha = Math.max(0, p.life / p.maxLife);
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([4, 7]);
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius * 0.82, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#ffffff';
+            const spin = performance.now() / 200;
+            for (let i = 0; i < 16; i++) {
+              const a = (i / 16) * Math.PI * 2 + spin;
+              ctx.fillRect(Math.cos(a) * p.radius - 2, Math.sin(a) * p.radius - 2, 4, 4);
+            }
+          } else if (p.type === 'ISO_QUAKE') {
+            // Onda sísmica com rachaduras radiais
+            const alpha = Math.max(0, p.life / p.maxLife);
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 7;
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.radius * 0.78, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.8;
+            for (let i = 0; i < 16; i++) {
+              const a = (i / 16) * Math.PI * 2 + Math.sin(i * 12.9898) * 0.15;
+              const r1 = p.radius * 0.7;
+              const r2 = p.radius * (1.0 + (Math.sin(i * 7.31) + 1) * 0.07);
+              ctx.beginPath();
+              ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+              ctx.lineTo(Math.cos(a + 0.05) * (r1 + r2) / 2, Math.sin(a + 0.05) * (r1 + r2) / 2);
+              ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+              ctx.stroke();
+            }
+          }
+          ctx.restore();
+        }
+      }
+
+      // Desenha os inimigos: Cristais Vermelhos Multifacetados e Escudos Firewall com Cruz
+      drawEnemy(enemy) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(enemy.x, enemy.y);
+
+        const isFlashing = enemy.hitFlash > 0;
+        const color = isFlashing ? '#ffffff' : enemy.color;
+        const r = enemy.radius;
+
+        if (enemy.variant === 'FIREWALL') {
+          // ESCUDO FIREWALL VERMELHO COM CRUZ MÉDICA/ALERTA NO CENTRO (Referência)
+          ctx.shadowBlur = 18;
+          ctx.shadowColor = color;
+          ctx.strokeStyle = isFlashing ? '#ffffff' : '#ff4d6d';
+          ctx.lineWidth = 2.6;
+
+          const grad = ctx.createLinearGradient(-r, -r, r, r);
+          grad.addColorStop(0, isFlashing ? '#ffffff' : '#ff1e42');
+          grad.addColorStop(1, isFlashing ? '#dddddd' : '#7a0018');
+          ctx.fillStyle = grad;
+
+          // Formato heráldico de escudo
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 1.05);
+          ctx.lineTo(r * 0.92, -r * 0.65);
+          ctx.lineTo(r * 0.82, r * 0.25);
+          ctx.quadraticCurveTo(r * 0.45, r * 0.85, 0, r * 1.15);
+          ctx.quadraticCurveTo(-r * 0.45, r * 0.85, -r * 0.82, r * 0.25);
+          ctx.lineTo(-r * 0.92, -r * 0.65);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Arcos de energia ciano na frente do escudo (voltados para o jogador)
+          ctx.save();
+          ctx.rotate(enemy.angle);
+          ctx.strokeStyle = '#5adfff';
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = '#00d5ff';
+          ctx.lineWidth = 2.2;
+          for (let i = 0; i < 3; i++) {
+            const wave = Math.sin(performance.now() / 170 + i * 1.1) * 3;
+            ctx.globalAlpha = 0.8 - i * 0.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, r * (1.45 + i * 0.35) + wave, -0.5, 0.5);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // Cruz de defesa/quarentena no centro do escudo
+          ctx.fillStyle = isFlashing ? '#ff0033' : '#ff6680';
+          ctx.shadowBlur = 8;
+          const cw = r * 0.28;
+          const cl = r * 0.72;
+          ctx.fillRect(-cw / 2, -cl / 2, cw, cl);
+          ctx.fillRect(-cl / 2, -cw / 2, cl, cw);
+
+        } else if (enemy.variant === 'SWIFT') {
+          // DARDO VERMELHO COM ASAS (como as flechas da imagem de referência)
+          ctx.rotate(enemy.angle);
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = color;
+          ctx.strokeStyle = isFlashing ? '#ffffff' : '#ff6b86';
+          ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
+
+          // Metade superior iluminada
+          ctx.fillStyle = isFlashing ? '#ffffff' : '#ff2a4d';
+          ctx.beginPath();
+          ctx.moveTo(r * 1.5, 0);
+          ctx.lineTo(-r * 0.2, -r * 0.55);
+          ctx.lineTo(-r * 0.9, -r * 1.35);
+          ctx.lineTo(-r * 0.7, -r * 0.2);
+          ctx.lineTo(-r * 1.2, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Metade inferior sombreada
+          ctx.fillStyle = isFlashing ? '#dddddd' : '#8f0020';
+          ctx.beginPath();
+          ctx.moveTo(r * 1.5, 0);
+          ctx.lineTo(-r * 1.2, 0);
+          ctx.lineTo(-r * 0.7, r * 0.2);
+          ctx.lineTo(-r * 0.9, r * 1.35);
+          ctx.lineTo(-r * 0.2, r * 0.55);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          // ANTIVÍRUS CRISTAL: gema vermelha octaédrica multifacetada
+          const wob = Math.sin(performance.now() / 260 + enemy.x * 0.01) * 0.08;
+          ctx.rotate(wob);
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = color;
+          ctx.strokeStyle = isFlashing ? '#ffffff' : '#ff8da0';
+          ctx.lineWidth = 1.8;
+          ctx.lineJoin = 'round';
+
+          const T = [0, -r * 1.3], L = [-r * 1.0, -r * 0.05], R = [r * 1.0, -r * 0.05];
+          const B = [0, r * 1.35], C = [0, r * 0.25];
+          const faces = [
+            [T, L, C, isFlashing ? '#ffffff' : '#ff4d6a'],
+            [T, C, R, isFlashing ? '#f0f0f0' : '#ff1a40'],
+            [L, B, C, isFlashing ? '#dddddd' : '#b3002a'],
+            [C, B, R, isFlashing ? '#cccccc' : '#7a0019']
+          ];
+          for (const [p1, p2, p3, fill] of faces) {
+            ctx.fillStyle = fill;
+            ctx.beginPath();
+            ctx.moveTo(p1[0], p1[1]);
+            ctx.lineTo(p2[0], p2[1]);
+            ctx.lineTo(p3[0], p3[1]);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+
+        // Barra de vida sutil quando ferido
+        if (enemy.hp < enemy.maxHp) {
+          const barW = enemy.radius * 1.8;
+          const pct = Math.max(0, enemy.hp / enemy.maxHp);
+          ctx.save();
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(enemy.x - barW / 2, enemy.y - enemy.radius - 13, barW, 4);
+          ctx.fillStyle = enemy.color;
+          ctx.fillRect(enemy.x - barW / 2, enemy.y - enemy.radius - 13, barW * pct, 4);
+          ctx.restore();
+        }
+      }
+    }
+
+    /**
+     * =========================================================================
+     * MÓDULO 7: CONTROLADOR PRINCIPAL DO JOGO (LOOP, COLISÕES E HUD)
+     * =========================================================================
+     */
+    class Game {
+      constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.renderer = new Renderer(this.canvas);
+        this.sound = new SoundEngine();
+        this.particles = new ParticleSystem();
+        this.hostSpawner = new HostSpawner();
+        this.waveManager = new WaveManager();
+
+        this.state = 'MENU';
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+
+        this.player = new Player(this.width / 2, this.height / 2);
+        this.enemies = [];
+        this.projectiles = [];
+        this.electricTrails = [];
+
+        this.score = 0;
+        this.kills = 0;
+        this.shakeTime = 0;
+        this.shakeIntensity = 0;
+        this.hitStopTimer = 0;
+        this.bannerTimeout = null;
+
+        this.input = {
+          keys: {},
+          mouseX: this.width / 2,
+          mouseY: this.height / 2,
+          mouseDown: false
+        };
+
+        this._bindEvents();
+        this.lastTime = performance.now();
+        requestAnimationFrame((t) => this.loop(t));
+      }
+
+      _bindEvents() {
+        window.addEventListener('resize', () => {
+          this.width = window.innerWidth;
+          this.height = window.innerHeight;
+          this.canvas.width = this.width;
+          this.canvas.height = this.height;
+        });
+
+        window.addEventListener('keydown', (e) => {
+          this.input.keys[e.code] = true;
+          if (e.code === 'Space' && this.state === 'PLAYING') {
+            e.preventDefault();
+            this.handleSpaceOrRightClick();
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          this.input.keys[e.code] = false;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          this.input.mouseX = e.clientX;
+          this.input.mouseY = e.clientY;
+        });
+
+        window.addEventListener('mousedown', (e) => {
+          if (this.state !== 'PLAYING') return;
+          if (e.button === 0) {
+            this.input.mouseDown = true;
+            this.useHostAbility();
+          } else if (e.button === 2) {
+            this.handleSpaceOrRightClick();
+          }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+          if (e.button === 0) this.input.mouseDown = false;
+        });
+
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+          this.sound.init();
+          this.startNewGame();
+        });
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+          this.sound.init();
+          this.startNewGame();
+        });
+
+        const muteBtn = document.getElementById('muteBtn');
+        muteBtn.addEventListener('click', () => {
+          this.sound.init();
+          const muted = this.sound.toggleMute();
+          muteBtn.textContent = muted ? 'SOM: OFF' : 'SOM: ON';
+        });
+      }
+
+      triggerShake(intensity, duration) {
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+        this.shakeTime = Math.max(this.shakeTime, duration);
+      }
+
+      showBanner(text, color = '#ff1138') {
+        const banner = document.getElementById('hudAlertMsg');
+        if (!banner) return;
+        banner.textContent = text;
+        banner.style.color = color;
+        banner.style.borderColor = color;
+        banner.style.textShadow = `0 0 8px ${color}`;
+        banner.style.opacity = '1';
+
+        clearTimeout(this.bannerTimeout);
+        this.bannerTimeout = setTimeout(() => {
+          banner.style.opacity = '0';
+        }, 2400);
+      }
+
+      startNewGame() {
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('gameOverScreen').classList.add('hidden');
+
+        this.player = new Player(this.width / 2, this.height / 2);
+        this.enemies = [];
+        this.projectiles = [];
+        this.electricTrails = [];
+        this.particles = new ParticleSystem();
+
+        this.score = 0;
+        this.kills = 0;
+        this.shakeTime = 0;
+        this.hitStopTimer = 0;
+
+        this.hostSpawner.reset(this.width, this.height);
+        this.waveManager.startWave(1);
+        this.state = 'PLAYING';
+
+        this.sound.playWaveStart();
+        this.showBanner('// ONDA 01 INICIADA - INVADA UM ARQUIVO!', '#7df438');
+        this.updateHUD();
+      }
+
+      // Infecta arquivo próximo ou ejeta voluntariamente se não houver arquivo próximo
+      handleSpaceOrRightClick() {
+        const nearest = this.hostSpawner.findNearest(
+          this.player.x,
+          this.player.y,
+          CONFIG.VIRUS_BASE.infectRange
+        );
+
+        if (nearest) {
+          const oldX = this.player.x;
+          const oldY = this.player.y;
+          const idx = this.hostSpawner.files.indexOf(nearest);
+          if (idx !== -1) this.hostSpawner.files.splice(idx, 1);
+
+          // Raio elétrico saltando do vírus para o arquivo infectado
+          this.particles.addLightning(oldX, oldY, nearest.x, nearest.y, '#00f3ff', 0.28);
+
+          this.player.x = nearest.x;
+          this.player.y = nearest.y;
+          this.player.infect(nearest.typeKey);
+
+          this.sound.playInfect(nearest.typeKey);
+          this.particles.emit(nearest.x, nearest.y, nearest.config.color, 26, 280, 0.55, 5);
+          this.particles.addShockwave(nearest.x, nearest.y, 90, nearest.config.color, 0.35);
+          this.particles.addText(nearest.x, nearest.y - 28, `[INFECTADO: ${nearest.config.tag}]`, nearest.config.color);
+          this.triggerShake(5, 0.14);
+          this.updateHUD();
+        } else if (this.player.host) {
+          // Ejeção voluntária rápida para fugir de cerco
+          const oldColor = this.player.color;
+          this.player.eject();
+          this.sound.playDamage(true);
+          this.particles.emit(this.player.x, this.player.y, oldColor, 18, 220, 0.45, 4);
+          this.particles.addText(this.player.x, this.player.y - 24, 'EJETADO!', '#7df438');
+          this.updateHUD();
+        }
+      }
+
+      useHostAbility() {
+        const p = this.player;
+        if (!p.host || p.cooldownTimer > 0) return;
+
+        const dirX = Math.cos(p.angle);
+        const dirY = Math.sin(p.angle);
+
+        if (p.host.id === 'EXE') {
+          p.cooldownTimer = p.host.cooldown;
+          this.projectiles.push(new Projectile({
+            x: p.x + dirX * (p.radius + 10),
+            y: p.y + dirY * (p.radius + 10),
+            vx: dirX * 540,
+            vy: dirY * 540,
+            radius: 8,
+            damage: 65,
+            color: CONFIG.COLORS.EXE,
+            type: 'EXE_SHELL',
+            life: 1.5,
+            splashRadius: 95
+          }));
+          this.sound.playShootExe();
+          this.triggerShake(4.5, 0.12);
+          this.particles.emit(p.x + dirX * 26, p.y + dirY * 26, CONFIG.COLORS.EXE, 8, 140, 0.25, 4);
+
+        } else if (p.host.id === 'MP3') {
+          p.cooldownTimer = p.host.cooldown;
+          this.projectiles.push(new Projectile({
+            x: p.x + dirX * 18,
+            y: p.y + dirY * 18,
+            vx: dirX * 670,
+            vy: dirY * 670,
+            radius: 24,
+            damage: 18,
+            color: CONFIG.COLORS.MP3,
+            type: 'MP3_WAVE',
+            life: 0.42,
+            knockback: 360
+          }));
+          this.sound.playShootMp3();
+
+        } else if (p.host.id === 'ZIP') {
+          p.cooldownTimer = p.host.cooldown;
+          const startX = p.x;
+          const startY = p.y;
+          p.dashTimer = 0.22;
+          p.dashDirX = dirX;
+          p.dashDirY = dirY;
+          p.invulnTimer = Math.max(p.invulnTimer, 0.28);
+          this.sound.playDashZip();
+          this.triggerShake(4, 0.12);
+          this.particles.addLightning(startX, startY, startX + dirX * 180, startY + dirY * 180, '#d500f9', 0.25);
+          this.particles.emit(p.x, p.y, CONFIG.COLORS.ZIP, 18, 230, 0.4, 4.5);
+
+        } else if (p.host.id === 'MP4') {
+          // RAIO DE LUZ: laser dourado instantâneo que atravessa todos os inimigos da linha
+          p.cooldownTimer = p.host.cooldown;
+          this.projectiles.push(new Projectile({
+            x: p.x + dirX * (p.radius + 8),
+            y: p.y + dirY * (p.radius + 8),
+            vx: dirX * 1150,
+            vy: dirY * 1150,
+            radius: 12,
+            damage: 48,
+            color: CONFIG.COLORS.MP4,
+            type: 'MP4_BEAM',
+            life: 0.55
+          }));
+          this.sound.playShootPdf();
+          this.particles.addLightning(p.x, p.y, p.x + dirX * 90, p.y + dirY * 90, CONFIG.COLORS.MP4, 0.12);
+          this.triggerShake(3.5, 0.1);
+
+        } else if (p.host.id === 'BAT') {
+          // TIRO TRIPLO: rajadas rápidas de comando verde-neon em leque
+          p.cooldownTimer = p.host.cooldown;
+          for (const off of [-0.16, 0, 0.16]) {
+            const a = p.angle + off;
+            this.projectiles.push(new Projectile({
+              x: p.x + Math.cos(a) * (p.radius + 6),
+              y: p.y + Math.sin(a) * (p.radius + 6),
+              vx: Math.cos(a) * 780,
+              vy: Math.sin(a) * 780,
+              radius: 6,
+              damage: 13,
+              color: CONFIG.COLORS.BAT,
+              type: 'BAT_BULLET',
+              life: 0.8
+            }));
+          }
+          this.sound.playShootJpg();
+          this.triggerShake(2, 0.06);
+          this.particles.emit(p.x + dirX * 28, p.y + dirY * 28, CONFIG.COLORS.BAT, 5, 130, 0.2, 3.5);
+
+        } else if (p.host.id === 'DOC') {
+          // MÍSSIL: 2 mísseis azuis teleguiados que detonam com impacto explosivo
+          p.cooldownTimer = p.host.cooldown;
+          for (const off of [-0.4, 0.4]) {
+            const a = p.angle + off;
+            this.projectiles.push(new Projectile({
+              x: p.x + Math.cos(a) * (p.radius + 6),
+              y: p.y + Math.sin(a) * (p.radius + 6),
+              vx: Math.cos(a) * 330,
+              vy: Math.sin(a) * 330,
+              radius: 9,
+              damage: 34,
+              color: CONFIG.COLORS.DOC,
+              type: 'DOC_MISSILE',
+              life: 2.4
+            }));
+          }
+          this.sound.playShootDll();
+          this.particles.emit(p.x + dirX * 24, p.y + dirY * 24, CONFIG.COLORS.DOC, 8, 140, 0.25, 4);
+
+        } else if (p.host.id === 'DLL') {
+          // PULSO 360°: anel de dados que atinge e afasta inimigos ao redor
+          p.cooldownTimer = p.host.cooldown;
+          this.projectiles.push(new Projectile({
+            x: p.x,
+            y: p.y,
+            vx: 0,
+            vy: 0,
+            radius: 20,
+            damage: 22,
+            color: CONFIG.COLORS.DLL,
+            type: 'DLL_PULSE',
+            life: 0.3,
+            knockback: 1100
+          }));
+          this.sound.playPulse();
+          this.triggerShake(6, 0.14);
+          this.particles.emit(p.x, p.y, CONFIG.COLORS.DLL, 24, 300, 0.4, 4);
+
+        } else if (p.host.id === 'ISO') {
+          // ONDA SÍSMICA: onda expansiva grande que varre e estilhaça ameaças próximas
+          p.cooldownTimer = p.host.cooldown;
+          this.projectiles.push(new Projectile({
+            x: p.x,
+            y: p.y,
+            vx: 0,
+            vy: 0,
+            radius: 20,
+            damage: 42,
+            color: CONFIG.COLORS.ISO,
+            type: 'ISO_QUAKE',
+            life: 0.6,
+            knockback: 700
+          }));
+          this.sound.playQuake();
+          this.triggerShake(11, 0.3);
+          this.particles.emit(p.x, p.y, CONFIG.COLORS.ISO, 30, 340, 0.5, 5);
+        }
+      }
+
+      // Explosão em área genérica (mísseis .DLL e minas .BAT)
+      explodeSplash(proj, radius) {
+        this.sound.playExplosion(true);
+        this.particles.emit(proj.x, proj.y, proj.color, 22, 260, 0.45, 5);
+        this.particles.addShockwave(proj.x, proj.y, radius, proj.color, 0.3);
+        this.triggerShake(5, 0.12);
+        for (let k = this.enemies.length - 1; k >= 0; k--) {
+          const t = this.enemies[k];
+          if (!t) continue;
+          if (Math.hypot(proj.x - t.x, proj.y - t.y) <= radius + t.radius) {
+            const ang = Math.atan2(t.y - proj.y, t.x - proj.x);
+            this.damageEnemy(t, proj.damage, Math.cos(ang) * 190, Math.sin(ang) * 190);
+          }
+        }
+      }
+
+      damageEnemy(enemy, amount, knockX = 0, knockY = 0) {
+        enemy.hp -= amount;
+        enemy.hitFlash = 0.08;
+        enemy.knockVx += knockX;
+        enemy.knockVy += knockY;
+
+        if (enemy.hp <= 0) {
+          const idx = this.enemies.indexOf(enemy);
+          if (idx !== -1) {
+            this.enemies.splice(idx, 1);
+            this.score += enemy.scoreValue;
+            this.kills += 1;
+            this.sound.playExplosion(enemy.variant === 'FIREWALL');
+            this.particles.emit(
+              enemy.x,
+              enemy.y,
+              enemy.color,
+              enemy.variant === 'FIREWALL' ? 32 : 16,
+              enemy.variant === 'FIREWALL' ? 320 : 220,
+              0.52,
+              enemy.variant === 'FIREWALL' ? 6 : 4.5
+            );
+            this.particles.addText(enemy.x, enemy.y - 12, `+${enemy.scoreValue}B`, '#7df438');
+            this.triggerShake(enemy.variant === 'FIREWALL' ? 8 : 3, 0.14);
+            this.updateHUD();
+          }
+        }
+      }
+
+      handlePlayerHit(enemy) {
+        const p = this.player;
+        if (p.invulnTimer > 0) return;
+
+        if (p.dashTimer > 0 && p.host && p.host.id === 'ZIP') {
+          this.damageEnemy(enemy, 55, p.dashDirX * 260, p.dashDirY * 260);
+          return;
+        }
+
+        if (p.host) {
+          p.hp -= enemy.damage;
+          p.invulnTimer = 0.55;
+          this.particles.emit(p.x, p.y, p.color, 16, 210, 0.35, 4);
+          this.triggerShake(7, 0.18);
+
+          const ang = Math.atan2(enemy.y - p.y, enemy.x - p.x);
+          enemy.knockVx += Math.cos(ang) * 240;
+          enemy.knockVy += Math.sin(ang) * 240;
+
+          if (p.hp <= 0) {
+            const destroyedColor = p.color;
+            p.eject();
+            this.hitStopTimer = 0.06;
+            this.sound.playDamage(true);
+            this.particles.emit(p.x, p.y, destroyedColor, 30, 310, 0.6, 5.5);
+            this.particles.addShockwave(p.x, p.y, 115, destroyedColor, 0.4);
+            this.particles.addText(p.x, p.y - 24, 'ARQUIVO CORROMPIDO! EJETADO!', '#ff1138');
+            this.showBanner('ALERTA: HOSPEDEIRO DESTRUÍDO! BUSQUE OUTRO ARQUIVO!', '#ff9900');
+          } else {
+            this.sound.playDamage(false);
+          }
+          this.updateHUD();
+        } else {
+          this.triggerGameOver();
+        }
+      }
+
+      triggerGameOver() {
+        this.state = 'GAMEOVER';
+        this.sound.playGameOver();
+        this.particles.emit(this.player.x, this.player.y, '#7df438', 42, 340, 0.85, 6);
+        this.particles.addShockwave(this.player.x, this.player.y, 165, CONFIG.COLORS.ENEMY_BASIC, 0.5);
+        this.triggerShake(14, 0.4);
+
+        document.getElementById('finalScore').textContent = `${this.score.toLocaleString('pt-BR')} BYTES`;
+        document.getElementById('finalWave').textContent = String(this.waveManager.wave).padStart(2, '0');
+        document.getElementById('finalKills').textContent = this.kills;
+        document.getElementById('gameOverScreen').classList.remove('hidden');
+      }
+
+      updateHUD() {
+        const p = this.player;
+        const hostNameEl = document.getElementById('hudHostName');
+        const fillEl = document.getElementById('integrityFill');
+        const textEl = document.getElementById('hudIntegrityText');
+
+        if (p.host) {
+          hostNameEl.textContent = `HOSPEDEIRO: ${p.host.label}`;
+          hostNameEl.style.color = p.host.color;
+
+          const pct = Math.max(0, Math.min(100, Math.round((p.hp / p.maxHp) * 100)));
+          fillEl.style.width = `${pct}%`;
+          fillEl.style.backgroundColor = p.host.color;
+          fillEl.style.boxShadow = `0 0 8px ${p.host.color}`;
+          textEl.textContent = `INTEGRIDADE: ${pct}%`;
+          textEl.style.color = p.host.color;
+        } else {
+          hostNameEl.textContent = 'HOSPEDEIRO: VÍRUS BASE';
+          hostNameEl.style.color = '#7be8ff';
+
+          fillEl.style.width = '100%';
+          fillEl.style.backgroundColor = '#7df438';
+          fillEl.style.boxShadow = '0 0 8px #7df438';
+          textEl.textContent = 'INTEGRIDADE: 100%';
+          textEl.style.color = '#7be8ff';
+        }
+
+        document.getElementById('hudWave').textContent = `ONDA: ${String(this.waveManager.wave).padStart(2, '0')}`;
+        document.getElementById('hudScore').textContent = `PONTOS: ${this.score.toLocaleString('pt-BR')} BYTES`;
+      }
+
+      update(dt) {
+        if (this.hitStopTimer > 0) {
+          this.hitStopTimer -= dt;
+          return;
+        }
+
+        if (this.shakeTime > 0) {
+          this.shakeTime -= dt;
+          if (this.shakeTime <= 0) this.shakeIntensity = 0;
+        }
+
+        this.particles.update(dt);
+
+        if (this.state !== 'PLAYING') return;
+
+        if (this.input.mouseDown) {
+          this.useHostAbility();
+        }
+
+        this.player.update(dt, this.input, { width: this.width, height: this.height });
+
+        if (this.player.dashTimer > 0) {
+          this.player.dashTrailTimer -= dt;
+          if (this.player.dashTrailTimer <= 0) {
+            this.electricTrails.push(new ElectricTrail(this.player.x, this.player.y));
+            this.player.dashTrailTimer = 0.035;
+          }
+        }
+
+        this.hostSpawner.update(dt, this.width, this.height, this.player);
+
+        const wm = this.waveManager;
+        if (wm.enemiesToSpawn > 0) {
+          wm.spawnTimer -= dt;
+          if (wm.spawnTimer <= 0) {
+            this.enemies.push(wm.spawnEnemy(this.width, this.height));
+            wm.enemiesToSpawn--;
+            wm.spawnTimer = Math.max(0.32, 1.15 - wm.wave * 0.06);
+          }
+        } else if (this.enemies.length === 0) {
+          wm.startWave(wm.wave + 1);
+          this.sound.playWaveStart();
+          this.showBanner(`// ONDA ${String(wm.wave).padStart(2, '0')} - FIREWALLS INTENSIFICADOS!`, '#ff1138');
+          this.updateHUD();
+        }
+
+        // Atualiza projéteis e verifica colisões
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+          const proj = this.projectiles[i];
+          proj.update(dt, this.enemies);
+
+          if (proj.life <= 0) {
+            this.projectiles.splice(i, 1);
+            continue;
+          }
+
+          for (let j = this.enemies.length - 1; j >= 0; j--) {
+            const enemy = this.enemies[j];
+            const dist = Math.hypot(proj.x - enemy.x, proj.y - enemy.y);
+
+            if (dist < proj.radius + enemy.radius) {
+              if (proj.type === 'EXE_SHELL') {
+                this.sound.playExplosion(true);
+                this.particles.emit(proj.x, proj.y, CONFIG.COLORS.EXE, 24, 270, 0.45, 5);
+                this.particles.addShockwave(proj.x, proj.y, proj.splashRadius, CONFIG.COLORS.EXE, 0.3);
+                this.triggerShake(6, 0.15);
+
+                for (let k = this.enemies.length - 1; k >= 0; k--) {
+                  const target = this.enemies[k];
+                  const splashDist = Math.hypot(proj.x - target.x, proj.y - target.y);
+                  if (splashDist <= proj.splashRadius + target.radius) {
+                    const ang = Math.atan2(target.y - proj.y, target.x - proj.x);
+                    this.damageEnemy(target, proj.damage, Math.cos(ang) * 190, Math.sin(ang) * 190);
+                  }
+                }
+
+                this.projectiles.splice(i, 1);
+                break;
+
+              } else if (proj.type === 'MP3_WAVE') {
+                if (!proj.hitEnemies.has(enemy)) {
+                  proj.hitEnemies.add(enemy);
+                  const kx = Math.cos(proj.angle) * proj.knockback;
+                  const ky = Math.sin(proj.angle) * proj.knockback;
+                  this.particles.emit(enemy.x, enemy.y, CONFIG.COLORS.MP3, 6, 140, 0.25, 3.5);
+                  this.damageEnemy(enemy, proj.damage, kx, ky);
+                }
+
+              } else if (proj.type === 'MP4_BEAM') {
+                if (!proj.hitEnemies.has(enemy)) {
+                  proj.hitEnemies.add(enemy);
+                  this.particles.emit(enemy.x, enemy.y, CONFIG.COLORS.MP4, 10, 200, 0.3, 4);
+                  this.damageEnemy(enemy, proj.damage, Math.cos(proj.angle) * 120, Math.sin(proj.angle) * 120);
+                }
+
+              } else if (proj.type === 'BAT_BULLET') {
+                this.particles.emit(proj.x, proj.y, proj.color, 5, 140, 0.22, 3.5);
+                this.damageEnemy(enemy, proj.damage, Math.cos(proj.angle) * 110, Math.sin(proj.angle) * 110);
+                this.projectiles.splice(i, 1);
+                break;
+
+              } else if (proj.type === 'DOC_MISSILE') {
+                this.explodeSplash(proj, 60);
+                this.projectiles.splice(i, 1);
+                break;
+
+              } else if (proj.type === 'DLL_PULSE' || proj.type === 'ISO_QUAKE') {
+                if (!proj.hitEnemies.has(enemy)) {
+                  proj.hitEnemies.add(enemy);
+                  const ang = Math.atan2(enemy.y - proj.y, enemy.x - proj.x);
+                  this.particles.emit(enemy.x, enemy.y, proj.color, proj.type === 'ISO_QUAKE' ? 14 : 8, 220, 0.35, 4);
+                  this.damageEnemy(enemy, proj.damage, Math.cos(ang) * proj.knockback, Math.sin(ang) * proj.knockback);
+                }
+              }
+            }
+          }
+        }
+
+        // Atualiza rastros elétricos do .ZIP
+        for (let i = this.electricTrails.length - 1; i >= 0; i--) {
+          const trail = this.electricTrails[i];
+          trail.update(dt);
+          if (trail.life <= 0) {
+            this.electricTrails.splice(i, 1);
+            continue;
+          }
+
+          if (trail.tickTimer <= 0) {
+            trail.tickTimer = 0.22;
+            for (let j = this.enemies.length - 1; j >= 0; j--) {
+              const enemy = this.enemies[j];
+              if (Math.hypot(trail.x - enemy.x, trail.y - enemy.y) < trail.radius + enemy.radius) {
+                this.damageEnemy(enemy, 14);
+              }
+            }
+          }
+        }
+
+        // Atualiza inimigos e colisão com jogador
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+          const enemy = this.enemies[i];
+          enemy.update(dt, this.player.x, this.player.y);
+
+          for (let j = i - 1; j >= 0; j--) {
+            const other = this.enemies[j];
+            const dx = enemy.x - other.x;
+            const dy = enemy.y - other.y;
+            const d = Math.hypot(dx, dy);
+            const minDist = enemy.radius + other.radius;
+            if (d > 0 && d < minDist) {
+              const push = (minDist - d) * 0.5;
+              const nx = dx / d;
+              const ny = dy / d;
+              enemy.x += nx * push;
+              enemy.y += ny * push;
+              other.x -= nx * push;
+              other.y -= ny * push;
+            }
+          }
+
+          const distToPlayer = Math.hypot(enemy.x - this.player.x, enemy.y - this.player.y);
+          if (distToPlayer < enemy.radius + this.player.radius - 2) {
+            this.handlePlayerHit(enemy);
+            if (this.state !== 'PLAYING') break;
+          }
+        }
+      }
+
+      render() {
+        const ctx = this.renderer.ctx;
+        ctx.save();
+
+        if (this.shakeTime > 0 && this.shakeIntensity > 0) {
+          const sx = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+          const sy = (Math.random() - 0.5) * 2 * this.shakeIntensity;
+          ctx.translate(sx, sy);
+        }
+
+        this.renderer.clearAndDrawBackground(this.width, this.height);
+
+        if (this.state === 'PLAYING' || this.state === 'GAMEOVER') {
+          const nearestFile = this.state === 'PLAYING'
+            ? this.hostSpawner.findNearest(this.player.x, this.player.y, CONFIG.VIRUS_BASE.infectRange)
+            : null;
+
+          for (const file of this.hostSpawner.files) {
+            this.renderer.drawNeutralFile(file, file === nearestFile);
+          }
+
+          if (nearestFile) {
+            this.renderer.drawInfectionLink(this.player, nearestFile);
+          }
+
+          this.renderer.drawElectricTrails(this.electricTrails);
+          this.renderer.drawProjectiles(this.projectiles);
+
+          for (const enemy of this.enemies) {
+            this.renderer.drawEnemy(enemy);
+          }
+
+          if (this.state === 'PLAYING') {
+            this.renderer.drawPlayer(this.player);
+          }
+        }
+
+        this.particles.draw(ctx);
+        ctx.restore();
+      }
+
+      loop(now) {
+        const dt = Math.min(0.05, (now - this.lastTime) / 1000);
+        this.lastTime = now;
+
+        // Protegido: um erro isolado (ex.: extensão do navegador mexendo na página) não congela o jogo
+        try {
+          this.update(dt);
+          this.render();
+        } catch (err) {
+          if (!this._loggedErr) { console.error('Erro no loop do jogo:', err); this._loggedErr = true; }
+        }
+
+        requestAnimationFrame((t) => this.loop(t));
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      new Game();
+    });
+  </script>
+</body>
+</html>
