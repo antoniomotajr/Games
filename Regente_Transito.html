@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regente do Trânsito — Controle Urbano Cyberpunk</title>
+  <style>
+    :root {
+      --bg-dark: #0b0d13;
+      --panel-bg: rgba(14, 18, 28, 0.92);
+      --neon-cyan: #00f0ff;
+      --neon-green: #00ff66;
+      --neon-red: #ff0044;
+      --neon-amber: #ffaa00;
+      --text-main: #e2e8f0;
+      --text-muted: #8a99ad;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HUD SUPERIOR */
+    #hud {
+      height: 58px;
+      background: linear-gradient(180deg, #111520 0%, #0b0d13 100%);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    .hud-group {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hud-label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .hud-value {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .val-cyan { color: var(--neon-cyan); text-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
+    .val-green { color: var(--neon-green); text-shadow: 0 0 8px rgba(0, 255, 102, 0.4); }
+    .val-red { color: var(--neon-red); text-shadow: 0 0 8px rgba(255, 0, 68, 0.4); }
+    .val-amber { color: var(--neon-amber); text-shadow: 0 0 8px rgba(255, 170, 0, 0.4); }
+
+    .btn-hud {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-hud:hover {
+      background: rgba(0, 240, 255, 0.18);
+      border-color: var(--neon-cyan);
+    }
+
+    /* ÁREA DO JOGO */
+    #game-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: calc(100vh - 58px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #080a0f;
+    }
+
+    canvas {
+      display: block;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      cursor: crosshair;
+    }
+
+    /* NOTIFICAÇÕES FLUTUANTES */
+    #alert-banner {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 20px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      z-index: 15;
+    }
+
+    .alert-train {
+      background: rgba(255, 170, 0, 0.2);
+      border: 1px solid var(--neon-amber);
+      color: var(--neon-amber);
+      box-shadow: 0 0 15px rgba(255, 170, 0, 0.4);
+    }
+
+    .alert-amb {
+      background: rgba(255, 0, 68, 0.2);
+      border: 1px solid var(--neon-red);
+      color: #ff6688;
+      box-shadow: 0 0 15px rgba(255, 0, 68, 0.4);
+    }
+
+    /* TELAS DE OVERLAY (INÍCIO / VITÓRIA / GAME OVER) */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 10, 16, 0.86);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .card {
+      background: var(--panel-bg);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.12);
+      border-radius: 8px;
+      max-width: 640px;
+      width: 92%;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .title-tag {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--neon-cyan);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 14px;
+      background: linear-gradient(90deg, #ffffff, #00f0ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+
+    .rule-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .rule-box strong {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.8px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .rule-box p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #00c8ff, #00ff88);
+      color: #060910;
+      border: none;
+      padding: 14px 36px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      border-radius: 4px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 28px rgba(0, 255, 136, 0.65);
+    }
+
+    .sector-selector {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .sector-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .sector-btn.active {
+      border-color: var(--neon-cyan);
+      color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.12);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HUD SUPERIOR -->
+  <header id="hud">
+    <div class="hud-group">
+      <div class="hud-item">
+        <span class="hud-label">Setor Ativo</span>
+        <span class="hud-value val-cyan" id="hud-sector">SETOR 1 — CENTRO DUPLO</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Fluxo Escoado / Meta</span>
+        <span class="hud-value val-green" id="hud-progress">0 / 25</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Pontuação</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+    </div>
+
+    <div class="hud-group">
+      <div class="hud-item">
+        <span class="hud-label">Acidentes Críticos</span>
+        <span class="hud-value val-red" id="hud-crashes">0 / 3</span>
+      </div>
+      <button class="btn-hud" id="btn-mute">SOM: ON</button>
+      <button class="btn-hud" id="btn-restart-hud">REINICIAR</button>
+    </div>
+  </header>
+
+  <!-- ÁREA PRINCIPAL DO CANVAS -->
+  <main id="game-container">
+    <div id="alert-banner">ALERTA DE SISTEMA</div>
+    <canvas id="gameCanvas" width="1200" height="700"></canvas>
+
+    <!-- TELA INICIAL -->
+    <section class="overlay" id="screen-start">
+      <div class="card">
+        <div class="title-tag">Sistema de Controle de Malha Viária v4.2</div>
+        <h1>REGENTE DO TRÂNSITO</h1>
+        <p class="subtitle">
+          Assuma o comando dos semáforos da metrópole noturna. Sincronize o fluxo, evite engarrafamentos críticos e dê passagem às emergências.
+        </p>
+
+        <div class="rules-grid">
+          <div class="rule-box">
+            <strong style="color: #00ff66;">1. Semáforos (Clique)</strong>
+            <p>Clique nos semáforos ou cruzamentos para alternar entre Verde e Vermelho instantaneamente.</p>
+          </div>
+          <div class="rule-box">
+            <strong style="color: #ffaa00;">2. Paciência (10s)</strong>
+            <p>Motoristas parados por mais de 10s ficam furiosos, buzinam e furam o sinal vermelho em alta velocidade.</p>
+          </div>
+          <div class="rule-box">
+            <strong style="color: #00f0ff;">3. Ambulâncias</strong>
+            <p>Nunca param no sinal vermelho. Libere os cruzamentos à frente delas para ganhar bônus altos.</p>
+          </div>
+          <div class="rule-box">
+            <strong style="color: #ff0044;">4. Trens de Carga</strong>
+            <p>Aviso amarelo nos trilhos 3s antes da passagem. Feche os semáforos que cruzam a ferrovia a tempo.</p>
+          </div>
+        </div>
+
+        <div class="sector-selector" id="sector-selector">
+          <button class="sector-btn active" data-level="0">Setor 1: Centro Duplo</button>
+          <button class="sector-btn" data-level="1">Setor 2: Ferrovia Norte</button>
+          <button class="sector-btn" data-level="2">Setor 3: Malha Expressa</button>
+        </div>
+
+        <button class="btn-primary hidden" id="btn-continue" style="display:block;margin:0 auto 12px;">CONTINUAR</button>
+        <button class="btn-primary" id="btn-start">INICIAR CONTROLE</button>
+      </div>
+    </section>
+
+    <!-- TELA DE VITÓRIA DE SETOR / CAMPANHA -->
+    <section class="overlay hidden" id="screen-victory">
+      <div class="card">
+        <div class="title-tag" id="victory-tag">Setor Estabilizado</div>
+        <h1 id="victory-title">FLUXO CONTROLADO</h1>
+        <p class="subtitle" id="victory-desc">
+          Meta de escoamento atingida com sucesso. A rede viária operou dentro dos parâmetros de segurança.
+        </p>
+        <div style="margin-bottom: 24px; font-size: 18px; font-weight: 700; color: var(--neon-cyan);" id="victory-stats">
+          Pontuação: 0
+        </div>
+        <button class="btn-primary" id="btn-next-level">PRÓXIMO SETOR</button>
+      </div>
+    </section>
+
+    <!-- TELA DE GAME OVER -->
+    <section class="overlay hidden" id="screen-gameover">
+      <div class="card" style="border-color: rgba(255, 0, 68, 0.5);">
+        <div class="title-tag" style="color: var(--neon-red);">Colapso na Malha Viária</div>
+        <h1 style="background: linear-gradient(90deg, #fff, #ff0044); -webkit-background-clip: text;">CONTROLE PERDIDO</h1>
+        <p class="subtitle" id="gameover-reason">
+          O limite de 3 acidentes graves foi atingido. O tráfego da metrópole entrou em colapso total.
+        </p>
+        <div style="margin-bottom: 24px; font-size: 18px; font-weight: 700; color: var(--text-main);" id="gameover-stats">
+          Pontuação Final: 0
+        </div>
+        <button class="btn-primary" id="btn-retry">REINICIAR SETOR</button>
+      </div>
+    </section>
+  </main>
+
+<script>
+/**
+ * ============================================================================
+ * MÓDULO 1: ÁUDIO PROCEDURAL (WEB AUDIO API)
+ * Sintetiza todos os efeitos sonoros sem arquivos externos.
+ * ============================================================================
+ */
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    return this.muted;
+  }
+
+  // Clique mecânico/eletrônico ao alternar semáforo
+  playSwitch(isGreen) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(isGreen ? 680 : 420, now);
+    osc.frequency.exponentialRampToValueAtTime(isGreen ? 960 : 260, now + 0.08);
+
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.09);
+  }
+
+  // Buzina irritada de motorista impaciente
+  playHorn() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const baseFreq = 260 + Math.random() * 90;
+
+    [baseFreq, baseFreq * 1.25].forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.08, now + 0.02);
+      gain.gain.setValueAtTime(0.08, now + 0.16);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    });
+  }
+
+  // Sirene bitonal (Hi-Lo) de ambulância
+  playAmbulanceSiren() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(780, now);
+    osc.frequency.setValueAtTime(620, now + 0.22);
+    osc.frequency.setValueAtTime(780, now + 0.44);
+    osc.frequency.setValueAtTime(620, now + 0.66);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.88);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.9);
+  }
+
+  // Apito grave de trem se aproximando
+  playTrainHorn() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const freqs = [110, 138.59, 164.81]; // Acorde grave industrial
+
+    freqs.forEach((f) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, now);
+      osc.frequency.linearRampToValueAtTime(f * 0.96, now + 1.1);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.09, now + 0.12);
+      gain.gain.setValueAtTime(0.09, now + 0.8);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 1.22);
+    });
+  }
+
+  // Batida / Explosão metálica com ruído branco filtrado
+  playCrash() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const bufferSize = this.ctx.sampleRate * 0.65;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.18));
+    }
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(950, now);
+    filter.frequency.exponentialRampToValueAtTime(120, now + 0.6);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.32, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    noise.start(now);
+  }
+
+  // Som sutil de pontuação ao escoar veículo
+  playScore(isBonus = false) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(isBonus ? 880 : 587.33, now);
+    if (isBonus) {
+      osc.frequency.setValueAtTime(1174.66, now + 0.08);
+    }
+
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.19);
+  }
+}
+
+/** Armazenamento resiliente (localStorage -> sessionStorage -> memória) */
+const store = (() => {
+  const mem = {};
+  const pick = (n) => { try { const s = window[n]; s.setItem('__t', '1'); s.removeItem('__t'); return s; } catch (e) { return null; } };
+  const area = pick('localStorage') || pick('sessionStorage');
+  return {
+    get(k) { try { return area ? area.getItem(k) : (mem[k] ?? null); } catch (e) { return mem[k] ?? null; } },
+    set(k, v) { try { if (area) area.setItem(k, v); else mem[k] = v; } catch (e) { mem[k] = v; } },
+    del(k) { try { if (area) area.removeItem(k); } catch (e) {} delete mem[k]; }
+  };
+})();
+
+/** Clareia (p>0) ou escurece (p<0) uma cor #rrggbb */
+function shade(hex, p) {
+  const n = parseInt(hex.slice(1), 16);
+  const t = p < 0 ? 0 : 255, k = Math.abs(p);
+  const f = (c) => Math.round(c + (t - c) * k);
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+
+// Erros de scripts externos (ex.: bloqueados por adblock) nunca derrubam o jogo
+window.addEventListener('error', (e) => { e.preventDefault && e.preventDefault(); }, true);
+window.addEventListener('unhandledrejection', (e) => { e.preventDefault && e.preventDefault(); });
+
+const sound = new SoundEngine();
+
+/**
+ * ============================================================================
+ * MÓDULO 2: DEFINIÇÃO DE MAPAS, ROTAS, SEMÁFOROS E TRILHOS
+ * Canvas lógico: 1200 x 700
+ * ============================================================================
+ */
+const CANVAS_W = 1200;
+const CANVAS_H = 700;
+const ROAD_WIDTH = 56; // Duas mãos de 28px cada
+
+const LEVELS = [
+  // SETOR 1: Cruzamento central duplo com fluxo moderado
+  {
+    name: "SETOR 1 — CENTRO DUPLO",
+    goal: 22,
+    spawnInterval: 1.55,
+    ambulanceChance: 0.10,
+    trainInterval: null, // Sem trem no Setor 1
+    // Vias visuais (apenas para desenho do asfalto)
+    roads: [
+      { x1: 0, y1: 350, x2: 1200, y2: 350, dir: 'H' }, // Avenida Central Leste-Oeste
+      { x1: 420, y1: 0, x2: 420, y2: 700, dir: 'V' },  // Avenida Oeste Norte-Sul
+      { x1: 780, y1: 0, x2: 780, y2: 700, dir: 'V' }   // Avenida Leste Norte-Sul
+    ],
+    railways: [],
+    // Rotas (Waypoints com offset de mão direita: +/- 14px do centro da via)
+    routes: [
+      // Horizontais (Y = 350 -> Mão Leste: Y=364, Mão Oeste: Y=336)
+      { id: 'H_EAST', points: [{ x: -40, y: 364 }, { x: 1250, y: 364 }] },
+      { id: 'H_WEST', points: [{ x: 1240, y: 336 }, { x: -50, y: 336 }] },
+      // Verticais Esquerda (X = 420 -> Mão Sul: X=406, Mão Norte: X=434)
+      { id: 'V1_SOUTH', points: [{ x: 406, y: -40 }, { x: 406, y: 750 }] },
+      { id: 'V1_NORTH', points: [{ x: 434, y: 740 }, { x: 434, y: -50 }] },
+      // Verticais Direita (X = 780 -> Mão Sul: X=766, Mão Norte: X=794)
+      { id: 'V2_SOUTH', points: [{ x: 766, y: -40 }, { x: 766, y: 750 }] },
+      { id: 'V2_NORTH', points: [{ x: 794, y: 740 }, { x: 794, y: -50 }] },
+      // Rotas com conversão (curvas em 90 graus)
+      { id: 'TURN_1', points: [{ x: -40, y: 364 }, { x: 406, y: 364 }, { x: 406, y: 750 }] },
+      { id: 'TURN_2', points: [{ x: 1240, y: 336 }, { x: 794, y: 336 }, { x: 794, y: -50 }] }
+    ],
+    // Semáforos posicionados antes das linhas de retenção
+    lights: [
+      // Cruzamento 1 (420, 350)
+      { id: 'L1_E', x: 376, y: 386, stopX: 382, stopY: 364, dirX: 1, dirY: 0, state: 'GREEN', group: 'C1_H' },
+      { id: 'L1_W', x: 464, y: 314, stopX: 458, stopY: 336, dirX: -1, dirY: 0, state: 'GREEN', group: 'C1_H' },
+      { id: 'L1_S', x: 384, y: 306, stopX: 406, stopY: 312, dirX: 0, dirY: 1, state: 'RED', group: 'C1_V' },
+      { id: 'L1_N', x: 456, y: 394, stopX: 434, stopY: 388, dirX: 0, dirY: -1, state: 'RED', group: 'C1_V' },
+      // Cruzamento 2 (780, 350)
+      { id: 'L2_E', x: 736, y: 386, stopX: 742, stopY: 364, dirX: 1, dirY: 0, state: 'RED', group: 'C2_H' },
+      { id: 'L2_W', x: 824, y: 314, stopX: 818, stopY: 336, dirX: -1, dirY: 0, state: 'RED', group: 'C2_H' },
+      { id: 'L2_S', x: 744, y: 306, stopX: 766, stopY: 312, dirX: 0, dirY: 1, state: 'GREEN', group: 'C2_V' },
+      { id: 'L2_N', x: 816, y: 394, stopX: 794, stopY: 388, dirX: 0, dirY: -1, state: 'GREEN', group: 'C2_V' }
+    ]
+  },
+
+  // SETOR 2: Cruzamento múltiplo + linha férrea atravessando o mapa
+  {
+    name: "SETOR 2 — FERROVIA NORTE",
+    goal: 30,
+    spawnInterval: 1.35,
+    ambulanceChance: 0.14,
+    trainInterval: 16.0, // Trem passa a cada 16s
+    roads: [
+      { x1: 0, y1: 440, x2: 1200, y2: 440, dir: 'H' }, // Avenida Sul
+      { x1: 380, y1: 0, x2: 380, y2: 700, dir: 'V' },  // Eixo Oeste (cruza ferrovia e Av Sul)
+      { x1: 820, y1: 0, x2: 820, y2: 700, dir: 'V' }   // Eixo Leste (cruza ferrovia e Av Sul)
+    ],
+    railways: [
+      { y: 200, dir: 1 } // Linha férrea horizontal em Y = 200
+    ],
+    routes: [
+      { id: 'H_EAST', points: [{ x: -40, y: 454 }, { x: 1250, y: 454 }] },
+      { id: 'H_WEST', points: [{ x: 1240, y: 426 }, { x: -50, y: 426 }] },
+      { id: 'V1_SOUTH', points: [{ x: 366, y: -40 }, { x: 366, y: 750 }] },
+      { id: 'V1_NORTH', points: [{ x: 394, y: 740 }, { x: 394, y: -50 }] },
+      { id: 'V2_SOUTH', points: [{ x: 806, y: -40 }, { x: 806, y: 750 }] },
+      { id: 'V2_NORTH', points: [{ x: 834, y: 740 }, { x: 834, y: -50 }] },
+      { id: 'TURN_A', points: [{ x: -40, y: 454 }, { x: 806, y: 454 }, { x: 806, y: 750 }] },
+      { id: 'TURN_B', points: [{ x: 366, y: -40 }, { x: 366, y: 454 }, { x: 1250, y: 454 }] }
+    ],
+    lights: [
+      // Cruzamento Rodoviário Oeste (380, 440)
+      { id: 'S2_C1_E', x: 336, y: 476, stopX: 342, stopY: 454, dirX: 1, dirY: 0, state: 'GREEN' },
+      { id: 'S2_C1_W', x: 424, y: 404, stopX: 418, stopY: 426, dirX: -1, dirY: 0, state: 'GREEN' },
+      { id: 'S2_C1_S', x: 344, y: 396, stopX: 366, stopY: 402, dirX: 0, dirY: 1, state: 'RED' },
+      { id: 'S2_C1_N', x: 416, y: 484, stopX: 394, stopY: 478, dirX: 0, dirY: -1, state: 'RED' },
+      // Cruzamento Rodoviário Leste (820, 440)
+      { id: 'S2_C2_E', x: 776, y: 476, stopX: 782, stopY: 454, dirX: 1, dirY: 0, state: 'RED' },
+      { id: 'S2_C2_W', x: 864, y: 404, stopX: 858, stopY: 426, dirX: -1, dirY: 0, state: 'RED' },
+      { id: 'S2_C2_S', x: 784, y: 396, stopX: 806, stopY: 402, dirX: 0, dirY: 1, state: 'GREEN' },
+      { id: 'S2_C2_N', x: 856, y: 484, stopX: 834, stopY: 478, dirX: 0, dirY: -1, state: 'GREEN' },
+      // Cancelas / Semáforos Ferroviários (Y = 200)
+      { id: 'R1_S', x: 344, y: 158, stopX: 366, stopY: 164, dirX: 0, dirY: 1, state: 'GREEN', isRail: true },
+      { id: 'R1_N', x: 416, y: 242, stopX: 394, stopY: 236, dirX: 0, dirY: -1, state: 'GREEN', isRail: true },
+      { id: 'R2_S', x: 784, y: 158, stopX: 806, stopY: 164, dirX: 0, dirY: 1, state: 'GREEN', isRail: true },
+      { id: 'R2_N', x: 856, y: 242, stopX: 834, stopY: 236, dirX: 0, dirY: -1, state: 'GREEN', isRail: true }
+    ]
+  },
+
+  // SETOR 3: Avenidas expressas em grade dupla + alta densidade + ferrovia
+  {
+    name: "SETOR 3 — MALHA EXPRESSA",
+    goal: 40,
+    spawnInterval: 1.15,
+    ambulanceChance: 0.18,
+    trainInterval: 14.0,
+    roads: [
+      { x1: 0, y1: 230, x2: 1200, y2: 230, dir: 'H' }, // Expressa Norte
+      { x1: 0, y1: 500, x2: 1200, y2: 500, dir: 'H' }, // Expressa Sul
+      { x1: 360, y1: 0, x2: 360, y2: 700, dir: 'V' },  // Corredor Oeste
+      { x1: 840, y1: 0, x2: 840, y2: 700, dir: 'V' }   // Corredor Leste
+    ],
+    railways: [
+      { y: 365, dir: -1 } // Linha férrea passando bem entre as duas avenidas expressas
+    ],
+    routes: [
+      { id: 'HN_E', points: [{ x: -40, y: 244 }, { x: 1250, y: 244 }] },
+      { id: 'HN_W', points: [{ x: 1240, y: 216 }, { x: -50, y: 216 }] },
+      { id: 'HS_E', points: [{ x: -40, y: 514 }, { x: 1250, y: 514 }] },
+      { id: 'HS_W', points: [{ x: 1240, y: 486 }, { x: -50, y: 486 }] },
+      { id: 'VW_S', points: [{ x: 346, y: -40 }, { x: 346, y: 750 }] },
+      { id: 'VW_N', points: [{ x: 374, y: 740 }, { x: 374, y: -50 }] },
+      { id: 'VE_S', points: [{ x: 826, y: -40 }, { x: 826, y: 750 }] },
+      { id: 'VE_N', points: [{ x: 854, y: 740 }, { x: 854, y: -50 }] },
+      { id: 'LOOP_1', points: [{ x: -40, y: 244 }, { x: 346, y: 244 }, { x: 346, y: 514 }, { x: 1250, y: 514 }] },
+      { id: 'LOOP_2', points: [{ x: 1240, y: 486 }, { x: 854, y: 486 }, { x: 854, y: 216 }, { x: -50, y: 216 }] }
+    ],
+    lights: [
+      // Cruzamento NW (360, 230)
+      { id: 'NW_E', x: 316, y: 266, stopX: 322, stopY: 244, dirX: 1, dirY: 0, state: 'GREEN' },
+      { id: 'NW_W', x: 404, y: 194, stopX: 398, stopY: 216, dirX: -1, dirY: 0, state: 'GREEN' },
+      { id: 'NW_S', x: 324, y: 186, stopX: 346, stopY: 192, dirX: 0, dirY: 1, state: 'RED' },
+      { id: 'NW_N', x: 396, y: 274, stopX: 374, stopY: 268, dirX: 0, dirY: -1, state: 'RED' },
+      // Cruzamento NE (840, 230)
+      { id: 'NE_E', x: 796, y: 266, stopX: 802, stopY: 244, dirX: 1, dirY: 0, state: 'RED' },
+      { id: 'NE_W', x: 884, y: 194, stopX: 878, stopY: 216, dirX: -1, dirY: 0, state: 'RED' },
+      { id: 'NE_S', x: 804, y: 186, stopX: 826, stopY: 192, dirX: 0, dirY: 1, state: 'GREEN' },
+      { id: 'NE_N', x: 876, y: 274, stopX: 854, stopY: 268, dirX: 0, dirY: -1, state: 'GREEN' },
+      // Cruzamento SW (360, 500)
+      { id: 'SW_E', x: 316, y: 536, stopX: 322, stopY: 514, dirX: 1, dirY: 0, state: 'RED' },
+      { id: 'SW_W', x: 404, y: 464, stopX: 398, stopY: 486, dirX: -1, dirY: 0, state: 'RED' },
+      { id: 'SW_S', x: 324, y: 456, stopX: 346, stopY: 462, dirX: 0, dirY: 1, state: 'GREEN' },
+      { id: 'SW_N', x: 396, y: 544, stopX: 374, stopY: 538, dirX: 0, dirY: -1, state: 'GREEN' },
+      // Cruzamento SE (840, 500)
+      { id: 'SE_E', x: 796, y: 536, stopX: 802, stopY: 514, dirX: 1, dirY: 0, state: 'GREEN' },
+      { id: 'SE_W', x: 884, y: 464, stopX: 878, stopY: 486, dirX: -1, dirY: 0, state: 'GREEN' },
+      { id: 'SE_S', x: 804, y: 456, stopX: 826, stopY: 462, dirX: 0, dirY: 1, state: 'RED' },
+      { id: 'SE_N', x: 876, y: 544, stopX: 854, stopY: 538, dirX: 0, dirY: -1, state: 'RED' },
+      // Cancelas Ferroviárias Centrais (Y = 365)
+      { id: 'R3_WS', x: 324, y: 324, stopX: 346, stopY: 330, dirX: 0, dirY: 1, state: 'GREEN', isRail: true },
+      { id: 'R3_WN', x: 396, y: 406, stopX: 374, stopY: 400, dirX: 0, dirY: -1, state: 'GREEN', isRail: true },
+      { id: 'R3_ES', x: 804, y: 324, stopX: 826, stopY: 330, dirX: 0, dirY: 1, state: 'GREEN', isRail: true },
+      { id: 'R3_EN', x: 876, y: 406, stopX: 854, stopY: 400, dirX: 0, dirY: -1, state: 'GREEN', isRail: true }
+    ]
+  }
+];
+
+/**
+ * ============================================================================
+ * MÓDULO 3: ENTIDADES DO JOGO (VEÍCULOS, TRENS E PARTÍCULAS)
+ * ============================================================================
+ */
+class Vehicle {
+  constructor(route, type) {
+    this.route = route.points;
+    this.routeId = route.id;
+    this.wpIndex = 1;
+    this.x = this.route[0].x;
+    this.y = this.route[0].y;
+
+    this.type = type; // 'CAR' | 'TRUCK' | 'AMBULANCE'
+    this.angle = Math.atan2(this.route[1].y - this.y, this.route[1].x - this.x);
+
+    // Dimensões e propriedades físicas por tipo
+    if (type === 'TRUCK') {
+      this.length = 34;
+      this.width = 16;
+      this.maxSpeed = 88;
+      this.color = '#3b82f6';
+      this.accent = '#60a5fa';
+      this.points = 20;
+    } else if (type === 'AMBULANCE') {
+      this.length = 28;
+      this.width = 15;
+      this.maxSpeed = 148;
+      this.color = '#f8fafc';
+      this.accent = '#ff0044';
+      this.points = 50;
+      this.urgencyTimer = 14.0; // Cronômetro de urgência da ambulância
+    } else {
+      this.length = 22;
+      this.width = 13;
+      this.maxSpeed = 115 + Math.random() * 15;
+      const palette = ['#00f0ff', '#a855f7', '#ec4899', '#14b8a6', '#eab308'];
+      this.color = palette[Math.floor(Math.random() * palette.length)];
+      this.accent = '#ffffff';
+      this.points = 10;
+    }
+
+    this.speed = this.maxSpeed;
+    this.waitTime = 0;         // Tempo parado (segundos)
+    this.maxPatience = 10.0;   // Limite de 10 segundos antes de furar sinal
+    this.furious = false;      // Se true, ignora sinal vermelho e acelera
+    this.honked = false;
+
+    this.crashed = false;
+    this.crashTimer = 0;       // Bloqueia a pista por 3.0s antes de ser rebocado
+    this.finished = false;
+    this.removed = false;
+  }
+
+  get dirX() { return Math.cos(this.angle); }
+  get dirY() { return Math.sin(this.angle); }
+
+  update(dt, vehicles, lights) {
+    // 1. Estado de colisão (em chamas bloqueando pista por 3 segundos)
+    if (this.crashed) {
+      this.crashTimer -= dt;
+      if (this.crashTimer <= 0) {
+        this.removed = true;
+      }
+      return;
+    }
+
+    // Cronômetro de urgência da ambulância
+    if (this.type === 'AMBULANCE') {
+      this.urgencyTimer -= dt;
+    }
+
+    // 2. Direção para o próximo waypoint
+    const target = this.route[this.wpIndex];
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
+    const distToWp = Math.hypot(dx, dy);
+
+    if (distToWp < 8) {
+      this.wpIndex++;
+      if (this.wpIndex >= this.route.length) {
+        this.finished = true;
+        this.removed = true;
+        return;
+      }
+    }
+
+    const nextTarget = this.route[this.wpIndex];
+    const targetAngle = Math.atan2(nextTarget.y - this.y, nextTarget.x - this.x);
+    // Interpolação suave de rotação nas curvas
+    let diff = targetAngle - this.angle;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    this.angle += diff * Math.min(1, dt * 12);
+
+    // 3. Sensor de tráfego (Semáforos e Fila de veículos à frente)
+    let shouldStop = false;
+
+    // 3A. Verificar semáforo vermelho à frente (Ambulâncias e motoristas furiosos ignoram)
+    if (this.type !== 'AMBULANCE' && !this.furious) {
+      for (const light of lights) {
+        if (light.state === 'RED') {
+          const toStopX = light.stopX - this.x;
+          const toStopY = light.stopY - this.y;
+          const forwardDist = toStopX * this.dirX + toStopY * this.dirY;
+          const lateralDist = Math.abs(-toStopX * this.dirY + toStopY * this.dirX);
+
+          // Se a linha de retenção está logo à frente na mesma faixa
+          if (forwardDist > 4 && forwardDist < 38 && lateralDist < 12) {
+            shouldStop = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // 3B. Manter distância segura do veículo à frente na mesma faixa (inclui carros batidos bloqueando via)
+    for (const other of vehicles) {
+      if (other === this || other.removed) continue;
+      const ox = other.x - this.x;
+      const oy = other.y - this.y;
+      const forwardDist = ox * this.dirX + oy * this.dirY;
+      const lateralDist = Math.abs(-ox * this.dirY + oy * this.dirX);
+      const minGap = (this.length + other.length) * 0.5 + 14;
+
+      // Mesmo sentido ou obstáculo direto na faixa
+      const sameHeading = Math.cos(this.angle - other.angle) > 0.7 || other.crashed;
+      if (sameHeading && forwardDist > 0 && forwardDist < minGap && lateralDist < 13) {
+        shouldStop = true;
+        break;
+      }
+    }
+
+    // 4. Atualização de velocidade e Sistema de Paciência
+    if (shouldStop) {
+      this.speed = Math.max(0, this.speed - 420 * dt);
+      if (this.speed < 5 && this.type !== 'AMBULANCE') {
+        this.waitTime += dt;
+        // Buzina de alerta aos 7s
+        if (this.waitTime >= 7.0 && !this.honked) {
+          this.honked = true;
+          sound.playHorn();
+        }
+        // Perde a paciência aos 10s e fura o sinal vermelho!
+        if (this.waitTime >= this.maxPatience) {
+          this.furious = true;
+          sound.playHorn();
+        }
+      }
+    } else {
+      const targetSpeed = this.furious ? this.maxSpeed * 1.45 : this.maxSpeed;
+      this.speed = Math.min(targetSpeed, this.speed + 260 * dt);
+      if (!this.furious) {
+        this.waitTime = Math.max(0, this.waitTime - dt * 1.5);
+      }
+    }
+
+    // 5. Movimento
+    this.x += this.dirX * this.speed * dt;
+    this.y += this.dirY * this.speed * dt;
+  }
+}
+
+class Train {
+  constructor(railway) {
+    this.y = railway.y;
+    this.dir = railway.dir; // 1 (Leste) ou -1 (Oeste)
+    this.length = 440;
+    this.width = 24;
+    this.speed = 360;
+    this.warningTimer = 3.0; // Alerta amarelo pisca 3s antes da passagem
+    this.active = false;
+    this.removed = false;
+
+    this.x = this.dir === 1 ? -this.length / 2 - 40 : CANVAS_W + this.length / 2 + 40;
+    sound.playTrainHorn();
+  }
+
+  update(dt) {
+    if (this.warningTimer > 0) {
+      this.warningTimer -= dt;
+      if (this.warningTimer <= 0) {
+        this.active = true;
+      }
+      return;
+    }
+
+    this.x += this.dir * this.speed * dt;
+
+    if (this.dir === 1 && this.x - this.length / 2 > CANVAS_W + 60) {
+      this.removed = true;
+    } else if (this.dir === -1 && this.x + this.length / 2 < -60) {
+      this.removed = true;
+    }
+  }
+}
+
+class Particle {
+  constructor(x, y, color) {
+    this.x = x;
+    this.y = y;
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 30 + Math.random() * 140;
+    this.vx = Math.cos(ang) * spd;
+    this.vy = Math.sin(ang) * spd;
+    this.life = 0.5 + Math.random() * 0.6;
+    this.maxLife = this.life;
+    this.size = 2 + Math.random() * 4;
+    this.color = color;
+  }
+
+  update(dt) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.vx *= 0.94;
+    this.vy *= 0.94;
+    this.life -= dt;
+  }
+}
+
+/**
+ * ============================================================================
+ * MÓDULO 4: CONTROLADOR PRINCIPAL DO JOGO (LÓGICA, COLISÕES E RENDERIZAÇÃO)
+ * ============================================================================
+ */
+class TrafficRegentGame {
+  constructor() {
+    this.canvas = document.getElementById('gameCanvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    this.levelIndex = 0;
+    this.state = 'MENU'; // 'MENU' | 'PLAYING' | 'VICTORY' | 'GAMEOVER'
+    this.score = 0;
+    this.passedCount = 0;
+    this.crashes = 0;
+    this.maxCrashes = 3;
+
+    this.vehicles = [];
+    this.trains = [];
+    this.particles = [];
+    this.lights = [];
+
+    this.spawnTimer = 0;
+    this.trainTimer = 0;
+    this.globalTime = 0;
+    this.screenShake = 0;
+
+    this.bindEvents();
+    this.loadLevel(0, false);
+    this.restoreOffer();
+    setInterval(() => this.saveState(), 1000);
+    ['pagehide', 'visibilitychange', 'beforeunload'].forEach((ev) => window.addEventListener(ev, () => this.saveState()));
+    this.lastFrame = performance.now();
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  bindEvents() {
+    // Clique no canvas para alternar semáforos
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (this.state !== 'PLAYING') return;
+      sound.init();
+
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
+
+      this.handleCanvasClick(mx, my);
+    });
+
+    // Botões de seleção de setor na tela inicial
+    document.querySelectorAll('.sector-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sector-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.levelIndex = parseInt(btn.dataset.level, 10);
+      });
+    });
+
+    // Iniciar jogo
+    document.getElementById('btn-start').addEventListener('click', () => {
+      sound.init();
+      store.del('rdt_save');
+      this.score = 0;
+      this.loadLevel(this.levelIndex, true);
+    });
+
+    // Próximo nível / Reiniciar campanha
+    document.getElementById('btn-next-level').addEventListener('click', () => {
+      sound.init();
+      if (this.levelIndex + 1 < LEVELS.length) {
+        this.loadLevel(this.levelIndex + 1, true);
+      } else {
+        this.score = 0;
+        this.loadLevel(0, true);
+      }
+    });
+
+    // Tentar novamente após Game Over
+    document.getElementById('btn-retry').addEventListener('click', () => {
+      sound.init();
+      this.loadLevel(this.levelIndex, true);
+    });
+
+    // Reiniciar via HUD
+    document.getElementById('btn-restart-hud').addEventListener('click', () => {
+      sound.init();
+      this.loadLevel(this.levelIndex, true);
+    });
+
+    // Mudo
+    document.getElementById('btn-mute').addEventListener('click', (e) => {
+      sound.init();
+      const isMuted = sound.toggleMute();
+      e.target.textContent = isMuted ? 'SOM: OFF' : 'SOM: ON';
+    });
+  }
+
+  loadLevel(index, startPlaying) {
+    this.levelIndex = index;
+    const lvl = LEVELS[index];
+
+    this.passedCount = 0;
+    this.crashes = 0;
+    this.vehicles = [];
+    this.trains = [];
+    this.particles = [];
+    this.lights = lvl.lights.map((l) => ({ ...l }));
+
+    this.spawnTimer = 0.5;
+    this.trainTimer = lvl.trainInterval ? lvl.trainInterval * 0.65 : 9999;
+    this.screenShake = 0;
+
+    this.hideAlert();
+    this.updateHUD();
+
+    document.getElementById('screen-start').classList.add('hidden');
+    document.getElementById('screen-victory').classList.add('hidden');
+    document.getElementById('screen-gameover').classList.add('hidden');
+
+    if (startPlaying) {
+      this.state = 'PLAYING';
+    } else {
+      document.getElementById('screen-start').classList.remove('hidden');
+    }
+  }
+
+  handleCanvasClick(mx, my) {
+    // Encontra o semáforo mais próximo dentro de um raio generoso de clique (34px)
+    let closest = null;
+    let bestDist = 34;
+
+    for (const light of this.lights) {
+      const d = Math.hypot(mx - light.x, my - light.y);
+      if (d < bestDist) {
+        bestDist = d;
+        closest = light;
+      }
+    }
+
+    if (closest) {
+      closest.state = closest.state === 'GREEN' ? 'RED' : 'GREEN';
+      sound.playSwitch(closest.state === 'GREEN');
+      this.spawnClickRipple(closest.x, closest.y, closest.state === 'GREEN' ? '#00ff66' : '#ff0044');
+    }
+  }
+
+  spawnClickRipple(x, y, color) {
+    for (let i = 0; i < 8; i++) {
+      this.particles.push(new Particle(x, y, color));
+    }
+  }
+
+  showAlert(text, typeClass) {
+    const banner = document.getElementById('alert-banner');
+    banner.textContent = text;
+    banner.className = typeClass;
+    banner.style.opacity = '1';
+  }
+
+  hideAlert() {
+    document.getElementById('alert-banner').style.opacity = '0';
+  }
+
+  spawnVehicle() {
+    const lvl = LEVELS[this.levelIndex];
+    const route = lvl.routes[Math.floor(Math.random() * lvl.routes.length)];
+
+    // Verifica se o ponto de entrada está livre para não gerar sobreposição no spawn
+    const startPt = route.points[0];
+    for (const v of this.vehicles) {
+      if (Math.hypot(v.x - startPt.x, v.y - startPt.y) < 65) {
+        return; // Aguarda próximo ciclo
+      }
+    }
+
+    const r = Math.random();
+    let type = 'CAR';
+    if (r < lvl.ambulanceChance) {
+      type = 'AMBULANCE';
+      sound.playAmbulanceSiren();
+      this.showAlert('EMERGÊNCIA: AMBULÂNCIA NA MALHA VIÁRIA!', 'alert-amb');
+      setTimeout(() => {
+        if (this.trains.length === 0) this.hideAlert();
+      }, 2800);
+    } else if (r < lvl.ambulanceChance + 0.24) {
+      type = 'TRUCK';
+    }
+
+    this.vehicles.push(new Vehicle(route, type));
+  }
+
+  triggerCrash(x, y) {
+    this.crashes++;
+    this.screenShake = 0.45;
+    sound.playCrash();
+
+    for (let i = 0; i < 28; i++) {
+      const col = i % 2 === 0 ? '#ff0044' : '#ffaa00';
+      this.particles.push(new Particle(x, y, col));
+    }
+
+    this.updateHUD();
+
+    if (this.crashes >= this.maxCrashes) {
+      this.state = 'GAMEOVER';
+      document.getElementById('gameover-stats').textContent = `Pontuação Final: ${this.score} pts`;
+      document.getElementById('screen-gameover').classList.remove('hidden');
+    }
+  }
+
+  checkCollisions() {
+    // 1. Colisão entre veículos de fluxos que se cruzam
+    for (let i = 0; i < this.vehicles.length; i++) {
+      const a = this.vehicles[i];
+      if (a.removed) continue;
+
+      for (let j = i + 1; j < this.vehicles.length; j++) {
+        const b = this.vehicles[j];
+        if (b.removed) continue;
+
+        // Se ambos já estão batidos, ignora
+        if (a.crashed && b.crashed) continue;
+
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        const hitRadius = (a.width + b.width) * 0.55;
+
+        if (dist < hitRadius) {
+          // Verifica se não é apenas um carro parado atrás do outro na mesma direção
+          const headingDot = Math.cos(a.angle - b.angle);
+          if (headingDot < 0.75 || a.furious || b.furious || a.type === 'AMBULANCE' || b.type === 'AMBULANCE') {
+            if (!a.crashed) {
+              a.crashed = true;
+              a.crashTimer = 3.0;
+              a.speed = 0;
+            }
+            if (!b.crashed) {
+              b.crashed = true;
+              b.crashTimer = 3.0;
+              b.speed = 0;
+            }
+            this.triggerCrash((a.x + b.x) / 2, (a.y + b.y) / 2);
+            if (this.state === 'GAMEOVER') return;
+          }
+        }
+      }
+    }
+
+    // 2. Colisão entre Trens ativos e Veículos sobre os trilhos
+    for (const train of this.trains) {
+      if (!train.active) continue;
+      const tLeft = train.x - train.length / 2;
+      const tRight = train.x + train.length / 2;
+      const tTop = train.y - train.width / 2;
+      const tBottom = train.y + train.width / 2;
+
+      for (const v of this.vehicles) {
+        if (v.removed || v.crashed) continue;
+        if (v.x > tLeft && v.x < tRight && v.y > tTop - 10 && v.y < tBottom + 10) {
+          v.crashed = true;
+          v.crashTimer = 3.0;
+          v.speed = 0;
+          this.triggerCrash(v.x, v.y);
+          if (this.state === 'GAMEOVER') return;
+        }
+      }
+    }
+  }
+
+  updateHUD() {
+    const lvl = LEVELS[this.levelIndex];
+    document.getElementById('hud-sector').textContent = lvl.name;
+    document.getElementById('hud-progress').textContent = `${this.passedCount} / ${lvl.goal}`;
+    document.getElementById('hud-score').textContent = `${this.score}`;
+    document.getElementById('hud-crashes').textContent = `${this.crashes} / ${this.maxCrashes}`;
+  }
+
+  update(dt) {
+    this.globalTime += dt;
+    if (this.screenShake > 0) this.screenShake = Math.max(0, this.screenShake - dt);
+
+    // Atualiza partículas mesmo fora do estado PLAYING para efeito visual
+    for (const p of this.particles) p.update(dt);
+    this.particles = this.particles.filter((p) => p.life > 0);
+
+    if (this.state !== 'PLAYING') return;
+
+    const lvl = LEVELS[this.levelIndex];
+
+    // Spawn de veículos
+    this.spawnTimer -= dt;
+    if (this.spawnTimer <= 0) {
+      this.spawnVehicle();
+      this.spawnTimer = lvl.spawnInterval * (0.85 + Math.random() * 0.35);
+    }
+
+    // Spawn de trens (Setores 2 e 3)
+    if (lvl.trainInterval && lvl.railways.length > 0) {
+      this.trainTimer -= dt;
+      if (this.trainTimer <= 0) {
+        const rail = lvl.railways[Math.floor(Math.random() * lvl.railways.length)];
+        this.trains.push(new Train(rail));
+        this.showAlert('ALERTA FERROVIÁRIO: TREM EM 3 SEGUNDOS!', 'alert-train');
+        this.trainTimer = lvl.trainInterval;
+      }
+    }
+
+    // Atualiza trens
+    for (const t of this.trains) t.update(dt);
+    const hadTrain = this.trains.length > 0;
+    this.trains = this.trains.filter((t) => !t.removed);
+    if (hadTrain && this.trains.length === 0) {
+      this.hideAlert();
+    }
+
+    // Atualiza veículos
+    for (const v of this.vehicles) {
+      v.update(dt, this.vehicles, this.lights);
+      if (v.finished) {
+        this.passedCount++;
+        let earned = v.points;
+        if (v.type === 'AMBULANCE' && v.urgencyTimer > 0) {
+          earned += 50; // Bônus extra de rapidez
+          sound.playScore(true);
+        } else {
+          sound.playScore(false);
+        }
+        this.score += earned;
+        this.updateHUD();
+      }
+    }
+    this.vehicles = this.vehicles.filter((v) => !v.removed);
+
+    // Verifica colisões
+    this.checkCollisions();
+
+    // Verifica condição de vitória do setor
+    if (this.state === 'PLAYING' && this.passedCount >= lvl.goal) {
+      this.state = 'VICTORY';
+      const isLast = this.levelIndex === LEVELS.length - 1;
+      document.getElementById('victory-tag').textContent = isLast ? 'Campanha Concluída' : 'Setor Estabilizado';
+      document.getElementById('victory-title').textContent = isLast ? 'MESTRE DO TRÂNSITO' : 'FLUXO CONTROLADO';
+      document.getElementById('victory-desc').textContent = isLast
+        ? 'Você dominou todos os setores da metrópole com precisão cirúrgica!'
+        : `Meta do ${lvl.name} concluída. Prepare-se para maior densidade de tráfego.`;
+      document.getElementById('victory-stats').textContent = `Pontuação Acumulada: ${this.score} pts`;
+      document.getElementById('btn-next-level').textContent = isLast ? 'JOGAR NOVAMENTE' : 'PRÓXIMO SETOR';
+      document.getElementById('screen-victory').classList.remove('hidden');
+    }
+  }
+
+  /**
+   * ==========================================================================
+   * MÓDULO 5: RENDERIZAÇÃO NEON / CYBERPUNK NOTURNA
+   * ==========================================================================
+   */
+  /* ===================== AUTOSAVE (à prova de recarga) ===================== */
+  saveState() {
+    try {
+      if (this.state === 'PLAYING') {
+        store.set('rdt_save', JSON.stringify({
+          level: this.levelIndex, score: this.score, passed: this.passedCount, crashes: this.crashes,
+          lights: this.lights.map((l) => [l.id, l.state]),
+          vehicles: this.vehicles.filter((v) => !v.removed).map((v) => ({
+            r: v.routeId, ty: v.type, x: v.x, y: v.y, a: v.angle, w: v.wpIndex, s: v.speed,
+            wt: v.waitTime, f: v.furious, c: v.crashed, ct: v.crashTimer, u: v.urgencyTimer
+          }))
+        }));
+      } else if (this.state === 'VICTORY' || this.state === 'GAMEOVER') {
+        store.del('rdt_save');
+      }
+    } catch (e) { /* ignora */ }
+  }
+
+  restoreOffer() {
+    let d = null;
+    try { d = JSON.parse(store.get('rdt_save') || 'null'); } catch (e) {}
+    if (!d || !LEVELS[d.level]) return;
+    const btn = document.getElementById('btn-continue');
+    btn.textContent = `CONTINUAR PARTIDA (${LEVELS[d.level].name.split('—')[0].trim()} · ${d.score} pts)`;
+    btn.classList.remove('hidden');
+    btn.onclick = () => { sound.init(); this.applySave(d); };
+  }
+
+  applySave(d) {
+    this.loadLevel(d.level, true);
+    this.score = d.score; this.passedCount = d.passed; this.crashes = d.crashes;
+    const lvl = LEVELS[d.level];
+    for (const [id, st] of d.lights) { const l = this.lights.find((x) => x.id === id); if (l) l.state = st; }
+    for (const s of d.vehicles) {
+      const route = lvl.routes.find((r) => r.id === s.r);
+      if (!route) continue;
+      const v = new Vehicle(route, s.ty);
+      Object.assign(v, { x: s.x, y: s.y, angle: s.a, wpIndex: s.w, speed: s.s, waitTime: s.wt, furious: s.f, crashed: s.c, crashTimer: s.ct });
+      if (s.u !== undefined) v.urgencyTimer = s.u;
+      this.vehicles.push(v);
+    }
+    this.updateHUD();
+  }
+
+  /* ===================== CENÁRIO (cache estático) ===================== */
+  rng(seed) { let s = (seed >>> 0) || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+  drawCityBackground(ctx, lvl) {
+    this.bgCache = this.bgCache || {};
+    if (!this.bgCache[this.levelIndex]) this.bgCache[this.levelIndex] = this.buildBackground(lvl, this.levelIndex);
+    ctx.drawImage(this.bgCache[this.levelIndex], 0, 0);
+  }
+
+  buildBackground(lvl, idx) {
+    const cv = document.createElement('canvas');
+    cv.width = CANVAS_W; cv.height = CANVAS_H;
+    const c = cv.getContext('2d');
+    const R = this.rng(1234 + idx * 77);
+    const RW = ROAD_WIDTH / 2;
+    const TAU = Math.PI * 2;
+
+    const g = c.createLinearGradient(0, 0, 0, CANVAS_H);
+    g.addColorStop(0, '#090c13'); g.addColorStop(1, '#0d1019');
+    c.fillStyle = g; c.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Células livres entre vias/ferrovias
+    const vs = lvl.roads.filter((r) => r.dir === 'V').map((r) => [r.x1 - RW, r.x1 + RW]).sort((a, b) => a[0] - b[0]);
+    const hs = lvl.roads.filter((r) => r.dir === 'H').map((r) => [r.y1 - RW, r.y1 + RW]);
+    lvl.railways.forEach((r) => hs.push([r.y - 22, r.y + 22]));
+    hs.sort((a, b) => a[0] - b[0]);
+    const split = (arr, max) => { const o = []; let p = 0; for (const [a, b] of arr) { o.push([p, a]); p = b; } o.push([p, max]); return o; };
+    for (const [x0, x1] of split(vs, CANVAS_W)) for (const [y0, y1] of split(hs, CANVAS_H)) this.drawCell(c, x0 + 6, y0 + 6, x1 - x0 - 12, y1 - y0 - 12, R);
+
+    // Calçadas, asfalto
+    for (const r of lvl.roads) {
+      c.fillStyle = '#242a3a';
+      if (r.dir === 'H') c.fillRect(r.x1, r.y1 - RW - 6, r.x2 - r.x1, ROAD_WIDTH + 12);
+      else c.fillRect(r.x1 - RW - 6, r.y1, ROAD_WIDTH + 12, r.y2 - r.y1);
+    }
+    for (const r of lvl.roads) {
+      const ag = r.dir === 'H' ? c.createLinearGradient(0, r.y1 - RW, 0, r.y1 + RW) : c.createLinearGradient(r.x1 - RW, 0, r.x1 + RW, 0);
+      ag.addColorStop(0, '#1b2030'); ag.addColorStop(.5, '#151925'); ag.addColorStop(1, '#1b2030');
+      c.fillStyle = ag;
+      if (r.dir === 'H') c.fillRect(r.x1, r.y1 - RW, r.x2 - r.x1, ROAD_WIDTH);
+      else c.fillRect(r.x1 - RW, r.y1, ROAD_WIDTH, r.y2 - r.y1);
+      // meio-fio neon
+      c.strokeStyle = 'rgba(0,240,255,.22)'; c.lineWidth = 1.5; c.beginPath();
+      if (r.dir === 'H') { c.moveTo(r.x1, r.y1 - RW); c.lineTo(r.x2, r.y1 - RW); c.moveTo(r.x1, r.y1 + RW); c.lineTo(r.x2, r.y1 + RW); }
+      else { c.moveTo(r.x1 - RW, r.y1); c.lineTo(r.x1 - RW, r.y2); c.moveTo(r.x1 + RW, r.y1); c.lineTo(r.x1 + RW, r.y2); }
+      c.stroke();
+      // faixa central dupla amarela tracejada
+      c.save(); c.setLineDash([16, 12]); c.strokeStyle = 'rgba(255,200,40,.55)'; c.lineWidth = 1.2;
+      for (const o of [-1.8, 1.8]) { c.beginPath(); if (r.dir === 'H') { c.moveTo(r.x1, r.y1 + o); c.lineTo(r.x2, r.y1 + o); } else { c.moveTo(r.x1 + o, r.y1); c.lineTo(r.x1 + o, r.y2); } c.stroke(); }
+      c.restore();
+    }
+    // Cruzamentos limpos + faixas de pedestre
+    for (const h of lvl.roads.filter((r) => r.dir === 'H')) for (const v of lvl.roads.filter((r) => r.dir === 'V')) {
+      c.fillStyle = '#151925'; c.fillRect(v.x1 - RW, h.y1 - RW, ROAD_WIDTH, ROAD_WIDTH);
+      c.fillStyle = 'rgba(255,255,255,.24)';
+      for (let i = 0; i < 8; i++) {
+        c.fillRect(v.x1 - RW - 10, h.y1 - RW + 3 + i * 6.8, 9, 3.6);
+        c.fillRect(v.x1 + RW + 1, h.y1 - RW + 3 + i * 6.8, 9, 3.6);
+        c.fillRect(v.x1 - RW + 3 + i * 6.8, h.y1 - RW - 10, 3.6, 9);
+        c.fillRect(v.x1 - RW + 3 + i * 6.8, h.y1 + RW + 1, 3.6, 9);
+      }
+    }
+    // Postes de iluminação com poça de luz
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const lamp = (x, y) => {
+      const lg = c.createRadialGradient(x, y, 1, x, y, 48);
+      lg.addColorStop(0, 'rgba(255,190,110,.20)'); lg.addColorStop(1, 'rgba(255,190,110,0)');
+      c.fillStyle = lg; c.beginPath(); c.arc(x, y, 48, 0, TAU); c.fill();
+    };
+    const nearX = (x) => lvl.roads.some((r) => r.dir === 'V' && Math.abs(r.x1 - x) < RW + 16);
+    const nearY = (y) => lvl.roads.some((r) => r.dir === 'H' && Math.abs(r.y1 - y) < RW + 16) || lvl.railways.some((r) => Math.abs(r.y - y) < 40);
+    const lamps = [];
+    for (const r of lvl.roads) {
+      if (r.dir === 'H') for (let x = 60; x < CANVAS_W; x += 110) { if (!nearX(x)) lamps.push([x, r.y1 + (((x / 110) | 0) % 2 ? RW + 3 : -RW - 3)]); }
+      else for (let y = 50; y < CANVAS_H; y += 110) { if (!nearY(y)) lamps.push([r.x1 + (((y / 110) | 0) % 2 ? RW + 3 : -RW - 3), y]); }
+    }
+    lamps.forEach(([x, y]) => lamp(x, y));
+    c.restore();
+    c.fillStyle = '#ffd9a0';
+    lamps.forEach(([x, y]) => { c.beginPath(); c.arc(x, y, 2.4, 0, TAU); c.fill(); });
+
+    // Vinheta
+    const vg = c.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, 260, CANVAS_W / 2, CANVAS_H / 2, 760);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)');
+    c.fillStyle = vg; c.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    return cv;
+  }
+
+  drawCell(c, x, y, w, h, R) {
+    if (w < 46 || h < 46) return;
+    c.fillStyle = '#171b27'; c.fillRect(x, y, w, h);
+    c.strokeStyle = 'rgba(0,240,255,.09)'; c.lineWidth = 1; c.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    const ix = x + 8, iy = y + 8, iw = w - 16, ih = h - 16;
+    const nx = Math.max(1, Math.round(iw / 105)), ny = Math.max(1, Math.round(ih / 90));
+    const lw = iw / nx, lh = ih / ny;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const lx = ix + i * lw + 3, ly = iy + j * lh + 3, ww = lw - 6, hh = lh - 6, r = R();
+      if (r < .38) this.drawTower(c, lx, ly, ww, hh, R);
+      else if (r < .62) this.drawHouse(c, lx, ly, ww, hh, R);
+      else if (r < .80) this.drawPark(c, lx, ly, ww, hh, R);
+      else this.drawParking(c, lx, ly, ww, hh, R);
+    }
+  }
+
+  drawTree(c, x, y, rad) {
+    c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.arc(x + 3, y + 4, rad, 0, 6.283); c.fill();
+    const g = c.createRadialGradient(x - rad * .3, y - rad * .3, 1, x, y, rad);
+    g.addColorStop(0, '#2f8f52'); g.addColorStop(1, '#0d3a22');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, rad, 0, 6.283); c.fill();
+  }
+
+  drawTower(c, x, y, w, h, R) {
+    const neon = ['#00f0ff', '#ff2d95', '#a855f7', '#ffaa00', '#00ff88'][Math.floor(R() * 5)];
+    const fh = 10 + Math.floor(R() * 8), bh = h - fh;
+    c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(x + 7, y + 9, w, h);
+    // fachada com janelas acesas
+    c.fillStyle = '#0b0f19'; c.fillRect(x, y + bh, w, fh);
+    for (let wx = x + 4; wx < x + w - 5; wx += 7) for (let wy = y + bh + 2; wy < y + h - 4; wy += 6) {
+      if (R() < .6) { c.fillStyle = R() < .75 ? 'rgba(255,214,140,.85)' : neon; c.fillRect(wx, wy, 4, 3); }
+    }
+    // telhado
+    const g = c.createLinearGradient(x, y, x + w, y + bh);
+    g.addColorStop(0, '#222b40'); g.addColorStop(1, '#121724');
+    c.fillStyle = g; c.fillRect(x, y, w, bh);
+    c.strokeStyle = 'rgba(255,255,255,.07)'; c.strokeRect(x + 6, y + 6, w - 12, bh - 12);
+    c.fillStyle = '#2d374f';
+    c.fillRect(x + 10, y + 10, 14, 9); c.fillRect(x + w - 26, y + bh - 22, 16, 10);
+    c.fillStyle = '#0a0d15'; c.fillRect(x + 12, y + 12, 10, 5);
+    if (R() < .3) { // heliponto
+      c.strokeStyle = '#ffaa00'; c.lineWidth = 1.5; c.beginPath(); c.arc(x + w / 2, y + bh / 2, Math.min(w, bh) * .26, 0, 6.283); c.stroke();
+      c.fillStyle = '#ffaa00'; c.font = 'bold 12px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('H', x + w / 2, y + bh / 2 + 1);
+    }
+    c.save(); c.strokeStyle = neon; c.shadowColor = neon; c.shadowBlur = 9; c.lineWidth = 1.6; c.strokeRect(x, y, w, bh); c.restore();
+    c.fillStyle = '#ff2244'; c.beginPath(); c.arc(x + w - 8, y + 8, 2, 0, 6.283); c.fill();
+  }
+
+  drawHouse(c, x, y, w, h, R) {
+    c.fillStyle = '#0f1f17'; c.fillRect(x, y, w, h);
+    c.strokeStyle = 'rgba(255,255,255,.13)'; c.setLineDash([3, 3]); c.strokeRect(x + .5, y + .5, w - 1, h - 1); c.setLineDash([]);
+    const hw = w * .62, hh = h * .56, hx = x + w * .1, hy = y + h * .12;
+    c.fillStyle = '#232836'; c.fillRect(hx + hw * .72, hy + hh, 12, y + h - hy - hh); // garagem
+    c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(hx + 5, hy + 6, hw, hh);
+    const col = ['#9a4636', '#456682', '#7a5a42', '#5b6a88'][Math.floor(R() * 4)];
+    c.fillStyle = col; c.fillRect(hx, hy, hw, hh);
+    c.fillStyle = 'rgba(0,0,0,.32)'; c.fillRect(hx, hy + hh / 2, hw, hh / 2);
+    c.strokeStyle = 'rgba(255,255,255,.28)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(hx, hy + hh / 2); c.lineTo(hx + hw, hy + hh / 2); c.stroke();
+    c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 1;
+    for (let k = 5; k < hw; k += 6) { c.beginPath(); c.moveTo(hx + k, hy); c.lineTo(hx + k, hy + hh); c.stroke(); }
+    c.fillStyle = '#2b2f3a'; c.fillRect(hx + hw * .7, hy + 4, 7, 7);
+    c.save(); c.globalCompositeOperation = 'lighter'; // luz da varanda
+    const pg = c.createRadialGradient(hx + hw * .3, hy + hh + 3, 1, hx + hw * .3, hy + hh + 3, 16);
+    pg.addColorStop(0, 'rgba(255,200,120,.45)'); pg.addColorStop(1, 'rgba(255,200,120,0)');
+    c.fillStyle = pg; c.beginPath(); c.arc(hx + hw * .3, hy + hh + 3, 16, 0, 6.283); c.fill(); c.restore();
+    if (R() < .45) { c.fillStyle = '#0b4a66'; c.fillRect(x + w * .76, y + h * .56, w * .18, h * .26); c.strokeStyle = 'rgba(0,240,255,.5)'; c.strokeRect(x + w * .76, y + h * .56, w * .18, h * .26); }
+    this.drawTree(c, x + w * .86, y + h * .24, 7 + R() * 4);
+    this.drawTree(c, x + w * .1, y + h * .88, 5 + R() * 3);
+  }
+
+  drawPark(c, x, y, w, h, R) {
+    c.fillStyle = '#0c2417'; c.fillRect(x, y, w, h);
+    c.fillStyle = '#1c2a28'; c.fillRect(x + w / 2 - 4, y, 8, h); c.fillRect(x, y + h / 2 - 4, w, 8);
+    const px = x + w * .3, py = y + h * .3;
+    c.save(); c.fillStyle = '#0a3a55'; c.shadowColor = '#00f0ff'; c.shadowBlur = 8;
+    c.beginPath(); c.ellipse(px, py, w * .16, h * .14, 0, 0, 6.283); c.fill(); c.restore();
+    c.fillStyle = '#5b4630'; c.fillRect(x + w * .62, y + h / 2 - 9, 12, 4); c.fillRect(x + w * .62, y + h / 2 + 6, 12, 4);
+    for (let i = 0; i < 5; i++) this.drawTree(c, x + 10 + R() * (w - 20), y + 10 + R() * (h - 20), 6 + R() * 5);
+  }
+
+  drawParking(c, x, y, w, h, R) {
+    c.fillStyle = '#121622'; c.fillRect(x, y, w, h);
+    c.strokeStyle = 'rgba(255,255,255,.22)'; c.lineWidth = 1;
+    const cols = ['#00f0ff', '#a855f7', '#ec4899', '#eab308', '#e2e8f0', '#3b82f6'];
+    for (const row of [y + 4, y + h - 24]) for (let px = x + 6; px < x + w - 14; px += 15) {
+      c.strokeRect(px, row, 13, 20);
+      if (R() < .6) {
+        const cc = cols[Math.floor(R() * 6)];
+        c.fillStyle = 'rgba(0,0,0,.4)'; c.fillRect(px + 3, row + 3, 9, 16);
+        c.fillStyle = cc; c.beginPath(); c.roundRect(px + 2, row + 2, 9, 16, 2); c.fill();
+        c.fillStyle = 'rgba(8,12,22,.85)'; c.fillRect(px + 3.5, row + 6, 6, 7);
+      }
+    }
+  }
+
+  /* ===================== FERROVIA ===================== */
+  drawRailways(ctx, lvl) {
+    const RW = ROAD_WIDTH / 2;
+    for (const rail of lvl.railways) {
+      const bg = ctx.createLinearGradient(0, rail.y - 20, 0, rail.y + 20);
+      bg.addColorStop(0, '#1d2028'); bg.addColorStop(.5, '#14161c'); bg.addColorStop(1, '#1d2028');
+      ctx.fillStyle = bg; ctx.fillRect(0, rail.y - 20, CANVAS_W, 40);
+      ctx.fillStyle = '#3a3226';
+      for (let x = 0; x < CANVAS_W; x += 14) ctx.fillRect(x, rail.y - 13, 5, 26);
+      const drawRails = (x0, x1) => {
+        for (const o of [-7, 7]) {
+          ctx.strokeStyle = '#3b4456'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, rail.y + o); ctx.lineTo(x1, rail.y + o); ctx.stroke();
+          ctx.strokeStyle = '#b6c0d2'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x0, rail.y + o - 1); ctx.lineTo(x1, rail.y + o - 1); ctx.stroke();
+        }
+      };
+      drawRails(0, CANVAS_W);
+      // Passagens de nível
+      for (const r of lvl.roads.filter((rd) => rd.dir === 'V')) {
+        ctx.fillStyle = '#151925'; ctx.fillRect(r.x1 - RW, rail.y - 20, ROAD_WIDTH, 40);
+        ctx.fillStyle = '#4a4030'; ctx.fillRect(r.x1 - RW, rail.y - 14, ROAD_WIDTH, 5); ctx.fillRect(r.x1 - RW, rail.y + 9, ROAD_WIDTH, 5);
+        drawRails(r.x1 - RW, r.x1 + RW);
+        ctx.fillStyle = '#ffaa00';
+        for (let i = 0; i < 7; i++) { ctx.fillRect(r.x1 - RW + i * 8.6, rail.y - 20, 4.3, 2.5); ctx.fillRect(r.x1 - RW + i * 8.6, rail.y + 17.5, 4.3, 2.5); }
+      }
+      const approaching = this.trains.find((t) => Math.abs(t.y - rail.y) < 5);
+      if (approaching && Math.sin(this.globalTime * 18) > 0) {
+        ctx.fillStyle = 'rgba(255,170,0,.20)'; ctx.fillRect(0, rail.y - 20, CANVAS_W, 40);
+      }
+    }
+  }
+
+  drawTrafficLights(ctx) {
+    const flash = Math.sin(this.globalTime * 14) > 0;
+    const trainNear = this.trains.length > 0;
+    for (const l of this.lights) {
+      const green = l.state === 'GREEN';
+      const col = green ? '#00ff66' : '#ff0044';
+      // linha de retenção
+      ctx.save();
+      ctx.strokeStyle = green ? 'rgba(0,255,102,.3)' : 'rgba(255,0,68,.85)'; ctx.lineWidth = 3; ctx.beginPath();
+      if (l.dirX !== 0) { ctx.moveTo(l.stopX, l.stopY - 12); ctx.lineTo(l.stopX, l.stopY + 12); }
+      else { ctx.moveTo(l.stopX - 12, l.stopY); ctx.lineTo(l.stopX + 12, l.stopY); }
+      ctx.stroke(); ctx.restore();
+      // poça de luz
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(l.x, l.y, 2, l.x, l.y, 36);
+      g.addColorStop(0, green ? 'rgba(0,255,102,.22)' : 'rgba(255,0,68,.26)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(l.x, l.y, 36, 0, 6.283); ctx.fill(); ctx.restore();
+      // cancela (passagem de nível)
+      if (l.isRail) {
+        const ex = l.x + (l.stopX - l.x) * 1.9, ey = l.y + (l.stopY - l.y) * 1.9;
+        ctx.save(); ctx.lineCap = 'butt';
+        ctx.strokeStyle = '#f1f5f9'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(l.x, l.y);
+        if (green) ctx.lineTo(l.x + (l.dirY ? 0 : 0), l.y + (l.dirY > 0 ? -16 : 16)); else ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([6, 6]); ctx.strokeStyle = '#e11d48'; ctx.stroke(); ctx.restore();
+      }
+      // semáforo: caixa + 3 lâmpadas
+      ctx.fillStyle = '#07090d'; ctx.strokeStyle = '#3b4558'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.roundRect(l.x - 7, l.y - 14, 14, 28, 4); ctx.fill(); ctx.stroke();
+      const amberOn = l.isRail && !green && trainNear && flash;
+      for (const [c, dy, on] of [['#ff0044', -8, !green && !(l.isRail && trainNear && !flash)], ['#ffaa00', 0, amberOn], ['#00ff66', 8, green]]) {
+        ctx.save(); ctx.fillStyle = on ? c : '#1a1f2a';
+        if (on) { ctx.shadowColor = c; ctx.shadowBlur = 14; }
+        ctx.beginPath(); ctx.arc(l.x, l.y + dy, 3.6, 0, 6.283); ctx.fill(); ctx.restore();
+      }
+    }
+  }
+
+  /* ===================== VEÍCULOS ===================== */
+  drawVehicles(ctx) {
+    const t = this.globalTime;
+    for (const v of this.vehicles) {
+      if (v._s === undefined) v._s = Math.floor(Math.random() * 3);
+      const L = v.length, W = v.width, hw = L / 2, hh = W / 2;
+      const amb = v.type === 'AMBULANCE', truck = v.type === 'TRUCK';
+      const braking = v.speed < 30 && !v.crashed;
+      const flip = Math.sin(t * 22) > 0;
+      ctx.save();
+      ctx.translate(v.x, v.y);
+      ctx.rotate(v.angle);
+
+      if (amb && !v.crashed) {
+        const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 46);
+        g.addColorStop(0, flip ? 'rgba(0,217,255,.38)' : 'rgba(255,0,68,.38)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 46, 0, 6.283); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.roundRect(-hw + 2, -hh + 3, L, W, 4); ctx.fill();
+      if (!v.crashed) {
+        const beam = amb ? 78 : 60;
+        const g = ctx.createLinearGradient(hw, 0, hw + beam, 0);
+        g.addColorStop(0, 'rgba(255,250,210,.30)'); g.addColorStop(1, 'rgba(255,250,210,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(hw - 1, -hh + 2); ctx.lineTo(hw + beam, -hh - 15); ctx.lineTo(hw + beam, hh + 15); ctx.lineTo(hw - 1, hh - 2); ctx.closePath(); ctx.fill();
+      }
+      if (braking) { ctx.fillStyle = 'rgba(255,0,40,.2)'; ctx.fillRect(-hw - 9, -hh, 9, W); }
+      ctx.fillStyle = '#05060a'; // rodas
+      for (const wx of truck ? [-hw * .7, -hw * .3, hw * .6] : [-hw * .6, hw * .55]) { ctx.fillRect(wx - 3, -hh - 1.5, 6, 3); ctx.fillRect(wx - 3, hh - 1.5, 6, 3); }
+
+      const base = v.crashed ? '#2a1215' : v.color;
+      const bg = ctx.createLinearGradient(0, -hh, 0, hh);
+      bg.addColorStop(0, shade(base, .3)); bg.addColorStop(.5, base); bg.addColorStop(1, shade(base, -.35));
+      ctx.fillStyle = bg; ctx.shadowColor = v.crashed ? '#ff0044' : base; ctx.shadowBlur = v.crashed ? 14 : 7;
+      ctx.beginPath(); ctx.roundRect(-hw, -hh, L, W, truck ? 2 : 5); ctx.fill(); ctx.shadowBlur = 0;
+
+      if (truck) {
+        ctx.fillStyle = shade(base, -.25); ctx.beginPath(); ctx.roundRect(-hw + 1, -hh + 1.5, L - 13, W - 3, 1.5); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+        for (let x = -hw + 4; x < hw - 12; x += 4) { ctx.beginPath(); ctx.moveTo(x, -hh + 2); ctx.lineTo(x, hh - 2); ctx.stroke(); }
+        ctx.fillStyle = v.accent; ctx.globalAlpha = .7; ctx.fillRect(-hw + 4, -1, L - 20, 2); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#0a0f1a'; ctx.fillRect(hw - 8.5, -hh + 2, 4.5, W - 4);
+      } else if (amb) {
+        ctx.fillStyle = '#ff2d55'; ctx.fillRect(-hw, -1.5, L, 3);
+        ctx.fillStyle = '#e11d48'; ctx.fillRect(-8, -1.6, 10, 3.2); ctx.fillRect(-4.6, -5, 3.2, 10);
+        ctx.fillStyle = '#0a0f1a'; ctx.fillRect(hw - 8, -hh + 2, 4, W - 4);
+        if (!v.crashed) for (const [yy, on] of [[-hh + 2, flip], [hh - 7, !flip]]) {
+          const c = on ? '#00d9ff' : '#ff0044'; ctx.save(); ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 16; ctx.fillRect(hw - 14, yy, 3.5, 5); ctx.restore();
+        }
+      } else {
+        if (v._s === 1) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-hw, -1, L, 2); }
+        const cw = v._s === 2 ? .5 : .42;
+        ctx.fillStyle = 'rgba(8,12,22,.92)'; ctx.beginPath(); ctx.roundRect(-hw * cw, -hh + 2, L * (cw + .02), W - 4, 3); ctx.fill();
+        ctx.fillStyle = shade(base, -.15); ctx.beginPath(); ctx.roundRect(-hw * .28, -hh + 3.4, L * .28, W - 6.8, 2); ctx.fill();
+        ctx.fillStyle = 'rgba(120,200,255,.28)'; ctx.fillRect(-hw * cw + L * (cw + .02) - 3.5, -hh + 2.5, 2.5, W - 5);
+      }
+      // faróis e lanternas
+      ctx.save(); ctx.fillStyle = '#fffbe0'; ctx.shadowColor = '#fff2a8'; ctx.shadowBlur = 8;
+      ctx.fillRect(hw - 2.5, -hh + 1.2, 2.5, 3); ctx.fillRect(hw - 2.5, hh - 4.2, 2.5, 3); ctx.restore();
+      ctx.save(); ctx.fillStyle = braking ? '#ff2244' : '#a1122b'; if (braking) { ctx.shadowColor = '#ff0033'; ctx.shadowBlur = 12; }
+      ctx.fillRect(-hw - .5, -hh + 1.2, 2.5, 3); ctx.fillRect(-hw - .5, hh - 4.2, 2.5, 3); ctx.restore();
+
+      if (v.crashed) {
+        ctx.fillStyle = Math.sin(t * 30) > 0 ? '#ff0044' : '#ffaa00';
+        ctx.beginPath(); ctx.arc(0, 0, 7 + Math.sin(t * 20) * 2, 0, 6.283); ctx.fill();
+        ctx.fillStyle = 'rgba(90,90,100,.45)';
+        for (let i = 0; i < 3; i++) { const k = (t * 1.5 + i / 3) % 1; ctx.beginPath(); ctx.arc(-2 + i * 3, -k * 22, 4 + k * 6, 0, 6.283); ctx.globalAlpha = .5 * (1 - k); ctx.fill(); }
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+
+      if (!v.crashed && !amb && (v.waitTime > 0.6 || v.furious)) {
+        const ratio = Math.min(1, v.waitTime / v.maxPatience), barW = 24, bx = v.x - barW / 2, by = v.y - 18;
+        ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(bx - 1, by - 1, barW + 2, 6);
+        let bc = '#ffffff';
+        if (v.furious || ratio > .75) bc = Math.sin(t * 24) > 0 ? '#ff0044' : '#ffffff'; else if (ratio > .4) bc = '#ffaa00';
+        ctx.fillStyle = bc; ctx.fillRect(bx, by, barW * (v.furious ? 1 : ratio), 4);
+      }
+    }
+  }
+
+  /* ===================== TREM ===================== */
+  drawTrains(ctx) {
+    const t = this.globalTime;
+    for (const tr of this.trains) {
+      if (!tr.active) continue;
+      const L = tr.length, W = tr.width, h = W / 2, f = L / 2, locoL = 78, lx = f - locoL;
+      ctx.save();
+      ctx.translate(tr.x, tr.y); ctx.scale(tr.dir, 1);
+      // farol
+      const bm = ctx.createLinearGradient(f, 0, f + 180, 0);
+      bm.addColorStop(0, 'rgba(255,214,90,.6)'); bm.addColorStop(1, 'rgba(255,214,90,0)');
+      ctx.fillStyle = bm; ctx.beginPath(); ctx.moveTo(f, -h + 3); ctx.lineTo(f + 180, -h - 30); ctx.lineTo(f + 180, h + 30); ctx.lineTo(f, h - 3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(-f + 3, -h + 5, L, W);
+      // vagões
+      const cols = ['#3b4a63', '#6b3b2e', '#2f5d57', '#5a4a2a'];
+      let i = 0;
+      for (let x = -f; x + 62 <= lx - 2; x += 66) {
+        ctx.fillStyle = '#07080c';
+        for (const bx of [x + 6, x + 44]) { ctx.fillRect(bx, -h - 1.5, 12, 3); ctx.fillRect(bx, h - 1.5, 12, 3); }
+        const c = cols[i++ % 4], g = ctx.createLinearGradient(0, -h, 0, h);
+        g.addColorStop(0, shade(c, .25)); g.addColorStop(.5, c); g.addColorStop(1, shade(c, -.35));
+        ctx.fillStyle = g; ctx.fillRect(x, -h + 2, 62, W - 4);
+        ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1;
+        for (let k = 6; k < 62; k += 7) { ctx.beginPath(); ctx.moveTo(x + k, -h + 3); ctx.lineTo(x + k, h - 3); ctx.stroke(); }
+        ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fillRect(x, -h + 2, 62, 3);
+        ctx.strokeStyle = 'rgba(255,170,0,.7)'; ctx.strokeRect(x + .5, -h + 2.5, 61, W - 5);
+        ctx.fillStyle = '#222'; ctx.fillRect(x + 62, -2, 4, 4);
+      }
+      // locomotiva
+      ctx.fillStyle = '#07080c';
+      for (const bx of [lx + 6, lx + 28, lx + 52]) { ctx.fillRect(bx, -h - 1.5, 12, 3); ctx.fillRect(bx, h - 1.5, 12, 3); }
+      const lg = ctx.createLinearGradient(0, -h, 0, h);
+      lg.addColorStop(0, '#fbbf24'); lg.addColorStop(.5, '#d97706'); lg.addColorStop(1, '#78350f');
+      ctx.fillStyle = lg; ctx.beginPath(); ctx.roundRect(lx, -h, locoL, W, 5); ctx.fill();
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(lx + 4, -2, locoL - 12, 4);
+      ctx.fillStyle = '#1c1917'; ctx.fillRect(lx + 6, -h + 3, 22, W - 6);
+      ctx.fillStyle = 'rgba(120,200,255,.5)'; ctx.fillRect(lx + 22, -h + 4, 4, W - 8);
+      for (const fx of [lx + 42, lx + 58]) {
+        ctx.fillStyle = '#0a0a0e'; ctx.beginPath(); ctx.arc(fx, 0, 7, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.2; const a = t * 12;
+        ctx.beginPath(); ctx.moveTo(fx + Math.cos(a) * 6, Math.sin(a) * 6); ctx.lineTo(fx - Math.cos(a) * 6, -Math.sin(a) * 6);
+        ctx.moveTo(fx + Math.cos(a + 1.57) * 6, Math.sin(a + 1.57) * 6); ctx.lineTo(fx - Math.cos(a + 1.57) * 6, -Math.sin(a + 1.57) * 6); ctx.stroke();
+      }
+      ctx.fillStyle = '#18181b';
+      for (let k = 0; k < 4; k++) ctx.fillRect(f - 9, -h + k * (W / 4), 5, W / 8);
+      ctx.save(); ctx.fillStyle = '#fff6c8'; ctx.shadowColor = '#ffd54a'; ctx.shadowBlur = 22;
+      ctx.beginPath(); ctx.arc(f - 2, -h + 5, 3, 0, 6.283); ctx.arc(f - 2, h - 5, 3, 0, 6.283); ctx.fill(); ctx.restore();
+      ctx.restore();
+    }
+  }
+
+  drawParticles(ctx) {
+    for (const p of this.particles) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  render() {
+    const ctx = this.ctx;
+    const lvl = LEVELS[this.levelIndex];
+
+    ctx.save();
+    if (this.screenShake > 0) {
+      const mag = this.screenShake * 14;
+      ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
+    }
+
+    this.drawCityBackground(ctx, lvl);
+    this.drawRailways(ctx, lvl);
+    this.drawTrafficLights(ctx);
+    this.drawVehicles(ctx);
+    this.drawTrains(ctx);
+    this.drawParticles(ctx);
+
+    ctx.restore();
+  }
+
+  loop(now) {
+    requestAnimationFrame((t) => this.loop(t));
+    try {
+      const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
+      this.lastFrame = now;
+      this.update(dt);
+      this.render();
+    } catch (e) { console.error(e); }
+  }
+}
+
+// Inicialização da aplicação
+window.addEventListener('DOMContentLoaded', () => {
+  new TrafficRegentGame();
+});
+</script>
+</body>
+</html>
