@@ -1,0 +1,3248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <title>Jangada Oceânica — Sobrevivência & Construção</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* =========================================================================
+       RESET & ESTILOS BASE CARTOON COMERCIAL (MOBILE FIRST + DESKTOP)
+       ========================================================================= */
+    :root {
+      --outline: #14213d;
+      --panel-bg: rgba(255, 250, 240, 0.94);
+      --panel-shadow: 0 6px 0 #14213d;
+      --accent-gold: #ffb703;
+      --accent-orange: #fb8500;
+      --accent-teal: #00b4d8;
+      --accent-red: #ef233c;
+      --accent-green: #2ec4b6;
+      --text-dark: #14213d;
+      --font-display: 'Fredoka', system-ui, -apple-system, sans-serif;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #073b4c;
+      font-family: var(--font-body);
+      color: var(--text-dark);
+      touch-action: none;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0b4f6c;
+    }
+
+    canvas#ocean-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* =========================================================================
+       HUD SUPERIOR (RECURSOS, SEDE, FOME, DIA/BIOMA, ÁUDIO)
+       ========================================================================= */
+    .hud-top {
+      position: absolute;
+      top: max(8px, env(safe-area-inset-top));
+      left: 8px;
+      right: 8px;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .hud-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .cartoon-pill {
+      background: var(--panel-bg);
+      border: 3px solid var(--outline);
+      border-radius: 16px;
+      box-shadow: 0 4px 0 var(--outline);
+      padding: 5px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--text-dark);
+      transition: transform 0.12s ease;
+    }
+
+    .cartoon-pill:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 var(--outline);
+    }
+
+    .resource-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vital-box {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      background: var(--panel-bg);
+      border: 3px solid var(--outline);
+      border-radius: 16px;
+      box-shadow: 0 4px 0 var(--outline);
+      padding: 6px 10px;
+      min-width: 138px;
+    }
+
+    .vital-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-display);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .vital-bar-track {
+      position: relative;
+      flex: 1;
+      height: 11px;
+      background: #dce5ec;
+      border: 2px solid var(--outline);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .vital-bar-fill {
+      height: 100%;
+      width: 100%;
+      border-radius: 999px;
+      transition: width 0.18s linear, background-color 0.25s ease;
+    }
+
+    .vital-bar-fill.thirst {
+      background: linear-gradient(90deg, #0096c7, #48cae4);
+    }
+
+    .vital-bar-fill.hunger {
+      background: linear-gradient(90deg, #f77f00, #fcbf49);
+    }
+
+    .vital-bar-fill.low {
+      background: linear-gradient(90deg, #d90429, #ef233c) !important;
+      animation: pulseBar 0.7s infinite alternate;
+    }
+
+    @keyframes pulseBar {
+      from { filter: brightness(1); }
+      to { filter: brightness(1.25); }
+    }
+
+    .consume-mini-btn {
+      border: 2px solid var(--outline);
+      border-radius: 8px;
+      background: #ffd166;
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      cursor: pointer;
+      box-shadow: 0 2px 0 var(--outline);
+    }
+
+    .consume-mini-btn:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: 0 1px 0 var(--outline);
+    }
+
+    .consume-mini-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .day-badge {
+      background: linear-gradient(180deg, #ffd166 0%, #f4a261 100%);
+      border: 3px solid var(--outline);
+      border-radius: 16px;
+      box-shadow: 0 4px 0 var(--outline);
+      padding: 6px 12px;
+      font-family: var(--font-display);
+      line-height: 1.15;
+    }
+
+    .day-badge .day-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .day-badge .biome-sub {
+      font-family: var(--font-body);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #1d3557;
+      margin-top: 2px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      border: 3px solid var(--outline);
+      background: var(--panel-bg);
+      box-shadow: 0 4px 0 var(--outline);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-dark);
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .icon-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 var(--outline);
+    }
+
+    .icon-btn.active-mode {
+      background: #ffd166;
+    }
+
+    /* =========================================================================
+       MENU INFERIOR DE CONSTRUÇÃO E UPGRADES DO GANCHO
+       ========================================================================= */
+    .hud-bottom {
+      position: absolute;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      left: 8px;
+      right: 8px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      pointer-events: none;
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease;
+    }
+
+    .hud-bottom.collapsed .dock-panel {
+      display: none;
+    }
+
+    .mode-tabs {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      pointer-events: auto;
+    }
+
+    .mode-tab {
+      background: rgba(20, 33, 61, 0.88);
+      color: #fff;
+      border: 2.5px solid var(--outline);
+      border-radius: 11px;
+      padding: 3px 10px;
+      font-family: var(--font-display);
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #091020;
+      transition: all 0.12s ease;
+    }
+
+    .mode-tab.active {
+      background: #ffd166;
+      color: var(--outline);
+      transform: translateY(-1px);
+    }
+
+    .toggle-dock-btn {
+      background: rgba(255, 250, 240, 0.94);
+      color: var(--outline);
+      border: 2.5px solid var(--outline);
+      border-radius: 11px;
+      padding: 3px 10px;
+      font-family: var(--font-display);
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 0 var(--outline);
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+
+    .toggle-dock-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--outline);
+    }
+
+    .dock-panel {
+      width: auto;
+      max-width: min(94vw, 860px);
+      background: rgba(255, 250, 240, 0.86);
+      backdrop-filter: blur(4px);
+      border: 2.5px solid var(--outline);
+      border-radius: 16px;
+      box-shadow: 0 4px 0 var(--outline);
+      padding: 4px 6px;
+      pointer-events: auto;
+    }
+
+    .dock-scroll {
+      width: 100%;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 2px 2px 4px 2px;
+      scrollbar-width: thin;
+    }
+
+    .dock-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .dock-scroll::-webkit-scrollbar-thumb {
+      background: rgba(20, 33, 61, 0.35);
+      border-radius: 999px;
+    }
+
+    .build-card {
+      flex: 0 0 auto;
+      min-width: 108px;
+      max-width: 128px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2.5px solid var(--outline);
+      border-radius: 13px;
+      box-shadow: 0 3px 0 var(--outline);
+      padding: 5px 7px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 2px;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.15s ease;
+      text-align: left;
+    }
+
+    .build-card:hover:not(.disabled) {
+      transform: translateY(-2px);
+    }
+
+    .build-card:active:not(.disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--outline);
+    }
+
+    .build-card.selected {
+      background: #fff3b0;
+      border-color: #fb8500;
+    }
+
+    .build-card.disabled {
+      opacity: 0.52;
+      filter: grayscale(0.35);
+      cursor: not-allowed;
+    }
+
+    .build-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 3px;
+      font-family: var(--font-display);
+      font-size: 0.74rem;
+      font-weight: 700;
+      line-height: 1.05;
+    }
+
+    .build-card-desc {
+      display: none;
+    }
+
+    .build-cost-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      font-family: var(--font-display);
+      font-size: 0.64rem;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    .cost-chip {
+      padding: 0px 4px;
+      border-radius: 6px;
+      border: 1.5px solid var(--outline);
+      background: #f1f5f9;
+    }
+
+    .cost-chip.enough {
+      background: #d8f3dc;
+      color: #1b4332;
+    }
+
+    .cost-chip.lacking {
+      background: #ffe5ec;
+      color: #9b2226;
+    }
+
+    /* =========================================================================
+       TOAST / NOTIFICAÇÕES DE EVENTOS E CONSTRUÇÃO
+       ========================================================================= */
+    #toast-banner {
+      position: absolute;
+      top: 118px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      z-index: 25;
+      background: #fff8e7;
+      border: 3px solid var(--outline);
+      border-radius: 16px;
+      box-shadow: 0 4px 0 var(--outline);
+      padding: 6px 14px;
+      font-family: var(--font-display);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--outline);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      white-space: nowrap;
+      max-width: 92vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #toast-banner.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* =========================================================================
+       MODAIS: INÍCIO RÁPIDO / AJUDA E GAME OVER
+       ========================================================================= */
+    .overlay-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: rgba(7, 30, 48, 0.72);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .overlay-backdrop.hidden {
+      display: none;
+    }
+
+    .cartoon-modal {
+      width: 100%;
+      max-width: 460px;
+      background: #fffaf0;
+      border: 4px solid var(--outline);
+      border-radius: 24px;
+      box-shadow: 0 8px 0 var(--outline);
+      padding: 20px;
+      text-align: center;
+      animation: popIn 0.22s cubic-bezier(0.22, 1.28, 0.36, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.86); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .cartoon-modal h1, .cartoon-modal h2 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      color: var(--outline);
+      margin-bottom: 6px;
+    }
+
+    .cartoon-modal h1 {
+      font-size: 1.75rem;
+    }
+
+    .cartoon-modal p {
+      font-size: 0.88rem;
+      color: #334155;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      text-align: left;
+      margin-bottom: 14px;
+    }
+
+    .guide-item {
+      background: #f8fafc;
+      border: 2px solid var(--outline);
+      border-radius: 12px;
+      padding: 8px;
+      font-size: 0.76rem;
+      line-height: 1.3;
+    }
+
+    .guide-item strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      color: var(--outline);
+      margin-bottom: 2px;
+    }
+
+    .primary-cta {
+      width: 100%;
+      padding: 12px 18px;
+      border-radius: 16px;
+      border: 3px solid var(--outline);
+      background: linear-gradient(180deg, #ffd166 0%, #fb8500 100%);
+      box-shadow: 0 5px 0 var(--outline);
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--outline);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .primary-cta:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 var(--outline);
+    }
+
+    .secondary-cta {
+      margin-top: 8px;
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: 14px;
+      border: 2.5px solid var(--outline);
+      background: #e2e8f0;
+      box-shadow: 0 3px 0 var(--outline);
+      font-family: var(--font-display);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--outline);
+      cursor: pointer;
+    }
+
+    @media (max-width: 520px) {
+      .vital-box {
+        min-width: 118px;
+        padding: 5px 8px;
+      }
+      .cartoon-pill {
+        padding: 4px 8px;
+        font-size: 0.78rem;
+      }
+      .build-card {
+        min-width: 98px;
+        max-width: 114px;
+        padding: 5px 6px;
+      }
+      .guide-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="ocean-canvas"></canvas>
+
+    <!-- HUD SUPERIOR -->
+    <div class="hud-top">
+      <div class="hud-group">
+        <!-- Contador de Dia e Bioma -->
+        <div class="day-badge" id="day-badge">
+          <div class="day-title">☀️ Dia <span id="hud-day">1</span> <span style="font-size:0.72rem; opacity:0.8;">(Rec: <span id="hud-record">1</span>)</span></div>
+          <div class="biome-sub" id="hud-biome">Mar Tropical</div>
+        </div>
+
+        <!-- Sede e Fome + Consumo Rápido -->
+        <div class="vital-box">
+          <div class="vital-row">
+            <span>💧</span>
+            <div class="vital-bar-track">
+              <div class="vital-bar-fill thirst" id="bar-thirst"></div>
+            </div>
+            <button class="consume-mini-btn" id="btn-drink" title="Beber Água Potável (1 Água)">
+              Beber (<span id="hud-water">0</span>)
+            </button>
+          </div>
+          <div class="vital-row">
+            <span>🍖</span>
+            <div class="vital-bar-track">
+              <div class="vital-bar-fill hunger" id="bar-hunger"></div>
+            </div>
+            <button class="consume-mini-btn" id="btn-eat" title="Comer Peixe Assado (1 Peixe)">
+              Comer (<span id="hud-food">0</span>)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recursos e Botões de Utilidade -->
+      <div class="hud-group">
+        <div class="cartoon-pill" title="Madeira">
+          <span class="resource-icon">🪵</span>
+          <span id="hud-wood">6</span>
+        </div>
+        <div class="cartoon-pill" title="Folhas de Palmeira">
+          <span class="resource-icon">🌿</span>
+          <span id="hud-leaf">4</span>
+        </div>
+        <div class="cartoon-pill" title="Sucata Metálica">
+          <span class="resource-icon">⚙️</span>
+          <span id="hud-scrap">2</span>
+        </div>
+        <button class="icon-btn" id="btn-move-mode" title="Alternar modo Toque: Gancho vs Mover">⚓</button>
+        <button class="icon-btn" id="btn-sound" title="Som Ligado/Desligado">🔊</button>
+        <button class="icon-btn" id="btn-help" title="Como Jogar">❓</button>
+      </div>
+    </div>
+
+    <!-- Banner de Notificação / Toast -->
+    <div id="toast-banner">Bem-vindo à Jangada Oceânica!</div>
+
+    <!-- MENU INFERIOR DE CONSTRUÇÃO E UPGRADES -->
+    <div class="hud-bottom collapsed" id="hud-bottom">
+      <div class="mode-tabs">
+        <button class="toggle-dock-btn" id="btn-toggle-dock" title="Abrir ou Recolher Painel (B / Esc)">🔨 Construir ▴</button>
+        <button class="mode-tab active" id="tab-build" style="display:none;">🔨 Construir na Jangada</button>
+        <button class="mode-tab" id="tab-upgrades" style="display:none;">🪝 Melhorias do Gancho</button>
+      </div>
+      <div class="dock-panel" id="dock-panel">
+        <div class="dock-scroll" id="dock-list"></div>
+      </div>
+    </div>
+
+    <!-- MODAL INICIAL / COMO JOGAR -->
+    <div class="overlay-backdrop" id="start-modal">
+      <div class="cartoon-modal">
+        <h1>⛵ Jangada Oceânica</h1>
+        <p>Sobreviva ao oceano infinito, pesque suprimentos com seu gancho, expanda sua jangada e enfrente biomas e tubarões!</p>
+        <div class="guide-grid">
+          <div class="guide-item">
+            <strong>🪝 Gancho & Coleta</strong>
+            No PC: mire e clique para lançar. No celular: arraste para mirar e solte para lançar!
+          </div>
+          <div class="guide-item">
+            <strong>🚶 Mover na Jangada</strong>
+            Use WASD / Setas, clique/toque numa tábua ou ative o modo ⚓ de toque.
+          </div>
+          <div class="guide-item">
+            <strong>💧 Sede & 🍖 Fome</strong>
+            Construa Purificador e Grelha para gerar Água e Peixe Assado automaticamente.
+          </div>
+          <div class="guide-item">
+            <strong>🦈 Tubarões & Biomas</strong>
+            Fisgue tubarões com o gancho, repare a jangada, faça combos e defenda as bordas com Torres de Lança e avance por tempestades, gelo e vulcões.
+          </div>
+        </div>
+        <button class="primary-cta" id="btn-start-game">ZARPAR AGORA!</button>
+      </div>
+    </div>
+
+    <!-- MODAL GAME OVER -->
+    <div class="overlay-backdrop hidden" id="gameover-modal">
+      <div class="cartoon-modal">
+        <h2>🌊 Você Naufragou!</h2>
+        <p id="gameover-reason">Sua sede ou fome chegou a zero em alto-mar.</p>
+        <p style="font-family:var(--font-display); font-size:1rem; color:var(--outline);">
+          Dias Sobrevividos: <span id="go-days">1</span> • Recorde: <span id="go-record">1</span>
+        </p>
+        <button class="primary-cta" id="btn-retry-same">RECOMEÇAR DIA 1 (MANTER UPGRADES)</button>
+        <button class="secondary-cta" id="btn-reset-all">ZERAR TODO O PROGRESSO</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       JANGADA OCEÂNICA — MOTOR COMPLETO EM HTML5 CANVAS + WEB AUDIO + LOCALSTORAGE
+       Arquitetura modular em arquivo único:
+       1. Áudio Procedural (Web Audio API: ondas, lançamento, splash, martelo, mordida, fanfarra)
+       2. Estado do Jogo, Biomas, Definições de Construção & Upgrades + Persistência
+       3. Física, IA de Tubarões, Gancho Elástico, Eventos Temporários & Sobrevivência
+       4. Renderização Cartoon Cel-Shaded 2.5D (Bézier, lineJoin='round', sombras, partículas)
+       5. Controles Híbridos (Mouse, Teclado, Touch Mobile) & Atualização da HUD
+       ========================================================================= */
+
+    (() => {
+      'use strict';
+
+      // =======================================================================
+      // 1. MÓDULO DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+      // =======================================================================
+      class SoundEngine {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.waveGain = null;
+          this.initialized = false;
+        }
+
+        init() {
+          if (this.initialized) {
+            if (this.ctx && this.ctx.state === 'suspended') {
+              this.ctx.resume().catch(() => {});
+            }
+            return;
+          }
+          try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+            this.initialized = true;
+            this.startAmbientWaves();
+          } catch (e) {
+            this.initialized = false;
+          }
+        }
+
+        setMuted(mute) {
+          this.muted = mute;
+          if (this.waveGain && this.ctx) {
+            this.waveGain.gain.setTargetAtTime(mute ? 0 : 0.035, this.ctx.currentTime, 0.1);
+          }
+        }
+
+        startAmbientWaves() {
+          if (!this.ctx) return;
+          // Ruído rosa/marinho filtrado para simular ondas suaves ao fundo
+          const bufferSize = this.ctx.sampleRate * 3;
+          const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = noiseBuffer.getChannelData(0);
+          let lastOut = 0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            data[i] = (lastOut + 0.02 * white) / 1.02;
+            lastOut = data[i];
+            data[i] *= 2.5;
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = noiseBuffer;
+          noise.loop = true;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 260;
+
+          // Modulação lenta de onda
+          const lfo = this.ctx.createOscillator();
+          lfo.type = 'sine';
+          lfo.frequency.value = 0.14;
+          const lfoGain = this.ctx.createGain();
+          lfoGain.gain.value = 140;
+          lfo.connect(lfoGain);
+          lfoGain.connect(filter.frequency);
+
+          this.waveGain = this.ctx.createGain();
+          this.waveGain.gain.value = this.muted ? 0 : 0.035;
+
+          noise.connect(filter);
+          filter.connect(this.waveGain);
+          this.waveGain.connect(this.ctx.destination);
+
+          noise.start();
+          lfo.start();
+        }
+
+        playThrowHook() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(190, now + 0.22);
+
+          gain.gain.setValueAtTime(0.14, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.23);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.24);
+        }
+
+        playSplash() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.25);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const arr = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            arr[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.35));
+          }
+
+          const src = this.ctx.createBufferSource();
+          src.buffer = buffer;
+
+          const bandpass = this.ctx.createBiquadFilter();
+          bandpass.type = 'bandpass';
+          bandpass.frequency.setValueAtTime(750, now);
+          bandpass.Q.value = 1.2;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+          src.connect(bandpass);
+          bandpass.connect(gain);
+          gain.connect(this.ctx.destination);
+          src.start(now);
+        }
+
+        playPickup() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.14);
+
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        }
+
+        playBuild() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          // Batida dupla de martelo
+          [0, 0.11].forEach((offset, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(idx === 0 ? 180 : 240, now + offset);
+            osc.frequency.exponentialRampToValueAtTime(75, now + offset + 0.08);
+
+            gain.gain.setValueAtTime(0.14, now + offset);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.09);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + offset);
+            osc.stop(now + offset + 0.1);
+          });
+        }
+
+        playBite() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.linearRampToValueAtTime(65, now + 0.18);
+
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.19);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+
+        playNewDayFanfare() {
+          if (this.muted || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            const t = now + i * 0.09;
+            osc.frequency.setValueAtTime(freq, t);
+            gain.gain.setValueAtTime(0.14, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.26);
+          });
+        }
+      }
+
+      const sound = new SoundEngine();
+      let flash = 0, combo = 0, comboT = 0;
+
+      // =======================================================================
+      // 2. DEFINIÇÕES DE BIOMAS, CONSTRUÇÕES, UPGRADES E PERSISTÊNCIA
+      // =======================================================================
+      const TILE_SIZE = 54;
+      const STORAGE_KEY = 'jangada_oceanica_save_v1';
+
+      const BIOMES = [
+        {
+          id: 'tropical',
+          name: 'Mar Tropical',
+          emoji: '☀️',
+          waterDeep: '#005f73',
+          waterMid: '#0a9396',
+          waterLight: '#48cae4',
+          sunTint: 'rgba(255, 243, 176, 0.10)',
+          rain: false,
+          volcanic: false,
+          icebergs: false,
+          rewardMult: 1.0,
+          sharkRateMult: 1.0
+        },
+        {
+          id: 'storm',
+          name: 'Tempestade Tropical',
+          emoji: '⛈️',
+          waterDeep: '#1b263b',
+          waterMid: '#274c77',
+          waterLight: '#6096ba',
+          sunTint: 'rgba(15, 23, 42, 0.24)',
+          rain: true,
+          volcanic: false,
+          icebergs: false,
+          rewardMult: 1.35,
+          sharkRateMult: 1.35
+        },
+        {
+          id: 'arctic',
+          name: 'Águas Árticas',
+          emoji: '🧊',
+          waterDeep: '#1d3557',
+          waterMid: '#457b9d',
+          waterLight: '#a8dadc',
+          sunTint: 'rgba(224, 251, 252, 0.14)',
+          rain: false,
+          volcanic: false,
+          icebergs: true,
+          rewardMult: 1.5,
+          sharkRateMult: 1.25
+        },
+        {
+          id: 'volcanic',
+          name: 'Mares Vulcânicos',
+          emoji: '🌋',
+          waterDeep: '#2b193d',
+          waterMid: '#592e5e',
+          waterLight: '#e07a5f',
+          sunTint: 'rgba(255, 107, 53, 0.14)',
+          rain: false,
+          volcanic: true,
+          icebergs: false,
+          rewardMult: 1.85,
+          sharkRateMult: 1.55
+        }
+      ];
+
+      const BUILD_ITEMS = [
+        {
+          id: 'plank',
+          name: 'Tábua de piso',
+          icon: '🪵',
+          desc: 'Expande a jangada em uma posição livre.',
+          cost: { wood: 2, leaf: 1, scrap: 0 }
+        },
+        {
+          id: 'net',
+          name: 'Rede Coletora',
+          icon: '🕸️',
+          desc: 'Pesca automaticamente detritos na borda.',
+          cost: { wood: 2, leaf: 3, scrap: 1 }
+        },
+        {
+          id: 'purifier',
+          name: 'Purificador',
+          icon: '💧',
+          desc: 'Gera água doce e reduz sede aos poucos.',
+          cost: { wood: 3, leaf: 2, scrap: 2 }
+        },
+        {
+          id: 'grill',
+          name: 'Grelha de Peixe',
+          icon: '🍖',
+          desc: 'Assa peixes e reduz fome automaticamente.',
+          cost: { wood: 3, leaf: 1, scrap: 2 }
+        },
+        {
+          id: 'turret',
+          name: 'Torre de Lança',
+          icon: '🏹',
+          desc: 'Dispara lanças contra tubarões próximos.',
+          cost: { wood: 4, leaf: 1, scrap: 3 }
+        },
+        {
+          id: 'repair',
+          name: 'Reparar Jangada',
+          icon: '🔧',
+          desc: 'Restaura +60 de vida de todas as tábuas.',
+          cost: { wood: 2, leaf: 1, scrap: 0 }
+        },
+        {
+          id: 'sail',
+          name: 'Vela de Brisa',
+          icon: '⛵',
+          desc: 'Acelera eventos e traz mais suprimentos.',
+          cost: { wood: 3, leaf: 5, scrap: 1 }
+        }
+      ];
+
+      const UPGRADE_ITEMS = [
+        {
+          id: 'range',
+          name: 'Alcance do Gancho',
+          icon: '🎯',
+          desc: 'Aumenta o alcance máximo da corda.',
+          baseCost: { wood: 2, leaf: 2, scrap: 1 }
+        },
+        {
+          id: 'speed',
+          name: 'Molinete Rápido',
+          icon: '⚡',
+          desc: 'Puxa itens e recolhe o gancho mais rápido.',
+          baseCost: { wood: 2, leaf: 1, scrap: 2 }
+        },
+        {
+          id: 'dualHook',
+          name: 'Gancho Duplo',
+          icon: '🪝',
+          desc: 'Dispara dois ganchos em ângulo simultâneos!',
+          baseCost: { wood: 5, leaf: 4, scrap: 4 }
+        }
+      ];
+
+      function getDefaultRaftTiles() {
+        // Quadrado inicial 2x2 de tábuas ao redor da origem (0,0)
+        return [
+          { gx: -1, gy: -1, type: 'plank', hp: 100, maxHp: 100, flashTimer: 0, cooldown: 0 },
+          { gx: 0, gy: -1, type: 'plank', hp: 100, maxHp: 100, flashTimer: 0, cooldown: 0 },
+          { gx: -1, gy: 0, type: 'plank', hp: 100, maxHp: 100, flashTimer: 0, cooldown: 0 },
+          { gx: 0, gy: 0, type: 'plank', hp: 100, maxHp: 100, flashTimer: 0, cooldown: 0 }
+        ];
+      }
+
+      function createInitialState(keepUpgrades = false, prevUpgrades = null) {
+        return {
+          day: 1,
+          dayProgress: 0, // 0 a 1 (cada dia dura ~45s)
+          recordDay: 1,
+          resources: {
+            wood: 6,
+            leaf: 4,
+            scrap: 2,
+            water: 1,
+            food: 1
+          },
+          vitals: {
+            thirst: 88, // 0..100
+            hunger: 88  // 0..100
+          },
+          upgrades: keepUpgrades && prevUpgrades
+            ? { ...prevUpgrades }
+            : { range: 1, speed: 1, dualHook: 0 },
+          raft: getDefaultRaftTiles(),
+          player: {
+            x: 0,
+            y: 0,
+            targetX: 0,
+            targetY: 0,
+            vx: 0,
+            vy: 0,
+            angle: 0,
+            walkPhase: 0,
+            squash: 1,
+            actionTimer: 0
+          },
+          gameOver: false,
+          gameOverReason: ''
+        };
+      }
+
+      let state = createInitialState(false);
+
+      function loadGame() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.raft) && parsed.raft.length > 0) {
+            state = {
+              ...createInitialState(false),
+              ...parsed,
+              resources: { ...createInitialState(false).resources, ...(parsed.resources || {}) },
+              vitals: { ...createInitialState(false).vitals, ...(parsed.vitals || {}) },
+              upgrades: { ...createInitialState(false).upgrades, ...(parsed.upgrades || {}) }
+            };
+            if (state.gameOver) {
+              state = createInitialState(true, state.upgrades);
+              state.recordDay = parsed.recordDay || 1;
+            }
+          }
+        } catch (err) {
+          // Ignora falhas de storage em modos restritos
+        }
+      }
+
+      function saveGame() {
+        try {
+          const toSave = {
+            day: state.day,
+            dayProgress: state.dayProgress,
+            recordDay: Math.max(state.recordDay, state.day),
+            resources: state.resources,
+            vitals: state.vitals,
+            upgrades: state.upgrades,
+            raft: state.raft,
+            gameOver: state.gameOver
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        } catch (err) {
+          // Sem bloqueio caso storage esteja cheio
+        }
+      }
+
+      loadGame();
+
+      // =======================================================================
+      // 3. ENTIDADES DINÂMICAS: GANCHOS, DETRITOS, TUBARÕES, EVENTOS, PARTÍCULAS
+      // =======================================================================
+      const hooks = [];      // Ganchos ativos { x, y, vx, vy, angle, state: 'out'|'pull'|'return', caught, length, maxLen, speedMult }
+      const debris = [];     // Itens flutuantes no mar
+      const sharks = [];     // Tubarões rondando/atacando
+      const harpoons = [];   // Projéteis das torres de lança
+      const events = [];     // Ilhas temporárias e navios naufragados
+      const particles = [];  // Respingos, lascas, confetes, textos flutuantes
+      const rainDrops = [];  // Gotas de chuva na tempestade
+
+      let selectedBuildId = 'plank';
+      let activeTab = 'build';
+      let dockCollapsed = true;
+      let mobileTouchMode = 'hook'; // 'hook' ou 'move'
+      let gameStarted = false;
+
+      let debrisSpawnTimer = 0.4;
+      let sharkSpawnTimer = 6.5;
+      let eventSpawnTimer = 14.0;
+      let saveTimer = 5.0;
+      let waveTime = 0;
+      let screenShake = 0;
+
+      // Dimensões e câmera
+      const canvas = document.getElementById('ocean-canvas');
+      const ctx = canvas.getContext('2d');
+      let viewW = window.innerWidth;
+      let viewH = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      function resizeCanvas() {
+        viewW = window.innerWidth;
+        viewH = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(viewW * dpr);
+        canvas.height = Math.floor(viewH * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      // Notificação toast
+      let toastTimeout = null;
+      function showToast(msg, duration = 2200) {
+        const el = document.getElementById('toast-banner');
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          el.classList.remove('show');
+        }, duration);
+      }
+
+      function getCurrentBiome() {
+        const idx = (state.day - 1) % BIOMES.length;
+        const c = Math.floor((state.day - 1) / BIOMES.length);
+        if (c === 0) return BIOMES[idx];
+        const B = BIOMES[idx];
+        return { ...B, name: B.name + ' ' + (['II','III','IV','V','VI','VII','VIII','IX','X'][c - 1] || ('Nv.' + (c + 1))), sharkRateMult: B.sharkRateMult * (1 + c * 0.25), rewardMult: B.rewardMult * (1 + c * 0.08) };
+      }
+
+      function getHookMaxRange() {
+        return 250 + (state.upgrades.range - 1) * 62;
+      }
+
+      function getHookSpeed() {
+        return 540 + (state.upgrades.speed - 1) * 115;
+      }
+
+      function getUpgradeCost(item) {
+        const lvl = item.id === 'dualHook'
+          ? state.upgrades.dualHook
+          : (state.upgrades[item.id] - 1);
+        const mult = Math.pow(1.55, Math.max(0, lvl));
+        return {
+          wood: Math.max(1, Math.round(item.baseCost.wood * mult)),
+          leaf: Math.max(1, Math.round(item.baseCost.leaf * mult)),
+          scrap: Math.max(1, Math.round(item.baseCost.scrap * mult))
+        };
+      }
+
+      function canAfford(cost) {
+        return (
+          state.resources.wood >= (cost.wood || 0) &&
+          state.resources.leaf >= (cost.leaf || 0) &&
+          state.resources.scrap >= (cost.scrap || 0)
+        );
+      }
+
+      function payCost(cost) {
+        state.resources.wood -= (cost.wood || 0);
+        state.resources.leaf -= (cost.leaf || 0);
+        state.resources.scrap -= (cost.scrap || 0);
+      }
+
+      // Partículas e respingos
+      function spawnSplash(x, y, count = 8, color = '#e0fbfc') {
+        for (let i = 0; i < count; i++) {
+          const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+          const spd = 45 + Math.random() * 115;
+          particles.push({
+            kind: 'splash',
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            radius: 3 + Math.random() * 4.5,
+            color,
+            life: 0.45 + Math.random() * 0.25,
+            maxLife: 0.7
+          });
+        }
+      }
+
+      function spawnWoodChips(x, y, count = 10) {
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = 60 + Math.random() * 140;
+          particles.push({
+            kind: 'chip',
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 14,
+            w: 8 + Math.random() * 6,
+            h: 4 + Math.random() * 3,
+            color: i % 2 === 0 ? '#c68b59' : '#9c6644',
+            life: 0.55 + Math.random() * 0.25,
+            maxLife: 0.8
+          });
+        }
+      }
+
+      function spawnConfetti(x, y, count = 16) {
+        const palette = ['#ffd166', '#06d6a0', '#118ab2', '#ef476f', '#ffffff'];
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = 50 + Math.random() * 150;
+          particles.push({
+            kind: 'confetti',
+            x,
+            y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd - 35,
+            rot: Math.random() * Math.PI * 2,
+            vRot: (Math.random() - 0.5) * 12,
+            w: 7,
+            h: 5,
+            color: palette[i % palette.length],
+            life: 0.7 + Math.random() * 0.35,
+            maxLife: 1.05
+          });
+        }
+      }
+
+      function spawnFloatingText(x, y, text, color = '#fff') {
+        particles.push({
+          kind: 'text',
+          x,
+          y,
+          vy: -38,
+          text,
+          color,
+          life: 1.0,
+          maxLife: 1.0
+        });
+      }
+
+      // =======================================================================
+      // GERAÇÃO DE DETRITOS, TUBARÕES E EVENTOS TEMPORÁRIOS
+      // =======================================================================
+      function spawnDebris() {
+        const biome = getCurrentBiome();
+        const roll = Math.random();
+        let type = 'wood';
+        if (roll < 0.34) type = 'wood';
+        else if (roll < 0.64) type = 'leaf';
+        else if (roll < 0.82) type = 'scrap';
+        else if (roll < 0.92) type = 'fish';
+        else type = 'crate';
+
+        // Correnteza flui da direita/topo-direito para esquerda/baixo-esquerdo
+        const edge = Math.random();
+        let x, y, vx, vy;
+        const driftSpeed = (44 + state.day * 3.5) * (state.raft.some(t => t.type === 'sail') ? 1.22 : 1.0);
+
+        if (edge < 0.65) {
+          x = viewW * 0.5 + 140 + Math.random() * 140;
+          y = (Math.random() - 0.5) * (viewH * 0.85);
+          vx = -driftSpeed * (0.85 + Math.random() * 0.3);
+          vy = (Math.random() - 0.5) * 18;
+        } else {
+          x = (Math.random() - 0.3) * (viewW * 0.85);
+          y = -viewH * 0.5 - 80;
+          vx = -driftSpeed * 0.75;
+          vy = driftSpeed * 0.45;
+        }
+
+        const radii = { wood: 17, leaf: 16, scrap: 15, fish: 16, crate: 21 };
+        debris.push({
+          id: Math.random().toString(36).slice(2),
+          type,
+          x,
+          y,
+          vx,
+          vy,
+          radius: radii[type] || 16,
+          bobOffset: Math.random() * Math.PI * 2,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 1.4,
+          caughtBy: null,
+          rewardMult: biome.rewardMult
+        });
+      }
+
+      function spawnShark() {
+        if (sharks.length >= Math.min(10, 1 + Math.floor(state.day / 2))) return;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = Math.max(viewW, viewH) * 0.55 + 60;
+        sharks.push({
+          x: Math.cos(ang) * dist,
+          y: Math.sin(ang) * dist,
+          vx: 0,
+          vy: 0,
+          angle: ang + Math.PI,
+          hp: 35 + state.day * 16,
+          maxHp: 35 + state.day * 16,
+          state: 'patrol', // 'patrol' | 'charge' | 'retreat'
+          timer: 1.5 + Math.random() * 2,
+          biteCooldown: 0,
+          tailPhase: Math.random() * Math.PI * 2,
+          hitFlash: 0
+        });
+      }
+
+      function spawnTemporaryEvent() {
+        if (events.length >= 2) return;
+        const isIsland = Math.random() < 0.55;
+        const y = (Math.random() - 0.5) * (viewH * 0.65);
+        const speed = 36 * (state.raft.some(t => t.type === 'sail') ? 1.2 : 1.0);
+        events.push({
+          kind: isIsland ? 'island' : 'wreck',
+          x: viewW * 0.5 + 180,
+          y,
+          vx: -speed,
+          vy: 0,
+          radius: isIsland ? 62 : 56,
+          bobOffset: Math.random() * Math.PI * 2,
+          chestLooted: false
+        });
+      }
+
+      // =======================================================================
+      // LANÇAMENTO DO GANCHO & MOVIMENTO NA JANGADA
+      // =======================================================================
+      function launchHookAt(worldX, worldY) {
+        if (state.gameOver || !gameStarted) return;
+        if (hooks.length >= (1 + state.upgrades.dualHook)) return;
+
+        const px = state.player.x;
+        const py = state.player.y;
+        const dx = worldX - px;
+        const dy = worldY - py;
+        let baseAngle = Math.atan2(dy, dx);
+        {
+          let best = 0.3, tgt = null;
+          for (const it of debris) {
+            if (it.caughtBy || Math.hypot(it.x - px, it.y - py) > getHookMaxRange()) continue;
+            let da = Math.atan2(it.y - py, it.x - px) - baseAngle;
+            da = Math.atan2(Math.sin(da), Math.cos(da));
+            if (Math.abs(da) < best) { best = Math.abs(da); tgt = da; }
+          }
+          if (tgt !== null) baseAngle += tgt;
+        }
+        const maxRange = getHookMaxRange();
+        const speed = getHookSpeed();
+
+        const angles = state.upgrades.dualHook > 0
+          ? [baseAngle - 0.14, baseAngle + 0.14]
+          : [baseAngle];
+
+        angles.forEach((ang) => {
+          if (hooks.length >= (1 + state.upgrades.dualHook)) return;
+          hooks.push({
+            x: px + Math.cos(ang) * 18,
+            y: py + Math.sin(ang) * 18,
+            vx: Math.cos(ang) * speed,
+            vy: Math.sin(ang) * speed,
+            angle: ang,
+            phase: 'out', // 'out' | 'pull' | 'return'
+            caught: null,
+            maxRange,
+            speed
+          });
+        });
+
+        state.player.angle = baseAngle;
+        state.player.squash = 1.24;
+        state.player.actionTimer = 0.28;
+        sound.playThrowHook();
+      }
+
+      function collectDebrisItem(item) {
+        const mult = item.rewardMult || 1;
+        combo = comboT > 0 ? combo + 1 : 1; comboT = 4;
+        if (combo >= 3 && combo % 3 === 0) {
+          state.resources.scrap += 1;
+          spawnFloatingText(state.player.x, state.player.y - 50, `COMBO x${combo}! +1⚙️`, '#ff9f1c');
+        }
+        const gainAmt = (base) => Math.max(1, Math.round(base * mult));
+
+        if (item.type === 'wood') {
+          const n = gainAmt(2);
+          state.resources.wood += n;
+          spawnFloatingText(state.player.x, state.player.y - 28, `+${n} Madeira`, '#ffd166');
+        } else if (item.type === 'leaf') {
+          const n = gainAmt(2);
+          state.resources.leaf += n;
+          spawnFloatingText(state.player.x, state.player.y - 28, `+${n} Folha`, '#74c69d');
+        } else if (item.type === 'scrap') {
+          const n = gainAmt(2);
+          state.resources.scrap += n;
+          spawnFloatingText(state.player.x, state.player.y - 28, `+${n} Sucata`, '#90e0ef');
+        } else if (item.type === 'fish') {
+          const n = gainAmt(1);
+          state.resources.food += n;
+          spawnFloatingText(state.player.x, state.player.y - 28, `+${n} Peixe`, '#ffadad');
+        } else if (item.type === 'crate') {
+          const w = gainAmt(2);
+          const l = gainAmt(2);
+          const s = gainAmt(1);
+          state.resources.wood += w;
+          state.resources.leaf += l;
+          state.resources.scrap += s;
+          state.resources.water += 1;
+          spawnFloatingText(state.player.x, state.player.y - 32, `Baú! +${w}🪵 +${l}🌿 +${s}⚙️`, '#ffe066');
+          spawnConfetti(state.player.x, state.player.y - 10, 12);
+        }
+
+        sound.playPickup();
+        updateHUD();
+      }
+
+      // =======================================================================
+      // CONSTRUÇÃO MODULAR E UPGRADES
+      // =======================================================================
+      function getFreeAdjacentSlots() {
+        const occupied = new Set(state.raft.map(t => `${t.gx},${t.gy}`));
+        const dirs = [
+          [1, 0], [-1, 0], [0, 1], [0, -1]
+        ];
+        const slots = [];
+        for (const tile of state.raft) {
+          for (const [dx, dy] of dirs) {
+            const nx = tile.gx + dx;
+            const ny = tile.gy + dy;
+            const key = `${nx},${ny}`;
+            // Limita raio máximo da jangada para manter jogabilidade ótima em telas pequenas
+            if (!occupied.has(key) && Math.abs(nx) <= 4 && Math.abs(ny) <= 4) {
+              occupied.add(key);
+              slots.push({ gx: nx, gy: ny });
+            }
+          }
+        }
+        return slots;
+      }
+
+      function tryBuildItem(itemId) {
+        if (state.gameOver) return;
+        const def = BUILD_ITEMS.find(b => b.id === itemId);
+        if (!def) return;
+
+        selectedBuildId = itemId;
+
+        if (!canAfford(def.cost)) {
+          showToast('Recursos insuficientes! Pesque mais itens no mar.');
+          renderDock();
+          return;
+        }
+
+        if (itemId === 'repair') {
+          if (!state.raft.some(t => t.hp < t.maxHp)) { showToast('Nenhuma tábua danificada!'); return; }
+          payCost(def.cost);
+          state.raft.forEach(t => { t.hp = Math.min(t.maxHp, t.hp + 60); t.flashTimer = 0.25; });
+          sound.playBuild();
+          spawnConfetti(0, 0, 14);
+          showToast('🔧 Jangada reparada!');
+          saveGame(); updateHUD(); renderDock();
+          return;
+        }
+        if (itemId === 'plank') {
+          const slots = getFreeAdjacentSlots();
+          if (slots.length === 0) {
+            showToast('A jangada já atingiu o tamanho máximo!');
+            return;
+          }
+          // Escolhe slot mais próximo do centro/jogador
+          slots.sort((a, b) => {
+            const da = Math.hypot(a.gx * TILE_SIZE - state.player.x, a.gy * TILE_SIZE - state.player.y);
+            const db = Math.hypot(b.gx * TILE_SIZE - state.player.x, b.gy * TILE_SIZE - state.player.y);
+            return da - db;
+          });
+          const chosen = slots[0];
+          payCost(def.cost);
+          state.raft.push({
+            gx: chosen.gx,
+            gy: chosen.gy,
+            type: 'plank',
+            hp: 100,
+            maxHp: 100,
+            flashTimer: 0.3,
+            cooldown: 0
+          });
+          sound.playBuild();
+          spawnConfetti(chosen.gx * TILE_SIZE + TILE_SIZE * 0.5, chosen.gy * TILE_SIZE + TILE_SIZE * 0.5, 14);
+          showToast('Nova tábua adicionada à jangada!');
+        } else {
+          // Instala estação/melhoria em uma tábua disponível (priorizando plank puro)
+          const candidates = state.raft.filter(t => t.type === 'plank');
+          if (candidates.length === 0) {
+            showToast('Construa mais tábuas de piso primeiro!');
+            return;
+          }
+          // Evita múltiplas velas em excesso
+          if (itemId === 'sail' && state.raft.filter(t => t.type === 'sail').length >= 2) {
+            showToast('Você já tem o máximo de Velas de Brisa!');
+            return;
+          }
+          // Ordena por proximidade do jogador
+          candidates.sort((a, b) => {
+            const da = Math.hypot(a.gx * TILE_SIZE - state.player.x, a.gy * TILE_SIZE - state.player.y);
+            const db = Math.hypot(b.gx * TILE_SIZE - state.player.x, b.gy * TILE_SIZE - state.player.y);
+            return da - db;
+          });
+          const targetTile = candidates[0];
+          payCost(def.cost);
+          targetTile.type = itemId;
+          targetTile.flashTimer = 0.35;
+          targetTile.cooldown = 2.0;
+
+          sound.playBuild();
+          spawnConfetti(targetTile.gx * TILE_SIZE + TILE_SIZE * 0.5, targetTile.gy * TILE_SIZE + TILE_SIZE * 0.5, 16);
+          showToast(`${def.name} construída!`);
+        }
+
+        saveGame();
+        updateHUD();
+        renderDock();
+      }
+
+      function tryBuyUpgrade(upgId) {
+        if (state.gameOver) return;
+        const def = UPGRADE_ITEMS.find(u => u.id === upgId);
+        if (!def) return;
+
+        if (upgId === 'dualHook' && state.upgrades.dualHook >= 1) {
+          showToast('Gancho Duplo já está ativo!');
+          return;
+        }
+        if (upgId !== 'dualHook' && state.upgrades[upgId] >= 6) {
+          showToast('Nível máximo atingido!');
+          return;
+        }
+
+        const cost = getUpgradeCost(def);
+        if (!canAfford(cost)) {
+          showToast('Recursos insuficientes para o upgrade!');
+          return;
+        }
+
+        payCost(cost);
+        if (upgId === 'dualHook') {
+          state.upgrades.dualHook = 1;
+          showToast('🪝 Gancho Duplo desbloqueado!');
+        } else {
+          state.upgrades[upgId] += 1;
+          showToast(`${def.name} Nv.${state.upgrades[upgId]}!`);
+        }
+
+        sound.playBuild();
+        spawnConfetti(state.player.x, state.player.y - 16, 14);
+        saveGame();
+        updateHUD();
+        renderDock();
+      }
+
+      // =======================================================================
+      // 4. ATUALIZAÇÃO FÍSICA, IA, SOBREVIVÊNCIA E CICLO DE DIAS
+      // =======================================================================
+      const keysDown = new Set();
+
+      function clampToRaft(x, y) {
+        if (state.raft.length === 0) return { x: 0, y: 0 };
+        let bestX = x;
+        let bestY = y;
+        let bestDist = Infinity;
+
+        for (const tile of state.raft) {
+          const minX = tile.gx * TILE_SIZE + 10;
+          const maxX = (tile.gx + 1) * TILE_SIZE - 10;
+          const minY = tile.gy * TILE_SIZE + 10;
+          const maxY = (tile.gy + 1) * TILE_SIZE - 10;
+          const cx = Math.max(minX, Math.min(maxX, x));
+          const cy = Math.max(minY, Math.min(maxY, y));
+          const d = Math.hypot(cx - x, cy - y);
+          if (d < bestDist) {
+            bestDist = d;
+            bestX = cx;
+            bestY = cy;
+          }
+        }
+        return { x: bestX, y: bestY };
+      }
+
+      function triggerGameOver(reason) {
+        if (state.gameOver) return;
+        state.gameOver = true;
+        state.gameOverReason = reason;
+        state.recordDay = Math.max(state.recordDay, state.day);
+        saveGame();
+
+        document.getElementById('gameover-reason').textContent = reason;
+        document.getElementById('go-days').textContent = String(state.day);
+        document.getElementById('go-record').textContent = String(state.recordDay);
+        document.getElementById('gameover-modal').classList.remove('hidden');
+      }
+
+      function updateGame(dt) {
+        waveTime += dt;
+        comboT -= dt;
+        const biome = getCurrentBiome();
+
+        // Atualiza chuva se for tempestade
+        if (biome.rain) {
+          for (let i = 0; i < 6; i++) {
+            if (rainDrops.length < 130) {
+              rainDrops.push({
+                x: (Math.random() - 0.5) * viewW * 1.2,
+                y: -viewH * 0.5 - Math.random() * 80,
+                vx: -140,
+                vy: 560 + Math.random() * 140,
+                len: 14 + Math.random() * 10
+              });
+            }
+          }
+        }
+        for (let i = rainDrops.length - 1; i >= 0; i--) {
+          const r = rainDrops[i];
+          r.x += r.vx * dt;
+          r.y += r.vy * dt;
+          if (r.y > viewH * 0.55) {
+            rainDrops.splice(i, 1);
+          }
+        }
+
+        if (screenShake > 0) {
+          screenShake = Math.max(0, screenShake - dt * 28);
+        }
+
+        if (!gameStarted || state.gameOver) return;
+
+        // Progresso do Dia (1 dia = 44 segundos)
+        state.dayProgress += dt / 44;
+        if (state.dayProgress >= 1) {
+          state.dayProgress -= 1;
+          state.day += 1;
+          state.recordDay = Math.max(state.recordDay, state.day);
+          const nextBiome = getCurrentBiome();
+          sound.playNewDayFanfare();
+          spawnConfetti(state.player.x, state.player.y - 20, 22);
+          showToast(`${nextBiome.emoji} Fase ${state.day} — ${nextBiome.name}!`, 3000);
+          if (state.day % 5 === 0) {
+            const ang = Math.random() * Math.PI * 2, bh = 200 + state.day * 40;
+            sharks.push({ x: Math.cos(ang) * 520, y: Math.sin(ang) * 520, vx: 0, vy: 0, angle: ang + Math.PI, hp: bh, maxHp: bh, state: 'patrol', timer: 2, biteCooldown: 0, tailPhase: 0, hitFlash: 0, boss: true });
+            showToast('🦈 CHEFÃO se aproxima! Fase ' + state.day, 3500);
+          }
+          saveGame();
+        }
+
+        // Sede e Fome descem gradualmente
+        const thirstDrain = 1.45 * Math.min(2.8, 1 + (state.day - 1) * 0.05); // por segundo
+        const hungerDrain = 1.15 * Math.min(2.8, 1 + (state.day - 1) * 0.05);
+        state.vitals.thirst = Math.max(0, state.vitals.thirst - thirstDrain * dt);
+        state.vitals.hunger = Math.max(0, state.vitals.hunger - hungerDrain * dt);
+
+        if (state.vitals.thirst <= 0) {
+          triggerGameOver('Você ficou sem água doce em alto-mar.');
+          return;
+        }
+        if (state.vitals.hunger <= 0) {
+          triggerGameOver('A fome venceu na travessia oceânica.');
+          return;
+        }
+
+        // Movimento do jogador (Teclado WASD/Setas ou alvo clicado/tocado)
+        let moveX = 0;
+        let moveY = 0;
+        if (keysDown.has('KeyW') || keysDown.has('ArrowUp')) moveY -= 1;
+        if (keysDown.has('KeyS') || keysDown.has('ArrowDown')) moveY += 1;
+        if (keysDown.has('KeyA') || keysDown.has('ArrowLeft')) moveX -= 1;
+        if (keysDown.has('KeyD') || keysDown.has('ArrowRight')) moveX += 1;
+
+        const p = state.player;
+        const walkSpeed = 135;
+
+        if (moveX !== 0 || moveY !== 0) {
+          const len = Math.hypot(moveX, moveY);
+          moveX /= len;
+          moveY /= len;
+          p.vx = moveX * walkSpeed;
+          p.vy = moveY * walkSpeed;
+          p.targetX = p.x + p.vx * 0.1;
+          p.targetY = p.y + p.vy * 0.1;
+          p.angle = Math.atan2(moveY, moveX);
+        } else {
+          const dx = p.targetX - p.x;
+          const dy = p.targetY - p.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 3) {
+            p.vx = (dx / dist) * walkSpeed;
+            p.vy = (dy / dist) * walkSpeed;
+            p.angle = Math.atan2(dy, dx);
+          } else {
+            p.vx = 0;
+            p.vy = 0;
+          }
+        }
+
+        const nextPos = clampToRaft(p.x + p.vx * dt, p.y + p.vy * dt);
+        p.x = nextPos.x;
+        p.y = nextPos.y;
+
+        const speedNow = Math.hypot(p.vx, p.vy);
+        if (speedNow > 10) {
+          p.walkPhase += dt * 13;
+          p.squash = 1 + Math.sin(p.walkPhase * 2) * 0.08;
+        } else {
+          p.squash += (1 - p.squash) * Math.min(1, dt * 12);
+        }
+        p.actionTimer = Math.max(0, p.actionTimer - dt);
+
+        // Atualização das estações construídas na jangada
+        for (let i = state.raft.length - 1; i >= 0; i--) {
+          const tile = state.raft[i];
+          tile.flashTimer = Math.max(0, tile.flashTimer - dt);
+
+          if (tile.hp <= 0) {
+            spawnWoodChips(tile.gx * TILE_SIZE + TILE_SIZE * 0.5, tile.gy * TILE_SIZE + TILE_SIZE * 0.5, 14);
+            showToast('Uma tábua foi destruída pelo tubarão!');
+            state.raft.splice(i, 1);
+            if (state.raft.length === 0) {
+              triggerGameOver('Sua jangada foi completamente destruída!');
+              return;
+            }
+            const clamped = clampToRaft(p.x, p.y);
+            p.x = clamped.x;
+            p.y = clamped.y;
+            continue;
+          }
+
+          const tx = tile.gx * TILE_SIZE + TILE_SIZE * 0.5;
+          const ty = tile.gy * TILE_SIZE + TILE_SIZE * 0.5;
+
+          if (tile.type === 'purifier') {
+            tile.cooldown -= dt;
+            state.vitals.thirst = Math.min(100, state.vitals.thirst + 0.55 * dt);
+            if (tile.cooldown <= 0) {
+              tile.cooldown = 11;
+              state.resources.water += 1;
+              spawnFloatingText(tx, ty - 18, '+1 💧', '#48cae4');
+            }
+          } else if (tile.type === 'grill') {
+            tile.cooldown -= dt;
+            state.vitals.hunger = Math.min(100, state.vitals.hunger + 0.48 * dt);
+            if (tile.cooldown <= 0) {
+              tile.cooldown = 12;
+              state.resources.food += 1;
+              spawnFloatingText(tx, ty - 18, '+1 🍖', '#fcbf49');
+            }
+          } else if (tile.type === 'net') {
+            // Rede coletora captura detritos que encostam nela
+            for (let j = debris.length - 1; j >= 0; j--) {
+              const item = debris[j];
+              if (!item.caughtBy && Math.hypot(item.x - tx, item.y - ty) < TILE_SIZE * 0.72) {
+                debris.splice(j, 1);
+                collectDebrisItem(item);
+                spawnSplash(item.x, item.y, 6, '#caf0f8');
+                break;
+              }
+            }
+          } else if (tile.type === 'turret') {
+            tile.cooldown -= dt;
+            if (tile.cooldown <= 0 && sharks.length > 0) {
+              // Procura tubarão mais próximo dentro do alcance
+              let nearest = null;
+              let bestD = 320;
+              for (const s of sharks) {
+                const d = Math.hypot(s.x - tx, s.y - ty);
+                if (d < bestD) {
+                  bestD = d;
+                  nearest = s;
+                }
+              }
+              if (nearest) {
+                tile.cooldown = 1.65;
+                const ang = Math.atan2(nearest.y - ty, nearest.x - tx);
+                harpoons.push({
+                  x: tx,
+                  y: ty,
+                  vx: Math.cos(ang) * 440,
+                  vy: Math.sin(ang) * 440,
+                  angle: ang,
+                  damage: 18 + state.day * 3,
+                  life: 1.0
+                });
+                sound.playThrowHook();
+              }
+            }
+          }
+        }
+
+        // Ganchos (ida, fisgar e puxar)
+        for (let i = hooks.length - 1; i >= 0; i--) {
+          const h = hooks[i];
+          const distFromPlayer = Math.hypot(h.x - p.x, h.y - p.y);
+
+          if (h.phase === 'out') {
+            h.x += h.vx * dt;
+            h.y += h.vy * dt;
+
+            // Verifica colisão com detritos livres
+            for (const item of debris) {
+              if (!item.caughtBy && Math.hypot(h.x - item.x, h.y - item.y) <= item.radius + 14) {
+                h.phase = 'pull';
+                h.caught = item;
+                item.caughtBy = h;
+                spawnSplash(item.x, item.y, 9, '#ffffff');
+                sound.playSplash();
+                break;
+              }
+            }
+
+            // Verifica colisão com eventos temporários (baú/ilha/naufrágio)
+            if (h.phase === 'out') {
+              for (const ev of events) {
+                if (!ev.chestLooted && Math.hypot(h.x - ev.x, h.y - ev.y) <= ev.radius) {
+                  ev.chestLooted = true;
+                  h.phase = 'return';
+                  const mult = Math.max(1.5, biome.rewardMult);
+                  state.resources.wood += Math.round(4 * mult);
+                  state.resources.leaf += Math.round(3 * mult);
+                  state.resources.scrap += Math.round(3 * mult);
+                  state.resources.water += 2;
+                  state.resources.food += 2;
+                  spawnConfetti(ev.x, ev.y, 20);
+                  spawnSplash(ev.x, ev.y, 12, '#ffd166');
+                  showToast('🏆 Tesouro raro fisgado!');
+                  sound.playPickup();
+                  break;
+                }
+              }
+            }
+
+            if (h.phase === 'out') {
+              for (const sh of sharks) {
+                if (Math.hypot(h.x - sh.x, h.y - sh.y) < 30) {
+                  sh.hp -= 16 + state.upgrades.speed * 3; sh.hitFlash = 0.2; sh.state = 'retreat'; sh.timer = 1.4;
+                  spawnSplash(sh.x, sh.y, 8, '#ff595e'); spawnFloatingText(sh.x, sh.y - 16, 'Fisgado!', '#ffccd5');
+                  screenShake = 4; h.phase = 'return'; sound.playBite();
+                  break;
+                }
+              }
+            }
+            if (h.phase === 'out' && distFromPlayer >= h.maxRange) {
+              h.phase = 'return';
+              spawnSplash(h.x, h.y, 6, '#caf0f8');
+              sound.playSplash();
+            }
+          } else if (h.phase === 'pull') {
+            const toPlayerAng = Math.atan2(p.y - h.y, p.x - h.x);
+            const pullSpd = h.speed * 0.85;
+            h.x += Math.cos(toPlayerAng) * pullSpd * dt;
+            h.y += Math.sin(toPlayerAng) * pullSpd * dt;
+            if (h.caught) {
+              h.caught.x = h.x;
+              h.caught.y = h.y;
+            }
+            if (Math.hypot(h.x - p.x, h.y - p.y) <= 28) {
+              if (h.caught) {
+                const idx = debris.indexOf(h.caught);
+                if (idx !== -1) debris.splice(idx, 1);
+                collectDebrisItem(h.caught);
+              }
+              hooks.splice(i, 1);
+            }
+          } else if (h.phase === 'return') {
+            const toPlayerAng = Math.atan2(p.y - h.y, p.x - h.x);
+            const retSpd = h.speed * 1.15;
+            h.x += Math.cos(toPlayerAng) * retSpd * dt;
+            h.y += Math.sin(toPlayerAng) * retSpd * dt;
+            if (Math.hypot(h.x - p.x, h.y - p.y) <= 24) {
+              hooks.splice(i, 1);
+            }
+          }
+        }
+
+        // Detritos no mar
+        debrisSpawnTimer -= dt;
+        if (debrisSpawnTimer <= 0) {
+          debrisSpawnTimer = Math.min(2.4, 1.5 + state.day * 0.04);
+          spawnDebris();
+        }
+
+        for (let i = debris.length - 1; i >= 0; i--) {
+          const item = debris[i];
+          if (!item.caughtBy) {
+            item.x += item.vx * dt;
+            item.y += item.vy * dt;
+            item.rot += item.vRot * dt;
+          }
+          if (item.x < -viewW * 0.75 || item.y > viewH * 0.75) {
+            debris.splice(i, 1);
+          }
+        }
+
+        // Eventos temporários (ilhas e navios naufragados)
+        eventSpawnTimer -= dt;
+        if (eventSpawnTimer <= 0) {
+          eventSpawnTimer = 17 + Math.random() * 8;
+          spawnTemporaryEvent();
+        }
+
+        for (let i = events.length - 1; i >= 0; i--) {
+          const ev = events[i];
+          ev.x += ev.vx * dt;
+          ev.y += ev.vy * dt;
+          if (ev.x < -viewW * 0.85) {
+            events.splice(i, 1);
+          }
+        }
+
+        // Arpões das torres de defesa
+        for (let i = harpoons.length - 1; i >= 0; i--) {
+          const hpj = harpoons[i];
+          hpj.x += hpj.vx * dt;
+          hpj.y += hpj.vy * dt;
+          hpj.life -= dt;
+          let hit = false;
+
+          for (let sIdx = sharks.length - 1; sIdx >= 0; sIdx--) {
+            const s = sharks[sIdx];
+            if (Math.hypot(hpj.x - s.x, hpj.y - s.y) < 28) {
+              s.hp -= hpj.damage;
+              s.hitFlash = 0.2;
+              s.state = 'retreat';
+              s.timer = 1.4;
+              spawnSplash(s.x, s.y, 8, '#ff595e');
+              spawnFloatingText(s.x, s.y - 16, `-${hpj.damage}`, '#ffccd5');
+              hit = true;
+              if (s.hp <= 0) {
+                const wGain = 2 + Math.floor(biome.rewardMult);
+                const scGain = 1 + Math.floor(biome.rewardMult);
+                state.resources.wood += wGain;
+                state.resources.scrap += scGain;
+                spawnSplash(s.x, s.y, 14, '#ffffff');
+                spawnFloatingText(s.x, s.y - 24, `Tubarão abatido! +${wGain}🪵 +${scGain}⚙️`, '#ffd166');
+                sound.playPickup();
+                sharks.splice(sIdx, 1);
+              }
+              break;
+            }
+          }
+
+          if (hit || hpj.life <= 0) {
+            harpoons.splice(i, 1);
+          }
+        }
+
+        // Tubarões
+        sharkSpawnTimer -= dt * biome.sharkRateMult;
+        if (sharkSpawnTimer <= 0) {
+          sharkSpawnTimer = Math.max(3, 13.5 - state.day * 0.6);
+          spawnShark();
+        }
+
+        for (let i = sharks.length - 1; i >= 0; i--) {
+          const s = sharks[i];
+          if (s.hp <= 0) {
+            const k = s.boss ? 5 : 1; state.resources.wood += 3 * k; state.resources.scrap += 2 * k; state.resources.food += k; if (s.boss) { state.resources.water += 3; spawnConfetti(s.x, s.y, 30); }
+            spawnSplash(s.x, s.y, 14, '#ffffff');
+            spawnFloatingText(s.x, s.y - 24, 'Tubarão! +3🪵 +2⚙️ +1🍖', '#ffd166');
+            sound.playPickup(); sharks.splice(i, 1); continue;
+          }
+          s.tailPhase += dt * 11;
+          s.biteCooldown = Math.max(0, s.biteCooldown - dt);
+          s.hitFlash = Math.max(0, s.hitFlash - dt);
+          s.timer -= dt;
+
+          // Encontra tábua de borda mais próxima
+          let targetTile = state.raft[0];
+          let bestDist = Infinity;
+          for (const tile of state.raft) {
+            const tx = tile.gx * TILE_SIZE + TILE_SIZE * 0.5;
+            const ty = tile.gy * TILE_SIZE + TILE_SIZE * 0.5;
+            const d = Math.hypot(tx - s.x, ty - s.y);
+            if (d < bestDist) {
+              bestDist = d;
+              targetTile = tile;
+            }
+          }
+
+          const tCenterX = targetTile.gx * TILE_SIZE + TILE_SIZE * 0.5;
+          const tCenterY = targetTile.gy * TILE_SIZE + TILE_SIZE * 0.5;
+
+          if (s.state === 'patrol') {
+            // Circula próximo à jangada
+            const orbitAng = Math.atan2(s.y, s.x) + dt * 0.65;
+            const desiredR = 145 + (i % 2) * 35;
+            const dx = Math.cos(orbitAng) * desiredR - s.x;
+            const dy = Math.sin(orbitAng) * desiredR - s.y;
+            s.angle = Math.atan2(dy, dx);
+            s.vx = Math.cos(s.angle) * 95;
+            s.vy = Math.sin(s.angle) * 95;
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+
+            if (s.timer <= 0) {
+              s.state = 'charge';
+              s.timer = 2.6;
+            }
+          } else if (s.state === 'charge') {
+            const dx = tCenterX - s.x;
+            const dy = tCenterY - s.y;
+            const dist = Math.hypot(dx, dy);
+            s.angle = Math.atan2(dy, dx);
+            const chargeSpd = 128 + Math.min(state.day * 5, 200);
+            s.vx = Math.cos(s.angle) * chargeSpd;
+            s.vy = Math.sin(s.angle) * chargeSpd;
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+
+            if (dist < TILE_SIZE * 0.62 && s.biteCooldown <= 0) {
+              s.biteCooldown = 1.65;
+              targetTile.hp -= 22 + state.day * 1.6;
+              targetTile.flashTimer = 0.45;
+              screenShake = 7;
+              spawnWoodChips(tCenterX, tCenterY, 10);
+              spawnSplash(tCenterX, tCenterY, 8, '#ff595e');
+              spawnFloatingText(tCenterX, tCenterY - 16, 'MORDIDA!', '#ff4d6d');
+              sound.playBite();
+              s.state = 'retreat';
+              s.timer = 1.3;
+            } else if (s.timer <= 0) {
+              s.state = 'patrol';
+              s.timer = 2.5;
+            }
+          } else if (s.state === 'retreat') {
+            s.x -= Math.cos(s.angle) * 110 * dt;
+            s.y -= Math.sin(s.angle) * 110 * dt;
+            if (s.timer <= 0) {
+              s.state = 'patrol';
+              s.timer = 2.2;
+            }
+          }
+        }
+
+        // Partículas
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const pt = particles[i];
+          pt.life -= dt;
+          if (pt.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          if (pt.kind === 'text') {
+            pt.y += pt.vy * dt;
+          } else {
+            pt.x += pt.vx * dt;
+            pt.y += pt.vy * dt;
+            pt.vx *= 0.94;
+            pt.vy *= 0.94;
+            if (pt.rot !== undefined) pt.rot += pt.vRot * dt;
+          }
+        }
+
+        // Salvamento periódico automático
+        saveTimer -= dt;
+        if (saveTimer <= 0) {
+          saveTimer = 6.0;
+          saveGame();
+        }
+      }
+
+      // =======================================================================
+      // 5. RENDERIZAÇÃO CARTOON 2D CEL-SHADED & VETORIAL (60 FPS)
+      // =======================================================================
+      function drawOceanBackground() {
+        const biome = getCurrentBiome();
+        const grad = ctx.createRadialGradient(
+          viewW * 0.5, viewH * 0.45, 40,
+          viewW * 0.5, viewH * 0.5, Math.max(viewW, viewH) * 0.78
+        );
+        grad.addColorStop(0, biome.waterLight);
+        grad.addColorStop(0.52, biome.waterMid);
+        grad.addColorStop(1, biome.waterDeep);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, viewW, viewH);
+
+        // Ondas estilizadas em camadas com curvas Bézier
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const layerCount = 5;
+        for (let l = 0; l < layerCount; l++) {
+          const yBase = (viewH / (layerCount + 1)) * (l + 1);
+          const amp = 8 + l * 2.5;
+          const speed = waveTime * (0.9 + l * 0.25);
+          ctx.beginPath();
+          ctx.strokeStyle = l % 2 === 0
+            ? 'rgba(255, 255, 255, 0.14)'
+            : 'rgba(0, 35, 55, 0.14)';
+          ctx.lineWidth = 3;
+
+          for (let x = -40; x <= viewW + 40; x += 64) {
+            const wy = yBase + Math.sin(x * 0.015 + speed + l) * amp;
+            if (x === -40) ctx.moveTo(x, wy);
+            else {
+              const cx = x - 32;
+              const cy = yBase + Math.cos(cx * 0.015 + speed + l) * amp;
+              ctx.quadraticCurveTo(cx, cy, x, wy);
+            }
+          }
+          ctx.stroke();
+        }
+
+        // Reflexos solares cintilantes (caustics)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        for (let i = 0; i < 16; i++) {
+          const sx = ((i * 197 + waveTime * 28) % (viewW + 120)) - 60;
+          const sy = ((i * 113 + Math.sin(waveTime * 1.4 + i) * 24 + viewH) % viewH);
+          ctx.beginPath();
+          ctx.ellipse(sx, sy, 16 + (i % 3) * 6, 4, -0.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Tintura atmosférica do bioma
+        if (biome.sunTint) {
+          ctx.fillStyle = biome.sunTint;
+          ctx.fillRect(0, 0, viewW, viewH);
+        }
+
+        ctx.restore();
+      }
+
+      function drawAmbient() {
+        const b = getCurrentBiome(), pr = state.dayProgress, m = (v, n) => ((v % n) + n) % n;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 30, 50, 0.14)';
+        for (let i = 0; i < 7; i++) {
+          const x = m(i * 263 - waveTime * (22 + i * 4), viewW + 200) - 100;
+          const y = m(i * 151 + 60, viewH) + Math.sin(waveTime + i) * 12;
+          ctx.beginPath(); ctx.ellipse(x, y, 18, 6, 0, 0, 7);
+          ctx.moveTo(x + 16, y); ctx.lineTo(x + 28, y - 7); ctx.lineTo(x + 28, y + 7); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(0, 20, 40, 0.07)';
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath(); ctx.ellipse(m(i * 410 + waveTime * 14, viewW + 500) - 250, m(i * 233, viewH), 170, 60, 0, 0, 7); ctx.fill();
+        }
+        if (b.icebergs || b.volcanic) {
+          ctx.fillStyle = b.volcanic ? 'rgba(255, 140, 60, 0.85)' : 'rgba(255, 255, 255, 0.85)';
+          for (let i = 0; i < 40; i++) {
+            const x = m(i * 97 + Math.sin(waveTime * 0.8 + i) * 30 + waveTime * 10, viewW);
+            const y = m(i * 61 + waveTime * (b.volcanic ? -45 : 32), viewH);
+            ctx.beginPath(); ctx.arc(x, y, b.volcanic ? 2 : 2.6, 0, 7); ctx.fill();
+          }
+        }
+        const night = pr > 0.7 ? (pr - 0.7) / 0.3 : pr < 0.08 ? (0.08 - pr) / 0.08 : 0;
+        if (night > 0) { ctx.fillStyle = `rgba(6, 10, 45, ${night * 0.42})`; ctx.fillRect(0, 0, viewW, viewH); }
+        if (b.rain && Math.random() < 0.004) flash = 1;
+        if (flash > 0) { ctx.fillStyle = `rgba(255,255,255,${flash * 0.35})`; ctx.fillRect(0, 0, viewW, viewH); flash -= 0.06; }
+        const vg = ctx.createRadialGradient(viewW / 2, viewH / 2, Math.min(viewW, viewH) * 0.4, viewW / 2, viewH / 2, Math.max(viewW, viewH) * 0.75);
+        vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0, 10, 25, 0.38)');
+        ctx.fillStyle = vg; ctx.fillRect(0, 0, viewW, viewH);
+        ctx.restore();
+      }
+
+      function drawSharkWarnings() {
+        for (const s of sharks) {
+          const sx = s.x + viewW / 2, sy = s.y + viewH / 2;
+          if (sx >= 0 && sx <= viewW && sy >= 0 && sy <= viewH) continue;
+          const cx = Math.max(28, Math.min(viewW - 28, sx)), cy = Math.max(70, Math.min(viewH - 70, sy));
+          ctx.save(); ctx.translate(cx, cy);
+          ctx.rotate(Math.atan2(sy - cy, sx - cx));
+          ctx.globalAlpha = 0.6 + Math.sin(waveTime * 8) * 0.35;
+          ctx.fillStyle = '#ef233c'; ctx.strokeStyle = '#14213d'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawEvents() {
+        const biome = getCurrentBiome();
+        for (const ev of events) {
+          const bob = Math.sin(waveTime * 2 + ev.bobOffset) * 5;
+          ctx.save();
+          ctx.translate(ev.x, ev.y + bob);
+          ctx.lineWidth = 3.5;
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#14213d';
+
+          // Ondulação de água ao redor
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.lineWidth = 2.5;
+          ctx.ellipse(0, 6, ev.radius + 10 + Math.sin(waveTime * 4) * 3, (ev.radius + 10) * 0.68, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 3.5;
+
+          if (ev.kind === 'island') {
+            // Ilha tropical cartoon com areia, vegetação e baú
+            ctx.fillStyle = '#f4d35e';
+            ctx.beginPath();
+            ctx.ellipse(0, 4, ev.radius, ev.radius * 0.72, -0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Sombra interna / cel-shade
+            ctx.fillStyle = '#ee964b';
+            ctx.beginPath();
+            ctx.ellipse(4, 10, ev.radius * 0.78, ev.radius * 0.45, -0.15, 0, Math.PI);
+            ctx.fill();
+
+            // Folhagem tropical
+            ctx.fillStyle = '#2a9d8f';
+            ctx.beginPath();
+            ctx.arc(-14, -6, 18, 0, Math.PI * 2);
+            ctx.arc(6, -10, 21, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            // Navio naufragado / casco quebrado
+            ctx.fillStyle = '#7f4f24';
+            ctx.beginPath();
+            ctx.moveTo(-46, -8);
+            ctx.quadraticCurveTo(0, 26, 48, -6);
+            ctx.lineTo(36, -18);
+            ctx.quadraticCurveTo(0, 6, -36, -18);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Mastro partido
+            ctx.fillStyle = '#9c6644';
+            ctx.fillRect(-5, -38, 10, 28);
+            ctx.strokeRect(-5, -38, 10, 28);
+          }
+
+          // Baú de tesouro se ainda não fisgado
+          if (!ev.chestLooted) {
+            ctx.fillStyle = '#ffb703';
+            ctx.fillRect(-13, -12, 26, 18);
+            ctx.strokeRect(-13, -12, 26, 18);
+            // Faixa e fecho
+            ctx.fillStyle = '#fb8500';
+            ctx.fillRect(-13, -4, 26, 4);
+            ctx.fillStyle = '#fff3b0';
+            ctx.fillRect(-3, -6, 6, 7);
+          } else {
+            ctx.fillStyle = 'rgba(255,255,255,0.75)';
+            ctx.font = 'bold 11px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('COLETADO', 0, -24);
+          }
+
+          // Icebergs extras no bioma ártico
+          if (biome.icebergs) {
+            ctx.fillStyle = '#caf0f8';
+            ctx.beginPath();
+            ctx.moveTo(-24, 14);
+            ctx.lineTo(-8, -22);
+            ctx.lineTo(14, -14);
+            ctx.lineTo(26, 14);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      function drawDebris() {
+        for (const item of debris) {
+          const bob = Math.sin(waveTime * 3.5 + item.bobOffset) * 3.5;
+          ctx.save();
+          ctx.translate(item.x, item.y + bob);
+
+          // Anel de ondulação na água
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+          ctx.lineWidth = 2;
+          ctx.ellipse(0, 4, item.radius + 5 + Math.sin(waveTime * 5 + item.bobOffset) * 2, (item.radius + 5) * 0.65, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.rotate(item.rot);
+          ctx.lineWidth = 3;
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#14213d';
+
+          if (item.type === 'wood') {
+            ctx.fillStyle = '#c68b59';
+            ctx.beginPath();
+            ctx.roundRect(-17, -7, 34, 14, 5);
+            ctx.fill();
+            ctx.stroke();
+            // Brilho especular
+            ctx.fillStyle = '#ddb892';
+            ctx.fillRect(-13, -4, 26, 3);
+          } else if (item.type === 'leaf') {
+            ctx.fillStyle = '#52b788';
+            ctx.beginPath();
+            ctx.moveTo(-16, 0);
+            ctx.quadraticCurveTo(0, -14, 17, 0);
+            ctx.quadraticCurveTo(0, 14, -16, 0);
+            ctx.fill();
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.strokeStyle = '#1b4332';
+            ctx.lineWidth = 2;
+            ctx.moveTo(-12, 0);
+            ctx.lineTo(13, 0);
+            ctx.stroke();
+          } else if (item.type === 'scrap') {
+            ctx.fillStyle = '#90e0ef';
+            ctx.beginPath();
+            for (let k = 0; k < 6; k++) {
+              const a = (Math.PI * 2 * k) / 6;
+              const r = k % 2 === 0 ? 14 : 9;
+              if (k === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+              else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#0077b6';
+            ctx.beginPath();
+            ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (item.type === 'fish') {
+            ctx.fillStyle = '#ff9f1c';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 14, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            // Cauda
+            ctx.beginPath();
+            ctx.moveTo(-12, 0);
+            ctx.lineTo(-20, -7);
+            ctx.lineTo(-20, 7);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            // Olho
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(7, -2, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (item.type === 'crate') {
+            ctx.fillStyle = '#e9c46a';
+            ctx.fillRect(-15, -15, 30, 30);
+            ctx.strokeRect(-15, -15, 30, 30);
+            ctx.beginPath();
+            ctx.moveTo(-15, -15);
+            ctx.lineTo(15, 15);
+            ctx.moveTo(15, -15);
+            ctx.lineTo(-15, 15);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      function drawRaft() {
+        const swayX = Math.sin(waveTime * 1.8) * 3;
+        const swayY = Math.cos(waveTime * 1.4) * 2.5;
+
+        ctx.save();
+        ctx.translate(swayX, swayY);
+
+        ctx.fillStyle = 'rgba(0, 25, 45, 0.28)';
+        for (const t of state.raft) {
+          ctx.beginPath();
+          ctx.roundRect(t.gx * TILE_SIZE + 6, t.gy * TILE_SIZE + 10, TILE_SIZE, TILE_SIZE, 10);
+          ctx.fill();
+        }
+        // Espuma branca ao redor da jangada
+        for (const tile of state.raft) {
+          const tx = tile.gx * TILE_SIZE;
+          const ty = tile.gy * TILE_SIZE;
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+          ctx.lineWidth = 4;
+          ctx.roundRect(tx - 4, ty - 4, TILE_SIZE + 8, TILE_SIZE + 8, 12);
+          ctx.stroke();
+        }
+
+        // Desenha cada bloco da jangada
+        for (const tile of state.raft) {
+          const tx = tile.gx * TILE_SIZE;
+          const ty = tile.gy * TILE_SIZE;
+
+          ctx.save();
+          ctx.lineWidth = 3.2;
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#14213d';
+
+          // Base de tábuas de madeira
+          ctx.fillStyle = tile.flashTimer > 0 && tile.hp < tile.maxHp
+            ? '#ff4d6d'
+            : '#b07d4f';
+          ctx.beginPath();
+          ctx.roundRect(tx + 2, ty + 2, TILE_SIZE - 4, TILE_SIZE - 4, 9);
+          ctx.fill();
+          ctx.stroke();
+
+          // Ripas internas de madeira
+          ctx.strokeStyle = '#7f5539';
+          ctx.lineWidth = 2;
+          for (let r = 1; r <= 2; r++) {
+            const ry = ty + (TILE_SIZE / 3) * r;
+            ctx.beginPath();
+            ctx.moveTo(tx + 7, ry);
+            ctx.lineTo(tx + TILE_SIZE - 7, ry);
+            ctx.stroke();
+          }
+
+          // Cordas amarrando os cantos
+          ctx.strokeStyle = '#f4d35e';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(tx + 6, ty + 6, TILE_SIZE - 12, TILE_SIZE - 12);
+
+          // Estações modulares construídas sobre a tábua
+          const cx = tx + TILE_SIZE * 0.5;
+          const cy = ty + TILE_SIZE * 0.5;
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 2.8;
+
+          if (tile.type === 'net') {
+            ctx.strokeStyle = '#f8f9fa';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(tx + 8, ty + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+            ctx.beginPath();
+            ctx.moveTo(tx + 18, ty + 8);
+            ctx.lineTo(tx + 18, ty + TILE_SIZE - 8);
+            ctx.moveTo(tx + 36, ty + 8);
+            ctx.lineTo(tx + 36, ty + TILE_SIZE - 8);
+            ctx.moveTo(tx + 8, ty + 18);
+            ctx.lineTo(tx + TILE_SIZE - 8, ty + 18);
+            ctx.moveTo(tx + 8, ty + 36);
+            ctx.lineTo(tx + TILE_SIZE - 8, ty + 36);
+            ctx.stroke();
+          } else if (tile.type === 'purifier') {
+            ctx.fillStyle = '#48cae4';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - 4, 4, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (tile.type === 'grill') {
+            ctx.fillStyle = '#334155';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ff6b35';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 7 + Math.sin(waveTime * 8) * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (tile.type === 'turret') {
+            ctx.fillStyle = '#adb5bd';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#e63946';
+            ctx.fillRect(cx + 4, cy - 3.5, 16, 7);
+            ctx.strokeRect(cx + 4, cy - 3.5, 16, 7);
+          } else if (tile.type === 'sail') {
+            // Vela inflada cartoon
+            ctx.fillStyle = '#fff8e7';
+            ctx.beginPath();
+            ctx.moveTo(cx - 4, cy - 22);
+            ctx.quadraticCurveTo(cx + 22, cy - 6, cx - 4, cy + 12);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ef476f';
+            ctx.fillRect(cx - 3, cy - 12, 13, 5);
+          }
+
+          // Barra de vida se a tábua sofreu dano
+          if (tile.hp < tile.maxHp) {
+            const pct = Math.max(0, tile.hp / tile.maxHp);
+            ctx.fillStyle = 'rgba(20, 33, 61, 0.8)';
+            ctx.fillRect(tx + 6, ty + TILE_SIZE - 10, TILE_SIZE - 12, 6);
+            ctx.fillStyle = pct > 0.4 ? '#ffd166' : '#ef233c';
+            ctx.fillRect(tx + 7, ty + TILE_SIZE - 9, (TILE_SIZE - 14) * pct, 4);
+          }
+
+          ctx.restore();
+        }
+
+        // Destaque sutil em posições livres ao selecionar "Tábua de piso"
+        if (!state.gameOver && activeTab === 'build' && selectedBuildId === 'plank') {
+          const slots = getFreeAdjacentSlots();
+          ctx.save();
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = 'rgba(255, 224, 102, 0.72)';
+          ctx.lineWidth = 2;
+          for (const sl of slots) {
+            ctx.strokeRect(sl.gx * TILE_SIZE + 5, sl.gy * TILE_SIZE + 5, TILE_SIZE - 10, TILE_SIZE - 10);
+          }
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawPlayerAndAim() {
+        const p = state.player;
+        const swayX = Math.sin(waveTime * 1.8) * 3;
+        const swayY = Math.cos(waveTime * 1.4) * 2.5;
+        const px = p.x + swayX;
+        const py = p.y + swayY;
+
+        // Linha pontilhada de mira e indicador de alcance (no PC quando não está em modo mover)
+        if (!state.gameOver && gameStarted && (pointer.active || (!isTouchDevice && mobileTouchMode === 'hook'))) {
+          const maxR = getHookMaxRange();
+          ctx.save();
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([8, 8]);
+          ctx.arc(px, py, maxR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          const aimAng = Math.atan2(pointer.worldY - p.y, pointer.worldX - p.x);
+          const dist = Math.min(maxR, Math.hypot(pointer.worldX - p.x, pointer.worldY - p.y));
+          const endX = px + Math.cos(aimAng) * Math.max(40, dist);
+          const endY = py + Math.sin(aimAng) * Math.max(40, dist);
+
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255, 209, 102, 0.85)';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([6, 6]);
+          ctx.moveTo(px, py);
+          ctx.lineTo(endX, endY);
+          ctx.stroke();
+
+          // Mira circular na ponta
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.strokeStyle = '#ffd166';
+          ctx.lineWidth = 2.5;
+          ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Personagem náufrago cartoon cel-shaded
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.scale(p.squash, 2 - p.squash);
+
+        // Sombra no chão
+        ctx.fillStyle = 'rgba(20, 33, 61, 0.32)';
+        ctx.beginPath();
+        ctx.ellipse(0, 12, 14, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Corpo / mochila
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#14213d';
+        ctx.fillStyle = '#e76f51';
+        ctx.beginPath();
+        ctx.arc(0, 2, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cabeça e olhos expressivos
+        ctx.fillStyle = '#ffcdb2';
+        ctx.beginPath();
+        ctx.arc(0, -7, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Olhos
+        const lookX = Math.cos(p.angle) * 3;
+        const lookY = Math.sin(p.angle) * 2;
+        ctx.fillStyle = '#14213d';
+        ctx.beginPath();
+        ctx.arc(-3.5 + lookX, -7 + lookY, 2.1, 0, Math.PI * 2);
+        ctx.arc(3.5 + lookX, -7 + lookY, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Chapéu de palha cartoon
+        ctx.fillStyle = '#f4d35e';
+        ctx.beginPath();
+        ctx.ellipse(0, -13, 15, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, -15, 8, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+
+        // Gancho metálico na mão se não estiver lançado
+        if (hooks.length === 0) {
+          const hx = Math.cos(p.angle) * 16;
+          const hy = Math.sin(p.angle) * 16;
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(hx + Math.cos(p.angle) * 4, hy + Math.sin(p.angle) * 4, 5, p.angle - 1.2, p.angle + 1.2);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawHooks() {
+        const px = state.player.x;
+        const py = state.player.y;
+
+        for (const h of hooks) {
+          ctx.save();
+          // Corda esticada
+          ctx.beginPath();
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 5;
+          ctx.moveTo(px, py);
+          ctx.lineTo(h.x, h.y);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.strokeStyle = '#f4d35e';
+          ctx.lineWidth = 2.5;
+          ctx.moveTo(px, py);
+          ctx.lineTo(h.x, h.y);
+          ctx.stroke();
+
+          // Cabeça do gancho metálico
+          ctx.translate(h.x, h.y);
+          const ang = Math.atan2(h.y - py, h.x - px);
+          ctx.rotate(ang);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 2.8;
+          ctx.beginPath();
+          ctx.moveTo(8, 0);
+          ctx.lineTo(-4, -7);
+          ctx.lineTo(-1, 0);
+          ctx.lineTo(-4, 7);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawSharks() {
+        for (const s of sharks) {
+          ctx.save();
+          ctx.translate(s.x, s.y);
+          ctx.rotate(s.angle);
+          if (s.boss) ctx.scale(1.8, 1.8);
+
+          // Sombra submarina suave
+          ctx.fillStyle = 'rgba(4, 24, 38, 0.34)';
+          ctx.beginPath();
+          ctx.ellipse(0, 8, 28, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.lineWidth = 3.2;
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#14213d';
+          ctx.fillStyle = s.hitFlash > 0 ? '#ff4d6d' : '#5c7cfa';
+
+          // Corpo do tubarão
+          ctx.beginPath();
+          ctx.moveTo(26, 0);
+          ctx.quadraticCurveTo(6, -15, -18, -7);
+          ctx.lineTo(-30, -14);
+          ctx.lineTo(-25, 0);
+          ctx.lineTo(-30, 14);
+          ctx.lineTo(-18, 7);
+          ctx.quadraticCurveTo(6, 15, 26, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Barbatana dorsal proeminente
+          const finSwing = Math.sin(s.tailPhase) * 0.15;
+          ctx.save();
+          ctx.rotate(finSwing);
+          ctx.fillStyle = s.hitFlash > 0 ? '#ff758f' : '#3b5bdb';
+          ctx.beginPath();
+          ctx.moveTo(4, -5);
+          ctx.lineTo(-10, -20);
+          ctx.lineTo(-12, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+
+          // Olho feroz cartoon
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(13, -5, 4.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#d90429';
+          ctx.beginPath();
+          ctx.arc(14, -5, 2, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+      }
+
+      function drawHarpoonsAndParticles() {
+        // Arpões
+        for (const hpj of harpoons) {
+          ctx.save();
+          ctx.translate(hpj.x, hpj.y);
+          ctx.rotate(hpj.angle);
+          ctx.strokeStyle = '#14213d';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-12, 0);
+          ctx.lineTo(12, 0);
+          ctx.stroke();
+          ctx.fillStyle = '#ffd166';
+          ctx.beginPath();
+          ctx.moveTo(15, 0);
+          ctx.lineTo(6, -5);
+          ctx.lineTo(6, 5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Partículas
+        for (const pt of particles) {
+          const alpha = Math.max(0, pt.life / pt.maxLife);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          if (pt.kind === 'splash') {
+            ctx.fillStyle = pt.color;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (pt.kind === 'chip' || pt.kind === 'confetti') {
+            ctx.translate(pt.x, pt.y);
+            ctx.rotate(pt.rot);
+            ctx.fillStyle = pt.color;
+            ctx.strokeStyle = '#14213d';
+            ctx.lineWidth = 1.6;
+            ctx.fillRect(-pt.w / 2, -pt.h / 2, pt.w, pt.h);
+            ctx.strokeRect(-pt.w / 2, -pt.h / 2, pt.w, pt.h);
+          } else if (pt.kind === 'text') {
+            ctx.font = 'bold 13px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.strokeStyle = '#14213d';
+            ctx.lineWidth = 4;
+            ctx.strokeText(pt.text, pt.x, pt.y);
+            ctx.fillStyle = pt.color;
+            ctx.fillText(pt.text, pt.x, pt.y);
+          }
+          ctx.restore();
+        }
+
+        // Chuva no bioma de tempestade
+        if (rainDrops.length > 0) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(224, 251, 252, 0.45)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          for (const r of rainDrops) {
+            ctx.moveTo(r.x, r.y);
+            ctx.lineTo(r.x + r.vx * 0.025, r.y + r.len);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function renderScene() {
+        drawOceanBackground();
+        drawAmbient();
+
+        ctx.save();
+        const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+        const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+        ctx.translate(viewW * 0.5 + shakeX, viewH * 0.5 + shakeY);
+
+        drawEvents();
+        drawDebris();
+        drawSharks();
+        drawRaft();
+        drawHooks();
+        drawPlayerAndAim();
+        drawHarpoonsAndParticles();
+
+        ctx.restore();
+        drawSharkWarnings();
+      }
+
+      // =======================================================================
+      // 6. CONTROLES HÍBRIDOS (MOUSE, TECLADO E MOBILE TOUCH) + HUD
+      // =======================================================================
+      const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      const pointer = {
+        active: false,
+        worldX: 0,
+        worldY: 0
+      };
+
+      function screenToWorld(clientX, clientY) {
+        return {
+          x: clientX - viewW * 0.5,
+          y: clientY - viewH * 0.5
+        };
+      }
+
+      function isClickOnRaftTile(worldX, worldY) {
+        for (const tile of state.raft) {
+          const minX = tile.gx * TILE_SIZE;
+          const maxX = (tile.gx + 1) * TILE_SIZE;
+          const minY = tile.gy * TILE_SIZE;
+          const maxY = (tile.gy + 1) * TILE_SIZE;
+          if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
+            return { x: (minX + maxX) * 0.5, y: (minY + maxY) * 0.5 };
+          }
+        }
+        return null;
+      }
+
+      canvas.addEventListener('pointermove', (e) => {
+        sound.init();
+        const w = screenToWorld(e.clientX, e.clientY);
+        pointer.worldX = w.x;
+        pointer.worldY = w.y;
+        if (e.pointerType === 'touch') {
+          pointer.active = true;
+        }
+      });
+
+      canvas.addEventListener('pointerdown', (e) => {
+        sound.init();
+        const w = screenToWorld(e.clientX, e.clientY);
+        pointer.worldX = w.x;
+        pointer.worldY = w.y;
+        pointer.active = true;
+
+        if (e.pointerType === 'mouse') {
+          const raftHit = isClickOnRaftTile(w.x, w.y);
+          if (raftHit && e.button === 2) {
+            state.player.targetX = raftHit.x;
+            state.player.targetY = raftHit.y;
+          } else if (raftHit && Math.hypot(w.x - state.player.x, w.y - state.player.y) < 34) {
+            state.player.targetX = raftHit.x;
+            state.player.targetY = raftHit.y;
+          } else {
+            launchHookAt(w.x, w.y);
+          }
+        }
+      });
+
+      canvas.addEventListener('pointerup', (e) => {
+        if (e.pointerType === 'touch') {
+          const w = screenToWorld(e.clientX, e.clientY);
+          if (mobileTouchMode === 'move') {
+            const clamped = clampToRaft(w.x, w.y);
+            state.player.targetX = clamped.x;
+            state.player.targetY = clamped.y;
+          } else {
+            // Se tocou bem em cima de uma tábua sem arrastar longe, move até lá; senão lança gancho
+            const dragDist = Math.hypot(w.x - state.player.x, w.y - state.player.y);
+            const raftHit = isClickOnRaftTile(w.x, w.y);
+            if (raftHit && dragDist < 42) {
+              state.player.targetX = raftHit.x;
+              state.player.targetY = raftHit.y;
+            } else {
+              launchHookAt(w.x, w.y);
+            }
+          }
+          pointer.active = false;
+        }
+      });
+
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+      window.addEventListener('keydown', (e) => {
+        sound.init();
+        keysDown.add(e.code);
+        if (e.code === 'Space') {
+          e.preventDefault();
+          launchHookAt(pointer.worldX, pointer.worldY);
+        } else if (e.code === 'KeyB' || e.code === 'Escape') {
+          const startOpen = !document.getElementById('start-modal').classList.contains('hidden');
+          const goOpen = !document.getElementById('gameover-modal').classList.contains('hidden');
+          if (!startOpen && !goOpen) {
+            e.preventDefault();
+            setDockCollapsed(!dockCollapsed);
+          }
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        keysDown.delete(e.code);
+      });
+
+      function setDockCollapsed(collapsed) {
+        dockCollapsed = collapsed;
+        const hudBottom = document.getElementById('hud-bottom');
+        const toggleBtn = document.getElementById('btn-toggle-dock');
+        const tabBuild = document.getElementById('tab-build');
+        const tabUpgrades = document.getElementById('tab-upgrades');
+
+        hudBottom.classList.toggle('collapsed', dockCollapsed);
+        if (dockCollapsed) {
+          toggleBtn.textContent = '🔨 Construir ▴';
+          tabBuild.style.display = 'none';
+          tabUpgrades.style.display = 'none';
+        } else {
+          toggleBtn.textContent = '▾ Ocultar';
+          tabBuild.style.display = 'inline-block';
+          tabUpgrades.style.display = 'inline-block';
+          renderDock();
+        }
+      }
+
+      document.getElementById('btn-toggle-dock').addEventListener('click', () => {
+        sound.init();
+        setDockCollapsed(!dockCollapsed);
+      });
+
+      // Botões da HUD
+      function updateHUD() {
+        const biome = getCurrentBiome();
+        document.getElementById('hud-day').textContent = String(state.day);
+        document.getElementById('hud-record').textContent = String(Math.max(state.recordDay, state.day));
+        document.getElementById('hud-biome').textContent = `${biome.emoji} ${biome.name}`;
+
+        document.getElementById('hud-wood').textContent = String(state.resources.wood);
+        document.getElementById('hud-leaf').textContent = String(state.resources.leaf);
+        document.getElementById('hud-scrap').textContent = String(state.resources.scrap);
+        document.getElementById('hud-water').textContent = String(state.resources.water);
+        document.getElementById('hud-food').textContent = String(state.resources.food);
+
+        const thirstBar = document.getElementById('bar-thirst');
+        const hungerBar = document.getElementById('bar-hunger');
+        thirstBar.style.width = `${Math.max(0, Math.min(100, state.vitals.thirst))}%`;
+        hungerBar.style.width = `${Math.max(0, Math.min(100, state.vitals.hunger))}%`;
+
+        thirstBar.classList.toggle('low', state.vitals.thirst < 28);
+        hungerBar.classList.toggle('low', state.vitals.hunger < 28);
+
+        document.getElementById('btn-drink').disabled = state.resources.water <= 0;
+        document.getElementById('btn-eat').disabled = state.resources.food <= 0;
+      }
+
+      function renderDock() {
+        if (dockCollapsed) return;
+        const r = state.resources;
+        const sig = JSON.stringify([activeTab, selectedBuildId, r.wood, r.leaf, r.scrap, state.upgrades, state.raft.length]);
+        if (renderDock._sig === sig) return;
+        renderDock._sig = sig;
+        const dock = document.getElementById('dock-list');
+        dock.innerHTML = '';
+
+        if (activeTab === 'build') {
+          for (const item of BUILD_ITEMS) {
+            const affordable = canAfford(item.cost);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = `build-card ${selectedBuildId === item.id ? 'selected' : ''} ${affordable ? '' : 'disabled'}`;
+
+            const costParts = [];
+            if (item.cost.wood) costParts.push(`<span class="cost-chip ${state.resources.wood >= item.cost.wood ? 'enough' : 'lacking'}">${item.cost.wood}🪵</span>`);
+            if (item.cost.leaf) costParts.push(`<span class="cost-chip ${state.resources.leaf >= item.cost.leaf ? 'enough' : 'lacking'}">${item.cost.leaf}🌿</span>`);
+            if (item.cost.scrap) costParts.push(`<span class="cost-chip ${state.resources.scrap >= item.cost.scrap ? 'enough' : 'lacking'}">${item.cost.scrap}⚙️</span>`);
+
+            card.innerHTML = `
+              <div class="build-card-header">
+                <span>${item.icon} ${item.name}</span>
+              </div>
+              <div class="build-card-desc">${item.desc}</div>
+              <div class="build-cost-line">${costParts.join('')}</div>
+            `;
+            card.addEventListener('click', () => {
+              sound.init();
+              tryBuildItem(item.id);
+            });
+            dock.appendChild(card);
+          }
+        } else {
+          for (const upg of UPGRADE_ITEMS) {
+            const isMax = upg.id === 'dualHook'
+              ? state.upgrades.dualHook >= 1
+              : state.upgrades[upg.id] >= 6;
+            const cost = getUpgradeCost(upg);
+            const affordable = !isMax && canAfford(cost);
+            const lvlText = upg.id === 'dualHook'
+              ? (state.upgrades.dualHook ? 'ATIVO' : 'NOVO')
+              : `Nv.${state.upgrades[upg.id]}`;
+
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = `build-card ${affordable ? '' : 'disabled'}`;
+            card.innerHTML = `
+              <div class="build-card-header">
+                <span>${upg.icon} ${upg.name}</span>
+                <span style="font-size:0.7rem; color:#fb8500;">${lvlText}</span>
+              </div>
+              <div class="build-card-desc">${upg.desc}</div>
+              <div class="build-cost-line">
+                ${isMax
+                  ? '<span class="cost-chip enough">MÁXIMO</span>'
+                  : `
+                    <span class="cost-chip ${state.resources.wood >= cost.wood ? 'enough' : 'lacking'}">${cost.wood}🪵</span>
+                    <span class="cost-chip ${state.resources.leaf >= cost.leaf ? 'enough' : 'lacking'}">${cost.leaf}🌿</span>
+                    <span class="cost-chip ${state.resources.scrap >= cost.scrap ? 'enough' : 'lacking'}">${cost.scrap}⚙️</span>
+                  `
+                }
+              </div>
+            `;
+            card.addEventListener('click', () => {
+              sound.init();
+              tryBuyUpgrade(upg.id);
+            });
+            dock.appendChild(card);
+          }
+        }
+      }
+
+      document.getElementById('btn-drink').addEventListener('click', () => {
+        sound.init();
+        if (state.resources.water > 0 && !state.gameOver) {
+          state.resources.water -= 1;
+          state.vitals.thirst = Math.min(100, state.vitals.thirst + 38);
+          spawnFloatingText(state.player.x, state.player.y - 24, '+38 Sede 💧', '#48cae4');
+          sound.playPickup();
+          saveGame();
+          updateHUD();
+        }
+      });
+
+      document.getElementById('btn-eat').addEventListener('click', () => {
+        sound.init();
+        if (state.resources.food > 0 && !state.gameOver) {
+          state.resources.food -= 1;
+          state.vitals.hunger = Math.min(100, state.vitals.hunger + 38);
+          spawnFloatingText(state.player.x, state.player.y - 24, '+38 Fome 🍖', '#fcbf49');
+          sound.playPickup();
+          saveGame();
+          updateHUD();
+        }
+      });
+
+      document.getElementById('tab-build').addEventListener('click', () => {
+        activeTab = 'build';
+        document.getElementById('tab-build').classList.add('active');
+        document.getElementById('tab-upgrades').classList.remove('active');
+        renderDock();
+      });
+
+      document.getElementById('tab-upgrades').addEventListener('click', () => {
+        activeTab = 'upgrades';
+        document.getElementById('tab-upgrades').classList.add('active');
+        document.getElementById('tab-build').classList.remove('active');
+        renderDock();
+      });
+
+      document.getElementById('btn-move-mode').addEventListener('click', (e) => {
+        mobileTouchMode = mobileTouchMode === 'hook' ? 'move' : 'hook';
+        e.currentTarget.classList.toggle('active-mode', mobileTouchMode === 'move');
+        showToast(mobileTouchMode === 'move' ? 'Toque na tela: Mover Náufrago' : 'Toque na tela: Lançar Gancho');
+      });
+
+      document.getElementById('btn-sound').addEventListener('click', (e) => {
+        sound.init();
+        sound.setMuted(!sound.muted);
+        e.currentTarget.textContent = sound.muted ? '🔇' : '🔊';
+      });
+
+      document.getElementById('btn-help').addEventListener('click', () => {
+        document.getElementById('start-modal').classList.remove('hidden');
+      });
+
+      document.getElementById('btn-start-game').addEventListener('click', () => {
+        sound.init();
+        gameStarted = true;
+        document.getElementById('start-modal').classList.add('hidden');
+        showToast('🎣 Lance seu gancho nos itens flutuando!');
+      });
+
+      document.getElementById('btn-retry-same').addEventListener('click', () => {
+        sound.init();
+        const prevRec = state.recordDay;
+        const prevUpg = { ...state.upgrades };
+        state = createInitialState(true, prevUpg);
+        state.recordDay = prevRec;
+        hooks.length = 0;
+        sharks.length = 0;
+        harpoons.length = 0;
+        saveGame();
+        document.getElementById('gameover-modal').classList.add('hidden');
+        updateHUD();
+        renderDock();
+        showToast('Nova expedição iniciada!');
+      });
+
+      document.getElementById('btn-reset-all').addEventListener('click', () => {
+        sound.init();
+        localStorage.removeItem(STORAGE_KEY);
+        state = createInitialState(false);
+        hooks.length = 0;
+        sharks.length = 0;
+        harpoons.length = 0;
+        document.getElementById('gameover-modal').classList.add('hidden');
+        updateHUD();
+        renderDock();
+        showToast('Progresso zerado. Boa sorte no mar!');
+      });
+
+      // =======================================================================
+      // LOOP PRINCIPAL DE ANIMAÇÃO (60 FPS)
+      // =======================================================================
+      let lastTime = performance.now();
+      let hudSyncTimer = 0;
+
+      // Popula alguns detritos iniciais na tela
+      for (let i = 0; i < 6; i++) {
+        spawnDebris();
+        debris[debris.length - 1].x -= i * 55;
+      }
+
+      updateHUD();
+      renderDock();
+
+      function gameLoop(now) {
+        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+
+        updateGame(dt);
+        renderScene();
+
+        hudSyncTimer += dt;
+        if (hudSyncTimer >= 0.14) {
+          hudSyncTimer = 0;
+          updateHUD();
+          renderDock();
+        }
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>
