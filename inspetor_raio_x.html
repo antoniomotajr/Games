@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inspetor de Raio-X — Terminal de Segurança</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #060a12;
+      color: #f1f5f9;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Pulsing highlight for newly added shift directives */
+    @keyframes pulseDirective {
+      0%, 100% {
+        border-color: #facc15;
+        box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.75), inset 0 0 12px rgba(250, 204, 21, 0.28);
+        background-color: rgba(113, 63, 18, 0.55);
+        transform: translateY(-2px) scale(1.03);
+      }
+      50% {
+        border-color: #fef08a;
+        box-shadow: 0 0 18px 4px rgba(250, 204, 21, 0.45), inset 0 0 18px rgba(250, 204, 21, 0.45);
+        background-color: rgba(133, 77, 14, 0.75);
+        transform: translateY(-3px) scale(1.05);
+      }
+    }
+
+    .directive-new-pulse {
+      animation: pulseDirective 1.15s ease-in-out infinite;
+    }
+
+    /* Custom subtle scrollbar for directives if many items appear */
+    .directives-scroll::-webkit-scrollbar {
+      height: 5px;
+    }
+    .directives-scroll::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 9999px;
+    }
+    .directives-scroll::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.6);
+      border-radius: 9999px;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="relative w-full h-full flex flex-col bg-slate-950 overflow-hidden">
+    <!-- TOP SECURITY MONITOR HUD -->
+    <header id="topHud" class="relative z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2 sm:px-5 sm:py-2.5 bg-slate-900/95 border-b border-cyan-500/30 shadow-lg backdrop-blur-md">
+      <!-- Brand & Shift -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="font-mono-tech text-xs sm:text-sm font-extrabold tracking-wider text-cyan-300">RAIO-X MK-IV</span>
+        </div>
+
+        <div class="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-800/90 border border-slate-700">
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Turno</span>
+          <span id="hudShift" class="font-mono-tech text-base sm:text-lg font-extrabold text-amber-400">1</span>
+        </div>
+
+        <div class="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-800/90 border border-slate-700">
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold hidden md:inline">Malas</span>
+          <span id="hudBags" class="font-mono-tech text-sm sm:text-base font-bold text-slate-100">0/10</span>
+        </div>
+      </div>
+
+      <!-- Score, Combo, Focus & Shields -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+        <div class="flex items-baseline gap-1.5 px-3 py-1 rounded-lg bg-slate-800/80 border border-slate-700/80">
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Pontos</span>
+          <span id="hudScore" class="font-mono-tech text-sm sm:text-lg font-extrabold text-cyan-300">0</span>
+        </div>
+
+        <div id="comboBadge" class="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-950/80 border border-indigo-500/40 transition-transform duration-150">
+          <span class="text-[11px] uppercase tracking-wider text-indigo-300 font-semibold">Combo</span>
+          <span id="hudCombo" class="font-mono-tech text-sm sm:text-base font-extrabold text-amber-300">x1</span>
+        </div>
+
+        <!-- Focus / Zoom Gauge (Spacebar) -->
+        <div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700" title="Segure ESPAÇO para desacelerar a esteira e ampliar/aumentar contraste">
+          <div class="flex flex-col">
+            <div class="flex items-center justify-between gap-2 text-[10px] font-mono-tech uppercase">
+              <span class="text-cyan-300 font-bold">Foco [ESPAÇO]</span>
+              <span id="hudFocusPct" class="text-slate-300">100%</span>
+            </div>
+            <div class="w-20 sm:w-28 h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-700 mt-0.5">
+              <div id="hudFocusBar" class="h-full bg-gradient-to-r from-cyan-400 to-sky-300 transition-all duration-75" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Integrity Shields (3 max) -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/90 border border-slate-700" title="Integridade do Posto (3 escudos)">
+          <span class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold hidden sm:inline mr-0.5">Escudos</span>
+          <div id="hudShields" class="flex items-center gap-1"></div>
+        </div>
+
+        <!-- Sound Mute/Unmute Toggle -->
+        <button id="btnSoundToggle" type="button" aria-label="Alternar áudio" class="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-600 text-cyan-300 transition cursor-pointer" title="Ativar/Desativar Áudio">
+          <svg id="iconSoundOn" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+          </svg>
+          <svg id="iconSoundOff" class="w-5 h-5 hidden text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+          </svg>
+        </button>
+        <button id="btnHelp" type="button" aria-haspopup="dialog" aria-controls="helpOverlay"
+          class="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-cyan-950 hover:bg-cyan-900 active:scale-95 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold tracking-wide transition cursor-pointer"
+          title="Ver controles e instruções">
+          <span class="inline-flex items-center justify-center w-4 h-4 rounded-full border border-current font-black">?</span>
+          AJUDA
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN PROCEDURAL CANVAS VIEWPORT -->
+    <main class="relative flex-1 w-full min-h-0 overflow-hidden">
+      <canvas id="gameCanvas"></canvas>
+
+      <!-- HELP / CONTROLS OVERLAY -->
+      <div id="helpOverlay" class="hidden absolute inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+           role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <section class="w-full max-w-lg max-h-full overflow-y-auto rounded-2xl bg-slate-900 border border-cyan-500/50 shadow-2xl p-5 sm:p-7">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 id="helpTitle" class="text-xl sm:text-2xl font-black text-cyan-200 tracking-wide">AJUDA — CONTROLES</h2>
+            <button id="btnCloseHelp" type="button" aria-label="Fechar ajuda"
+              class="w-9 h-9 shrink-0 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xl font-bold">×</button>
+          </div>
+          <div class="space-y-3 text-sm text-slate-200">
+            <div class="flex gap-3 rounded-xl bg-slate-800/80 border border-slate-700 p-3">
+              <span class="shrink-0 rounded-lg bg-cyan-950 border border-cyan-500/40 px-2 py-1 font-mono font-bold text-cyan-200">MOUSE</span>
+              <p><strong class="text-white">Botão esquerdo:</strong> clique nos objetos dentro do túnel de raio-X para inspecioná-los e recolher/apreender os itens proibidos.</p>
+            </div>
+            <div class="flex gap-3 rounded-xl bg-slate-800/80 border border-slate-700 p-3">
+              <span class="shrink-0 rounded-lg bg-cyan-950 border border-cyan-500/40 px-2 py-1 font-mono font-bold text-cyan-200">ESPAÇO</span>
+              <p><strong class="text-white">Segure a barra de espaço:</strong> diminui a velocidade da esteira e ativa o foco, ampliando o contraste dos objetos. Solte para voltar ao ritmo normal.</p>
+            </div>
+            <div class="flex gap-3 rounded-xl bg-slate-800/80 border border-slate-700 p-3">
+              <span class="shrink-0 rounded-lg bg-cyan-950 border border-cyan-500/40 px-2 py-1 font-mono font-bold text-cyan-200">FOCO</span>
+              <p>A energia de foco diminui enquanto você mantém ESPAÇO pressionado e se recupera quando solta. Use nos momentos mais difíceis.</p>
+            </div>
+            <div class="flex gap-3 rounded-xl bg-slate-800/80 border border-slate-700 p-3">
+              <span class="shrink-0 rounded-lg bg-cyan-950 border border-cyan-500/40 px-2 py-1 font-mono font-bold text-cyan-200">HUD</span>
+              <p>Acompanhe pontos, combo, malas inspecionadas, escudos e energia de foco na barra superior. O botão de áudio liga ou desliga os sons.</p>
+            </div>
+            <p class="text-xs text-slate-400 pt-1">Dica: observe as diretrizes do turno antes de inspecionar cada mala. Apreenda os itens proibidos e preserve a integridade do posto.</p>
+          </div>
+          <button id="btnHelpOk" type="button" class="mt-5 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 active:scale-[0.99] px-4 py-3 text-slate-950 font-extrabold tracking-wide">ENTENDI</button>
+        </section>
+      </div>
+
+      <!-- FLOATING TOAST / ALERT BANNER -->
+      <div id="alertBanner" class="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full bg-slate-900/90 border border-cyan-400/50 text-xs sm:text-sm font-mono-tech font-bold text-cyan-200 shadow-xl opacity-0 transition-opacity duration-200 whitespace-nowrap">
+        SISTEMA DE RAIO-X ATIVO
+      </div>
+
+      <!-- START SCREEN OVERLAY -->
+      <div id="startOverlay" class="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-[3px]">
+        <div class="w-full max-w-xl rounded-2xl bg-slate-900/95 border border-cyan-500/40 shadow-2xl p-6 sm:p-8 text-center">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/90 border border-cyan-500/40 text-cyan-300 text-xs font-mono-tech uppercase tracking-widest mb-3">
+            <span>Terminal Internacional • Setor Alfa</span>
+          </div>
+
+          <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-2">
+            INSPETOR DE <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-400 to-amber-300">RAIO-X</span>
+          </h1>
+          <p class="text-slate-300 text-sm sm:text-base max-w-md mx-auto mb-6 leading-relaxed">
+            Inspecione as bagagens em turnos infinitos, identifique itens proibidos sob camadas de raio-X e adapte-se às novas diretrizes de segurança.
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-left mb-6">
+            <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+              <div class="text-xs font-mono-tech font-bold text-amber-300 mb-1">CLIQUE ESQUERDO</div>
+              <p class="text-xs text-slate-300">Apreenda itens proibidos dentro do túnel de raio-X.</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+              <div class="text-xs font-mono-tech font-bold text-cyan-300 mb-1">SEGURAR ESPAÇO</div>
+              <p class="text-xs text-slate-300">Reduz a velocidade da esteira com lupa e contraste extra.</p>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700/80">
+              <div class="text-xs font-mono-tech font-bold text-emerald-300 mb-1">DIRETRIZES</div>
+              <p class="text-xs text-slate-300">Novas proibições entram a cada turno. Evite falsos alarmes!</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button id="btnStartShift" type="button" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-slate-950 font-extrabold text-base tracking-wide shadow-lg shadow-cyan-500/25 transition cursor-pointer">
+              INICIAR PLANTÃO
+            </button>
+          </div>
+
+          <div class="mt-5 pt-4 border-t border-slate-800 flex items-center justify-center gap-6 text-xs font-mono-tech text-slate-400">
+            <span>RECORDE ATUAL: <strong id="startHighScore" class="text-amber-300">0</strong></span>
+            <span>•</span>
+            <span>TURNOS INFINITOS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHIFT COMPLETE / NEW DIRECTIVE OVERLAY -->
+      <div id="shiftCompleteOverlay" class="hidden absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm">
+        <div class="w-full max-w-lg rounded-2xl bg-slate-900 border border-amber-400/50 shadow-2xl p-6 sm:p-7 text-center">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 text-xs font-mono-tech uppercase tracking-wider mb-2">
+            Turno Concluído
+          </div>
+          <h2 id="shiftCompleteTitle" class="text-2xl sm:text-3xl font-black text-white mb-1">
+            TURNO 1 FINALIZADO
+          </h2>
+          <p id="shiftCompleteSubtitle" class="text-sm text-slate-300 mb-4">
+            Bônus de eficiência concedido. Nova diretriz adicionada ao protocolo!
+          </p>
+
+          <div class="rounded-xl bg-slate-800/90 border border-slate-700 p-4 mb-5 text-left">
+            <div class="flex items-center justify-between text-xs font-mono-tech text-slate-400 mb-2">
+              <span>RESUMO DO TURNO</span>
+              <span id="shiftBonusText" class="text-emerald-400 font-bold">+0 PTS</span>
+            </div>
+            <div id="newDirectivesContainer" class="space-y-2"></div>
+          </div>
+
+          <button id="btnNextShift" type="button" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 active:scale-[0.98] text-slate-950 font-extrabold text-base tracking-wide shadow-lg shadow-amber-500/25 transition cursor-pointer">
+            INICIAR PRÓXIMO TURNO
+          </button>
+        </div>
+      </div>
+
+      <!-- GAME OVER OVERLAY -->
+      <div id="gameOverOverlay" class="hidden absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+        <div class="w-full max-w-lg rounded-2xl bg-slate-900 border border-rose-500/50 shadow-2xl p-6 sm:p-7 text-center">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-950/90 border border-rose-500/40 text-rose-300 text-xs font-mono-tech uppercase tracking-wider mb-2">
+            Falha de Segurança • Posto Encerrado
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black text-white mb-1">VOCÊ FOI DEMITIDO!</h2>
+          <p id="gameOverReason" class="text-sm text-rose-200/90 mb-5">
+            A integridade do posto de inspeção chegou a zero.
+          </p>
+
+          <div class="grid grid-cols-2 gap-3 mb-5 text-left">
+            <div class="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700">
+              <div class="text-[11px] font-mono-tech uppercase text-slate-400">Pontuação Final</div>
+              <div id="statFinalScore" class="text-xl sm:text-2xl font-mono-tech font-extrabold text-cyan-300">0</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700">
+              <div class="text-[11px] font-mono-tech uppercase text-slate-400">Recorde (Local)</div>
+              <div id="statHighScore" class="text-xl sm:text-2xl font-mono-tech font-extrabold text-amber-300">0</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700">
+              <div class="text-[11px] font-mono-tech uppercase text-slate-400">Turnos Sobrevividos</div>
+              <div id="statShiftsSurvived" class="text-lg sm:text-xl font-mono-tech font-bold text-white">0</div>
+            </div>
+            <div class="p-3.5 rounded-xl bg-slate-800/90 border border-slate-700">
+              <div class="text-[11px] font-mono-tech uppercase text-slate-400">Malas / Apreensões</div>
+              <div id="statBagsSeizures" class="text-lg sm:text-xl font-mono-tech font-bold text-emerald-300">0 / 0</div>
+            </div>
+          </div>
+
+          <button id="btnRestartShift" type="button" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-500 hover:from-cyan-300 hover:to-sky-400 active:scale-[0.98] text-slate-950 font-extrabold text-base tracking-wide shadow-lg shadow-cyan-500/25 transition cursor-pointer">
+            NOVO PLANTÃO
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- BOTTOM ACTIVE DIRECTIVES BAR -->
+    <footer id="directivesBar" class="relative z-20 bg-slate-900/95 border-t border-slate-700/90 px-3 py-2 sm:px-5 sm:py-2.5 shadow-[0_-6px_24px_rgba(0,0,0,0.5)]">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/50 text-rose-300 font-mono-tech text-[11px] font-extrabold uppercase tracking-wider">
+            Proibidos no Turno
+          </span>
+          <span class="text-[11px] text-slate-400 hidden lg:inline">Clique neles no raio-X para apreender</span>
+        </div>
+
+        <div id="directivesList" class="directives-scroll flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          <!-- Populated dynamically by UIController -->
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * INSPETOR DE RAIO-X — ARQUITETURA MODULAR EM ARQUIVO ÚNICO
+     * 1. ItemCatalog & DirectivesEngine: Itens permitidos/proibidos e turnos infinitos
+     * 2. AudioEngine: Síntese procedural via Web Audio API (sem arquivos externos)
+     * 3. SceneryAndCharacters: Céu dinâmico, terminal, cortinas, roletes, inspetor e fila
+     * 4. BagAndXRayRenderer: Bagagens variadas e objetos internos em raio-X com oclusão
+     * 5. SimulationAndGameLoop: Física da esteira, Foco/Zoom (Espaço), colisões, combos e loop
+     * 6. UIController: HUD, barra de diretrizes pulsantes, telas de estado e localStorage
+     * ============================================================================
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. CATÁLOGO DE OBJETOS E SISTEMA DE DIRETRIZES INFINITAS
+    // --------------------------------------------------------------------------
+    const ITEM_CATALOG = {
+      knife: {
+        id: 'knife',
+        name: 'Faca / Adaga',
+        shortLabel: 'FACA',
+        category: 'weapon',
+        size: 'small',
+        color: '#f87171',
+        basePoints: 150
+      },
+      explosive: {
+        id: 'explosive',
+        name: 'Artefato Explosivo',
+        shortLabel: 'EXPLOSIVO',
+        category: 'explosive',
+        size: 'medium',
+        color: '#fb7185',
+        basePoints: 250
+      },
+      taser: {
+        id: 'taser',
+        name: 'Arma de Choque',
+        shortLabel: 'TASER',
+        category: 'weapon',
+        size: 'small',
+        color: '#c084fc',
+        basePoints: 180
+      },
+      chemical: {
+        id: 'chemical',
+        name: 'Frasco Químico',
+        shortLabel: 'QUÍMICO',
+        category: 'hazard',
+        size: 'small',
+        color: '#fb923c',
+        basePoints: 170
+      },
+      crowbar: {
+        id: 'crowbar',
+        name: 'Pé-de-Cabra',
+        shortLabel: 'PÉ-DE-CABRA',
+        category: 'tool',
+        size: 'medium',
+        color: '#f43f5e',
+        basePoints: 160
+      },
+      scissors: {
+        id: 'scissors',
+        name: 'Tesoura Grande',
+        shortLabel: 'TESOURA',
+        category: 'weapon',
+        size: 'small',
+        color: '#fbbf24',
+        basePoints: 140
+      },
+      laptop: {
+        id: 'laptop',
+        name: 'Notebook',
+        shortLabel: 'NOTEBOOK',
+        category: 'electronics',
+        size: 'large',
+        color: '#38bdf8',
+        basePoints: 120
+      },
+      camera: {
+        id: 'camera',
+        name: 'Câmera Profissional',
+        shortLabel: 'CÂMERA',
+        category: 'electronics',
+        size: 'medium',
+        color: '#60a5fa',
+        basePoints: 120
+      },
+      bottle: {
+        id: 'bottle',
+        name: 'Garrafa de Líquido',
+        shortLabel: 'LÍQUIDO',
+        category: 'liquid',
+        size: 'medium',
+        color: '#2dd4bf',
+        basePoints: 110
+      },
+      clothes: {
+        id: 'clothes',
+        name: 'Roupas Dobradas',
+        shortLabel: 'ROUPAS',
+        category: 'safe',
+        size: 'large',
+        color: '#94a3b8',
+        basePoints: 100
+      },
+      sneakers: {
+        id: 'sneakers',
+        name: 'Tênis Esportivo',
+        shortLabel: 'TÊNIS',
+        category: 'safe',
+        size: 'large',
+        color: '#a3e635',
+        basePoints: 100
+      },
+      book: {
+        id: 'book',
+        name: 'Livro de Capa Dura',
+        shortLabel: 'LIVRO',
+        category: 'safe',
+        size: 'large',
+        color: '#fbbf24',
+        basePoints: 100
+      }
+    };
+
+    const ALL_ITEM_IDS = Object.keys(ITEM_CATALOG);
+
+    /**
+     * Retorna o conjunto de itens proibidos e os recém-adicionados para qualquer turno >= 1.
+     */
+    function getShiftDirectives(shiftNumber) {
+      const baseBanned = ['knife', 'explosive', 'taser'];
+      const escalationSteps = [
+        ['chemical', 'crowbar'],   // Turno 2
+        ['scissors'],              // Turno 3
+        ['laptop', 'camera'],      // Turno 4
+        ['bottle']                 // Turno 5
+      ];
+
+      const bannedSet = new Set(baseBanned);
+      let newlyAdded = [];
+
+      if (shiftNumber === 1) {
+        newlyAdded = [...baseBanned];
+      } else {
+        for (let s = 2; s <= shiftNumber; s++) {
+          const stepIndex = (s - 2) % escalationSteps.length;
+          const batch = escalationSteps[stepIndex];
+          // Em ciclos superiores (turno 6+), se todos já estiverem banidos, rotaciona um item extra
+          const addedThisTurn = [];
+          for (const id of batch) {
+            if (!bannedSet.has(id)) {
+              bannedSet.add(id);
+              addedThisTurn.push(id);
+            }
+          }
+          if (addedThisTurn.length === 0) {
+            const extraId = ALL_ITEM_IDS[(s * 3) % ALL_ITEM_IDS.length];
+            bannedSet.add(extraId);
+            addedThisTurn.push(extraId);
+          }
+          if (s === shiftNumber) {
+            newlyAdded = addedThisTurn;
+          }
+        }
+      }
+
+      return {
+        bannedSet,
+        newlyAddedSet: new Set(newlyAdded),
+        newlyAddedList: newlyAdded
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 2. SISTEMA DE ÁUDIO PROCEDURAL (WEB AUDIO API)
+    // --------------------------------------------------------------------------
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.motorOsc = null;
+        this.motorGain = null;
+        this.ambientTimer = null;
+        this.ambientStep = 0;
+        this.shiftNumber = 1;
+        this.isRunning = false;
+      }
+
+      ensureContext() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            this.ctx = new AudioCtx();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        if (this.ctx && !this.motorOsc) {
+          this._initConveyorMotor();
+        }
+      }
+
+      _initConveyorMotor() {
+        try {
+          this.motorOsc = this.ctx.createOscillator();
+          this.motorGain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
+
+          this.motorOsc.type = 'sawtooth';
+          this.motorOsc.frequency.value = 54;
+
+          filter.type = 'lowpass';
+          filter.frequency.value = 135;
+
+          this.motorGain.gain.value = 0.0;
+
+          this.motorOsc.connect(filter);
+          filter.connect(this.motorGain);
+          this.motorGain.connect(this.ctx.destination);
+          this.motorOsc.start();
+        } catch (err) {
+          console.warn('Erro ao iniciar motor procedural:', err);
+        }
+      }
+
+      setMuted(muteState) {
+        this.muted = muteState;
+        if (this.muted && this.motorGain && this.ctx) {
+          this.motorGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+        }
+      }
+
+      updateMotor(speedRatio, activePlay) {
+        if (!this.ctx || !this.motorOsc || !this.motorGain) return;
+        const now = this.ctx.currentTime;
+        if (this.muted || !activePlay || speedRatio <= 0.02) {
+          this.motorGain.gain.setTargetAtTime(0, now, 0.08);
+          return;
+        }
+        const freq = 48 + speedRatio * 34;
+        const vol = Math.min(0.028, 0.008 + speedRatio * 0.018);
+        this.motorOsc.frequency.setTargetAtTime(freq, now, 0.08);
+        this.motorGain.gain.setTargetAtTime(vol, now, 0.08);
+      }
+
+      startAmbientGroove(shiftNum) {
+        this.shiftNumber = shiftNum;
+        this.isRunning = true;
+        this.stopAmbientGroove();
+        const tempoMs = Math.max(240, 480 - (shiftNum - 1) * 28);
+        const notes = [110, 110, 130.81, 146.83, 110, 164.81, 146.83, 130.81];
+
+        this.ambientTimer = setInterval(() => {
+          if (this.muted || !this.isRunning || !this.ctx || this.ctx.state !== 'running') return;
+          try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const freq = notes[this.ambientStep % notes.length];
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+
+            const peak = this.ambientStep % 2 === 0 ? 0.016 : 0.009;
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(peak, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.15);
+            this.ambientStep++;
+          } catch (_) {}
+        }, tempoMs);
+      }
+
+      stopAmbientGroove() {
+        if (this.ambientTimer) {
+          clearInterval(this.ambientTimer);
+          this.ambientTimer = null;
+        }
+      }
+
+      playCurtainSwish() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const bufferSize = Math.floor(this.ctx.sampleRate * 0.09);
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(420, now);
+          filter.Q.value = 1.4;
+
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start(now);
+        } catch (_) {}
+      }
+
+      playScanBeep(isContraband = false) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(isContraband ? 980 : 720, now);
+          osc.frequency.exponentialRampToValueAtTime(isContraband ? 1320 : 540, now + 0.07);
+
+          gain.gain.setValueAtTime(0.035, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } catch (_) {}
+      }
+
+      playSeizureStamp(combo = 1) {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          // Impacto metálico grave + tom de confirmação ascendente pelo combo
+          const thudOsc = this.ctx.createOscillator();
+          const thudGain = this.ctx.createGain();
+          thudOsc.type = 'triangle';
+          thudOsc.frequency.setValueAtTime(190, now);
+          thudOsc.frequency.exponentialRampToValueAtTime(52, now + 0.16);
+          thudGain.gain.setValueAtTime(0.18, now);
+          thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+          thudOsc.connect(thudGain);
+          thudGain.connect(this.ctx.destination);
+          thudOsc.start(now);
+          thudOsc.stop(now + 0.18);
+
+          const chimeOsc = this.ctx.createOscillator();
+          const chimeGain = this.ctx.createGain();
+          chimeOsc.type = 'sine';
+          const pitchBoost = Math.min(12, combo) * 45;
+          chimeOsc.frequency.setValueAtTime(520 + pitchBoost, now + 0.03);
+          chimeOsc.frequency.exponentialRampToValueAtTime(880 + pitchBoost, now + 0.16);
+          chimeGain.gain.setValueAtTime(0.09, now + 0.03);
+          chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          chimeOsc.connect(chimeGain);
+          chimeGain.connect(this.ctx.destination);
+          chimeOsc.start(now + 0.03);
+          chimeOsc.stop(now + 0.19);
+        } catch (_) {}
+      }
+
+      playAlarmError() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          for (let i = 0; i < 2; i++) {
+            const start = now + i * 0.15;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(240, start);
+            osc.frequency.linearRampToValueAtTime(155, start + 0.13);
+
+            gain.gain.setValueAtTime(0.11, start);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.14);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.15);
+          }
+        } catch (_) {}
+      }
+
+      playShiftFanfare() {
+        if (this.muted || !this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const chord = [523.25, 659.25, 783.99, 1046.5];
+          chord.forEach((freq, idx) => {
+            const t = now + idx * 0.09;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, t);
+
+            gain.gain.setValueAtTime(0.09, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.36);
+          });
+        } catch (_) {}
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. CENÁRIO PROCEDURAL, PERSONAGENS E ESTEIRA DE RAIO-X
+    // --------------------------------------------------------------------------
+    class SceneryAndCharacters {
+      constructor() {
+        this.passengers = [];
+        this.spawnTimer = 0;
+        this.inspectorArmAngle = 0;
+        this.inspectorArmTarget = 0;
+        this.inspectorPointTimer = 0;
+        this.entryCurtainAngle = 0;
+        this.entryCurtainVel = 0;
+        this.exitCurtainAngle = 0;
+        this.exitCurtainVel = 0;
+        this.beaconPhase = 0;
+        this.initInitialQueue();
+      }
+
+      initInitialQueue() {
+        this.passengers = [];
+        for (let i = 0; i < 4; i++) {
+          this.passengers.push(this._createPassenger(0.18 + i * 0.16, 'waiting'));
+        }
+      }
+
+      _createPassenger(normX, state = 'waiting') {
+        const skinTones = ['#f5cba7', '#e0ac69', '#c68642', '#8d5524', '#5c3818', '#fce4d6'];
+        const hairColors = ['#1e293b', '#451a03', '#92400e', '#cbd5e1', '#b91c1c', '#0f172a'];
+        const outfits = [
+          { coat: '#1e3a8a', shirt: '#f8fafc', tie: '#dc2626', style: 'suit' },
+          { coat: '#0f766e', shirt: '#e0f2fe', tie: null, style: 'casual' },
+          { coat: '#b45309', shirt: '#fef3c7', tie: null, style: 'tourist' },
+          { coat: '#334155', shirt: '#cbd5e1', tie: '#38bdf8', style: 'suit' },
+          { coat: '#7e22ce', shirt: '#f3e8ff', tie: null, style: 'backpacker' }
+        ];
+        const outfit = outfits[Math.floor(Math.random() * outfits.length)];
+        return {
+          xRatio: normX,
+          targetXRatio: normX,
+          heightScale: 0.92 + Math.random() * 0.16,
+          skin: skinTones[Math.floor(Math.random() * skinTones.length)],
+          hair: hairColors[Math.floor(Math.random() * hairColors.length)],
+          outfit,
+          hasGlasses: Math.random() < 0.38,
+          hasHat: outfit.style === 'tourist' || Math.random() < 0.22,
+          hasBackpack: outfit.style === 'backpacker' || Math.random() < 0.35,
+          walkCycle: Math.random() * Math.PI * 2,
+          impatience: 0,
+          reaction: null, // 'happy' | 'panic' | 'angry'
+          reactionTimer: 0,
+          state // 'waiting' | 'placing' | 'departing'
+        };
+      }
+
+      triggerCurtainSwing(which, impulse = 0.45) {
+        if (which === 'entry') {
+          this.entryCurtainVel += impulse;
+        } else {
+          this.exitCurtainVel += impulse;
+        }
+      }
+
+      triggerInspectorPoint() {
+        this.inspectorPointTimer = 0.38;
+        this.inspectorArmTarget = -0.58;
+      }
+
+      notifyPassengerReaction(type) {
+        if (this.passengers.length > 0) {
+          const p = this.passengers[0];
+          p.reaction = type;
+          p.reactionTimer = 1.6;
+        }
+      }
+
+      advancePassengerForBag() {
+        if (this.passengers.length > 0) {
+          this.passengers[0].state = 'departing';
+          this.passengers[0].targetXRatio = 0.72;
+        }
+        this.passengers.push(this._createPassenger(-0.08, 'waiting'));
+      }
+
+      update(dt, beltSpeed, alarmFlash) {
+        this.beaconPhase += dt * 3.2;
+
+        // Física de mola das cortinas de chumbo/borracha
+        const springK = 85;
+        const damping = 9.5;
+        const entryAcc = -springK * this.entryCurtainAngle - damping * this.entryCurtainVel;
+        this.entryCurtainVel += entryAcc * dt;
+        this.entryCurtainAngle += this.entryCurtainVel * dt;
+
+        const exitAcc = -springK * this.exitCurtainAngle - damping * this.exitCurtainVel;
+        this.exitCurtainVel += exitAcc * dt;
+        this.exitCurtainAngle += this.exitCurtainVel * dt;
+
+        // Animação do braço do inspetor
+        if (this.inspectorPointTimer > 0) {
+          this.inspectorPointTimer -= dt;
+        } else {
+          this.inspectorArmTarget = Math.sin(this.beaconPhase * 0.6) * 0.05;
+        }
+        this.inspectorArmAngle += (this.inspectorArmTarget - this.inspectorArmAngle) * Math.min(1, dt * 16);
+
+        // Atualiza fila de passageiros atrás do vidro
+        const queueSlots = [0.46, 0.33, 0.21, 0.10];
+        let waitingIdx = 0;
+        for (let i = this.passengers.length - 1; i >= 0; i--) {
+          const p = this.passengers[i];
+          if (p.state === 'waiting') {
+            p.targetXRatio = queueSlots[Math.min(waitingIdx, queueSlots.length - 1)];
+            waitingIdx++;
+            if (beltSpeed > 5) {
+              p.impatience = Math.min(1, p.impatience + dt * 0.045);
+            }
+          }
+          const dx = p.targetXRatio - p.xRatio;
+          if (Math.abs(dx) > 0.002) {
+            p.xRatio += dx * Math.min(1, dt * 4.2);
+            p.walkCycle += dt * 11;
+          } else {
+            p.walkCycle += dt * 2.2;
+          }
+
+          if (p.reactionTimer > 0) {
+            p.reactionTimer -= dt;
+            if (p.reactionTimer <= 0) {
+              p.reaction = null;
+            }
+          }
+
+          if (p.state === 'departing' && p.xRatio > 0.66) {
+            this.passengers.splice(i, 1);
+          }
+        }
+
+        if (alarmFlash > 0 && Math.random() < dt * 2) {
+          this.notifyPassengerReaction('panic');
+        }
+      }
+
+      /**
+       * Interpola cores RGB entre estágios do dia conforme o turno.
+       */
+      _getSkyPalette(shiftNumber) {
+        const palettes = [
+          // Turno 1: Amanhecer dourado/azulado
+          { top: [18, 34, 72], mid: [194, 98, 72], bot: [251, 176, 98], stars: 0.25, sunY: 0.72 },
+          // Turno 2: Dia claro e luminoso
+          { top: [14, 116, 196], mid: [56, 189, 248], bot: [186, 230, 253], stars: 0.0, sunY: 0.32 },
+          // Turno 3: Pôr do sol vibrante
+          { top: [49, 27, 92], mid: [219, 74, 74], bot: [251, 146, 60], stars: 0.15, sunY: 0.78 },
+          // Turno 4: Noite estrelada com luzes da pista
+          { top: [4, 9, 24], mid: [13, 27, 58], bot: [24, 48, 86], stars: 1.0, sunY: 1.3 }
+        ];
+        const idx = (shiftNumber - 1) % palettes.length;
+        return palettes[idx];
+      }
+
+      drawBackgroundAndTerminal(ctx, w, h, shiftNumber, alarmFlash, scannerRect) {
+        const sky = this._getSkyPalette(shiftNumber);
+
+        // 1. Céu na janela panorâmica ao fundo
+        const winTop = h * 0.05;
+        const winH = h * 0.44;
+        const skyGrad = ctx.createLinearGradient(0, winTop, 0, winTop + winH);
+        skyGrad.addColorStop(0, `rgb(${sky.top.join(',')})`);
+        skyGrad.addColorStop(0.58, `rgb(${sky.mid.join(',')})`);
+        skyGrad.addColorStop(1, `rgb(${sky.bot.join(',')})`);
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, h * 0.68);
+
+        // Estrelas em turnos noturnos/crepúsculo
+        if (sky.stars > 0.05) {
+          ctx.save();
+          for (let i = 0; i < 36; i++) {
+            const sx = ((i * 197 + 53) % 100) / 100 * w;
+            const sy = winTop + ((i * 89 + 19) % 100) / 100 * (winH * 0.65);
+            const twinkle = 0.4 + 0.6 * Math.sin(this.beaconPhase * 1.4 + i);
+            ctx.fillStyle = `rgba(255, 255, 240, ${sky.stars * twinkle * 0.85})`;
+            ctx.beginPath();
+            ctx.arc(sx, sy, (i % 3 === 0 ? 1.6 : 1.0), 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        // Sol ou lua no horizonte
+        if (sky.sunY < 1.1) {
+          const sunX = w * 0.76;
+          const sunY = winTop + winH * sky.sunY;
+          const sunGlow = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 75);
+          sunGlow.addColorStop(0, 'rgba(255, 248, 210, 0.95)');
+          sunGlow.addColorStop(0.35, 'rgba(253, 186, 116, 0.45)');
+          sunGlow.addColorStop(1, 'rgba(253, 186, 116, 0)');
+          ctx.fillStyle = sunGlow;
+          ctx.beginPath();
+          ctx.arc(sunX, sunY, 75, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Pista de pouso distante e luzes piscantes de balizamento
+        const runwayY = winTop + winH * 0.86;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+        ctx.fillRect(0, runwayY, w, winTop + winH - runwayY);
+
+        for (let b = 0; b < 14; b++) {
+          const bx = w * (0.06 + b * 0.068);
+          const blink = Math.sin(this.beaconPhase * 2.2 + b * 0.8) > 0.25 ? 1 : 0.2;
+          ctx.fillStyle = b % 3 === 0 ? `rgba(251, 191, 36, ${blink})` : `rgba(56, 189, 248, ${blink * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(bx, runwayY + 6, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 2. Parede interna do saguão e esquadrias das janelas
+        const wallGrad = ctx.createLinearGradient(0, h * 0.36, 0, h * 0.72);
+        wallGrad.addColorStop(0, '#1e293b');
+        wallGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = wallGrad;
+        ctx.fillRect(0, h * 0.38, w, h * 0.34);
+
+        // Moldura das janelas
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 4;
+        const mullions = [0.22, 0.52, 0.82];
+        mullions.forEach((m) => {
+          ctx.beginPath();
+          ctx.moveTo(w * m, winTop);
+          ctx.lineTo(w * m, winTop + winH);
+          ctx.stroke();
+        });
+
+        // 3. Passageiros na fila (ao fundo, atrás da divisória de vidro)
+        const floorY = h * 0.65;
+        this.passengers.forEach((p) => {
+          this._drawPassenger(ctx, p, w * p.xRatio, floorY, h * 0.0021 * p.heightScale);
+        });
+
+        // 4. Divisória de vidro separando fila e área de segurança
+        ctx.save();
+        ctx.fillStyle = 'rgba(186, 230, 253, 0.08)';
+        ctx.fillRect(0, h * 0.28, w * 0.78, floorY - h * 0.28);
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, floorY - 6);
+        ctx.lineTo(w * 0.78, floorY - 6);
+        ctx.stroke();
+        ctx.restore();
+
+        // 5. Piso do terminal em perspectiva sutil
+        const floorGrad = ctx.createLinearGradient(0, floorY, 0, h);
+        floorGrad.addColorStop(0, '#1e293b');
+        floorGrad.addColorStop(1, '#090d16');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, floorY, w, h - floorY);
+
+        // Linhas de ladrilho no chão
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+        ctx.lineWidth = 1.5;
+        for (let row = 1; row <= 4; row++) {
+          const ry = floorY + (h - floorY) * (row / 4.5);
+          ctx.beginPath();
+          ctx.moveTo(0, ry);
+          ctx.lineTo(w, ry);
+          ctx.stroke();
+        }
+
+        // Flash vermelho de alarme em caso de erro
+        if (alarmFlash > 0) {
+          ctx.save();
+          ctx.fillStyle = `rgba(239, 68, 68, ${alarmFlash * 0.28})`;
+          ctx.fillRect(0, 0, w, h);
+          ctx.restore();
+        }
+      }
+
+      _drawPassenger(ctx, p, x, groundY, scale) {
+        ctx.save();
+        ctx.translate(x, groundY);
+        ctx.scale(scale, scale);
+
+        const step = Math.sin(p.walkCycle) * 6;
+        const bob = Math.abs(Math.cos(p.walkCycle)) * 2.5;
+
+        // Sombra no chão
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 22, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.translate(0, -bob);
+
+        // Pernas
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-6, -34);
+        ctx.lineTo(-6 + step, -4);
+        ctx.moveTo(6, -34);
+        ctx.lineTo(6 - step, -4);
+        ctx.stroke();
+
+        // Mochila opcional nas costas
+        if (p.hasBackpack) {
+          ctx.fillStyle = '#475569';
+          ctx.beginPath();
+          ctx.roundRect(-20, -68, 12, 28, 4);
+          ctx.fill();
+        }
+
+        // Tronco / Casaco
+        ctx.fillStyle = p.outfit.coat;
+        ctx.beginPath();
+        ctx.roundRect(-14, -72, 28, 40, 7);
+        ctx.fill();
+
+        // Camisa / Gravata
+        ctx.fillStyle = p.outfit.shirt;
+        ctx.beginPath();
+        ctx.moveTo(-4, -71);
+        ctx.lineTo(4, -71);
+        ctx.lineTo(0, -48);
+        ctx.closePath();
+        ctx.fill();
+
+        if (p.outfit.tie) {
+          ctx.fillStyle = p.outfit.tie;
+          ctx.fillRect(-1.5, -67, 3, 14);
+        }
+
+        // Braço
+        ctx.strokeStyle = p.outfit.coat;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(10, -66);
+        ctx.lineTo(15, -42);
+        ctx.stroke();
+
+        // Cabeça
+        ctx.fillStyle = p.skin;
+        ctx.beginPath();
+        ctx.arc(0, -85, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Cabelo
+        ctx.fillStyle = p.hair;
+        ctx.beginPath();
+        ctx.arc(0, -88, 12.2, Math.PI * 0.95, Math.PI * 2.05);
+        ctx.fill();
+
+        // Chapéu de turista opcional
+        if (p.hasHat) {
+          ctx.fillStyle = '#eab308';
+          ctx.beginPath();
+          ctx.ellipse(0, -95, 19, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillRect(-9, -103, 18, 8);
+        }
+
+        // Olhos e expressão facial
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(-4, -85, 1.6, 0, Math.PI * 2);
+        ctx.arc(5, -85, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (p.hasGlasses) {
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 1.3;
+          ctx.strokeRect(-8, -88, 7, 5);
+          ctx.strokeRect(2, -88, 7, 5);
+        }
+
+        // Reação / Ansiedade
+        if (p.reaction === 'happy') {
+          ctx.strokeStyle = '#4ade80';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0.5, -81, 4, 0.15 * Math.PI, 0.85 * Math.PI);
+          ctx.stroke();
+        } else if (p.reaction === 'panic' || p.reaction === 'angry') {
+          ctx.strokeStyle = '#f87171';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0.5, -78, 4, 1.15 * Math.PI, 1.85 * Math.PI);
+          ctx.stroke();
+        } else if (p.impatience > 0.55) {
+          // Gota de suor / impaciência
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(13, -89, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      /**
+       * Desenha a esteira rolante, roletes animados e o túnel metálico de Raio-X.
+       */
+      drawConveyorBackAndRollers(ctx, beltRect, beltOffset, alarmFlash) {
+        const { x, y, w, h } = beltRect;
+
+        // Suporte inferior e roletes giratórios
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(x, y + h - 4, w, 24);
+
+        const rollerCount = Math.max(8, Math.floor(w / 46));
+        const spacing = w / rollerCount;
+        for (let i = 0; i < rollerCount; i++) {
+          const rx = x + spacing * (i + 0.5);
+          const ry = y + h + 6;
+          ctx.fillStyle = '#334155';
+          ctx.beginPath();
+          ctx.arc(rx, ry, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1.5;
+          const angle = (beltOffset * 0.08) + i * 0.7;
+          ctx.beginPath();
+          ctx.moveTo(rx - Math.cos(angle) * 6, ry - Math.sin(angle) * 6);
+          ctx.lineTo(rx + Math.cos(angle) * 6, ry + Math.sin(angle) * 6);
+          ctx.stroke();
+        }
+
+        // Superfície da esteira com listras de movimento
+        const beltGrad = ctx.createLinearGradient(0, y, 0, y + h);
+        beltGrad.addColorStop(0, '#1e293b');
+        beltGrad.addColorStop(0.5, '#334155');
+        beltGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = beltGrad;
+        ctx.fillRect(x, y, w, h);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+        ctx.lineWidth = 2;
+        const stripeStep = 28;
+        const offsetMod = ((beltOffset % stripeStep) + stripeStep) % stripeStep;
+        for (let sx = x - stripeStep + offsetMod; sx < x + w + stripeStep; sx += stripeStep) {
+          ctx.beginPath();
+          ctx.moveTo(sx, y + 2);
+          ctx.lineTo(sx - 10, y + h - 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      /**
+       * Desenha o gabinete do túnel de Raio-X, cortinas móveis, LEDs, laser e o Inspetor.
+       */
+      drawTunnelHousingAndInspector(ctx, w, h, tunnelRect, beltRect, scanTime, alarmFlash, focusActive) {
+        const { x: tx, y: ty, w: tw, h: th } = tunnelRect;
+
+        // Interior iluminado do túnel (onde os objetos em raio-X aparecem)
+        const innerGrad = ctx.createLinearGradient(tx, ty, tx, ty + th);
+        if (alarmFlash > 0.1) {
+          innerGrad.addColorStop(0, '#2a0812');
+          innerGrad.addColorStop(0.5, '#4c0d1c');
+          innerGrad.addColorStop(1, '#1f060d');
+        } else if (focusActive) {
+          innerGrad.addColorStop(0, '#042f4e');
+          innerGrad.addColorStop(0.5, '#07476e');
+          innerGrad.addColorStop(1, '#031d33');
+        } else {
+          innerGrad.addColorStop(0, '#061d33');
+          innerGrad.addColorStop(0.5, '#0b2d4d');
+          innerGrad.addColorStop(1, '#041324');
+        }
+        ctx.fillStyle = innerGrad;
+        ctx.fillRect(tx, ty, tw, th);
+
+        // Grade sutil de raio-X dentro do túnel
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(tx, ty, tw, th);
+        ctx.clip();
+
+        ctx.strokeStyle = focusActive ? 'rgba(103, 232, 249, 0.16)' : 'rgba(56, 189, 248, 0.08)';
+        ctx.lineWidth = 1;
+        for (let gx = tx; gx < tx + tw; gx += 24) {
+          ctx.beginPath();
+          ctx.moveTo(gx, ty);
+          ctx.lineTo(gx, ty + th);
+          ctx.stroke();
+        }
+        for (let gy = ty; gy < ty + th; gy += 24) {
+          ctx.beginPath();
+          ctx.moveTo(tx, gy);
+          ctx.lineTo(tx + tw, gy);
+          ctx.stroke();
+        }
+
+        // Linha vertical de laser de varredura
+        const laserProgress = (Math.sin(scanTime * 2.4) + 1) * 0.5;
+        const laserX = tx + 16 + laserProgress * (tw - 32);
+        const laserGrad = ctx.createLinearGradient(laserX - 18, 0, laserX + 18, 0);
+        laserGrad.addColorStop(0, 'rgba(34, 211, 238, 0)');
+        laserGrad.addColorStop(0.5, alarmFlash > 0.1 ? 'rgba(248, 113, 113, 0.65)' : 'rgba(34, 211, 238, 0.55)');
+        laserGrad.addColorStop(1, 'rgba(34, 211, 238, 0)');
+        ctx.fillStyle = laserGrad;
+        ctx.fillRect(laserX - 18, ty, 36, th);
+
+        ctx.strokeStyle = alarmFlash > 0.1 ? '#fca5a5' : '#a5f3fc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(laserX, ty);
+        ctx.lineTo(laserX, ty + th);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Estrutura metálica superior e inferior do túnel (com parafusos/rebites)
+        const metalGrad = ctx.createLinearGradient(0, ty - 28, 0, ty + 6);
+        metalGrad.addColorStop(0, '#64748b');
+        metalGrad.addColorStop(0.5, '#475569');
+        metalGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = metalGrad;
+        ctx.beginPath();
+        ctx.roundRect(tx - 10, ty - 28, tw + 20, 32, [10, 10, 2, 2]);
+        ctx.fill();
+
+        // Painel superior com LEDs de status e rótulo "X-RAY SCANNER"
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(tx + tw * 0.25, ty - 46, tw * 0.5, 20, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        const ledColor = alarmFlash > 0.1 ? '#ef4444' : '#22c55e';
+        ctx.fillStyle = ledColor;
+        ctx.beginPath();
+        ctx.arc(tx + tw * 0.29, ty - 36, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('SCANNER RAIO-X • ALTA ENERGIA', tx + tw * 0.5, ty - 32);
+
+        // Rebites metálicos
+        ctx.fillStyle = '#cbd5e1';
+        for (let rx = tx + 8; rx <= tx + tw - 8; rx += 36) {
+          ctx.beginPath();
+          ctx.arc(rx, ty - 12, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Cortinas flexíveis de chumbo na entrada (esquerda) e saída (direita)
+        this._drawLeadCurtain(ctx, tx, ty + 4, th - 8, this.entryCurtainAngle);
+        this._drawLeadCurtain(ctx, tx + tw, ty + 4, th - 8, this.exitCurtainAngle);
+
+        // Borda externa do túnel
+        ctx.strokeStyle = focusActive ? '#22d3ee' : '#64748b';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(tx, ty, tw, th);
+
+        // Inspetor (você) operando no console lateral direito
+        this._drawInspectorAtConsole(ctx, w, h, beltRect);
+      }
+
+      _drawLeadCurtain(ctx, x, y, height, angle) {
+        const strips = 5;
+        const stripH = height / strips;
+        for (let i = 0; i < strips; i++) {
+          ctx.save();
+          ctx.translate(x, y + i * stripH + stripH * 0.5);
+          ctx.rotate(angle * (0.7 + i * 0.08));
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(30, 41, 59, 0.85)' : 'rgba(51, 65, 85, 0.85)';
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(-14, -stripH * 0.42, 28, stripH * 0.84, 3);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      _drawInspectorAtConsole(ctx, w, h, beltRect) {
+        const consoleX = Math.min(w - 110, beltRect.x + beltRect.w + 26);
+        const consoleY = beltRect.y + beltRect.h + 10;
+        if (consoleX > w - 36) return;
+
+        ctx.save();
+        const scale = Math.max(0.75, Math.min(1.15, h / 680));
+        ctx.translate(consoleX, consoleY);
+        ctx.scale(scale, scale);
+
+        // Console lateral
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.roundRect(-18, -36, 56, 48, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Torso do Inspetor (uniforme azul-marinho detalhado)
+        ctx.fillStyle = '#172554';
+        ctx.beginPath();
+        ctx.roundRect(6, -92, 34, 56, 8);
+        ctx.fill();
+
+        // Crachá brilhante no peito
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(10, -78, 8, 6);
+
+        // Cabeça e quepe
+        ctx.fillStyle = '#eab676';
+        ctx.beginPath();
+        ctx.arc(23, -105, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Quepe azul-marinho com aba
+        ctx.fillStyle = '#1e3a8a';
+        ctx.beginPath();
+        ctx.roundRect(9, -122, 28, 10, 4);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(4, -113, 24, 3);
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(16, -117, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Braço articulado apontando/operando em direção à tela
+        ctx.save();
+        ctx.translate(14, -82);
+        ctx.rotate(this.inspectorArmAngle);
+        ctx.strokeStyle = '#172554';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-26, 8);
+        ctx.stroke();
+
+        ctx.fillStyle = '#eab676';
+        ctx.beginPath();
+        ctx.arc(-28, 9, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.restore();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. RENDERIZADOR PROCEDURAL DE BAGAGENS E OBJETOS EM RAIO-X
+    // --------------------------------------------------------------------------
+    class BagAndXRayRenderer {
+      /**
+       * Gera uma bagagem com tipo, dimensão, cor externa e camadas de objetos internos.
+       */
+      createBag(shiftNumber, bannedSet) {
+        const bagTypes = ['hardshell', 'backpack', 'briefcase', 'duffel'];
+        const type = bagTypes[Math.floor(Math.random() * bagTypes.length)];
+        const palette = [
+          { shell: '#1d4ed8', trim: '#93c5fd', accent: '#f59e0b' },
+          { shell: '#047857', trim: '#6ee7b7', accent: '#fbbf24' },
+          { shell: '#7c2d12', trim: '#fdba74', accent: '#facc15' },
+          { shell: '#334155', trim: '#94a3b8', accent: '#38bdf8' },
+          { shell: '#6b21a8', trim: '#d8b4fe', accent: '#f472b6' }
+        ];
+        const colors = palette[Math.floor(Math.random() * palette.length)];
+
+        const w = type === 'hardshell' ? 166 : type === 'duffel' ? 160 : 146;
+        const h = type === 'hardshell' ? 96 : type === 'backpack' ? 104 : 88;
+
+        // Quantidade de itens escala com o turno (mais densa a cada turno)
+        const itemCount = Math.min(7, 3 + Math.floor(shiftNumber * 0.65) + Math.floor(Math.random() * 2));
+        const bannedPool = Array.from(bannedSet);
+        const safePool = ALL_ITEM_IDS.filter((id) => !bannedSet.has(id));
+
+        // Garante chance realista de contrabando (aumenta nos turnos mais altos)
+        const contrabandChance = Math.min(0.85, 0.52 + shiftNumber * 0.04);
+        const items = [];
+
+        // Primeiro gera itens grandes/base (ficam por baixo com semi-transparência)
+        const largeCandidates = ['clothes', 'sneakers', 'book', 'laptop'];
+        const baseCount = Math.min(2, Math.max(1, Math.floor(itemCount * 0.45)));
+
+        for (let i = 0; i < baseCount; i++) {
+          const id = largeCandidates[Math.floor(Math.random() * largeCandidates.length)];
+          items.push(this._makeItemInstance(id, i, itemCount, w, h, true));
+        }
+
+        // Decide se esta mala terá ao menos um item proibido
+        const mustHaveBanned = Math.random() < contrabandChance && bannedPool.length > 0;
+        const bannedSlots = mustHaveBanned ? 1 + (shiftNumber >= 3 && Math.random() < 0.35 ? 1 : 0) : 0;
+
+        for (let i = baseCount; i < itemCount; i++) {
+          let chosenId;
+          if (i < baseCount + bannedSlots && bannedPool.length > 0) {
+            chosenId = bannedPool[Math.floor(Math.random() * bannedPool.length)];
+          } else if (safePool.length > 0) {
+            chosenId = safePool[Math.floor(Math.random() * safePool.length)];
+          } else {
+            chosenId = bannedPool[Math.floor(Math.random() * bannedPool.length)];
+          }
+
+          // Itens proibidos menores podem ficar parcialmente ocultos sob itens maiores ("fundo falso")
+          const isUnderBase = bannedSet.has(chosenId) && Math.random() < Math.min(0.75, 0.3 + shiftNumber * 0.07);
+          items.push(this._makeItemInstance(chosenId, i, itemCount, w, h, isUnderBase));
+        }
+
+        return {
+          id: 'bag_' + Math.random().toString(36).slice(2, 9),
+          type,
+          colors,
+          w,
+          h,
+          x: -w - 40,
+          y: 0,
+          items,
+          enteredTunnel: false,
+          exitedTunnel: false,
+          sloshPhase: Math.random() * Math.PI * 2
+        };
+      }
+
+      _makeItemInstance(itemId, index, total, bagW, bagH, isUnderBase) {
+        const meta = ITEM_CATALOG[itemId];
+        const padX = 24;
+        const padY = 20;
+        const usableW = Math.max(40, bagW - padX * 2);
+        const usableH = Math.max(30, bagH - padY * 2);
+
+        // Distribui pela área interna da mala com variação
+        const col = index % 3;
+        const relX = (col + 0.5) / 3 + (Math.random() - 0.5) * 0.16;
+        const relY = 0.25 + ((index * 37) % 55) / 100 + (Math.random() - 0.5) * 0.12;
+
+        const ix = -bagW * 0.5 + padX + Math.max(0.08, Math.min(0.92, relX)) * usableW;
+        const iy = -bagH * 0.5 + padY + Math.max(0.12, Math.min(0.88, relY)) * usableH;
+
+        return {
+          itemId,
+          meta,
+          relX: ix,
+          relY: iy,
+          rot: (Math.random() - 0.5) * 0.55,
+          scale: meta.size === 'large' ? 1.02 : 0.94,
+          isUnderBase,
+          seized: false,
+          seizeAnim: 0
+        };
+      }
+
+      /**
+       * Desenha a mala completa (exterior opaco fora do túnel + transparência Raio-X dentro).
+       */
+      drawBag(ctx, bag, beltY, tunnelRect, time, focusActive, bannedSet) {
+        const centerX = bag.x + bag.w * 0.5;
+        const centerY = beltY - bag.h * 0.5 - 4;
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+
+        // Rodinhas inferiores para malas rígidas
+        if (bag.type === 'hardshell') {
+          ctx.fillStyle = '#0f172a';
+          ctx.beginPath();
+          ctx.arc(-bag.w * 0.32, bag.h * 0.5 + 3, 5, 0, Math.PI * 2);
+          ctx.arc(bag.w * 0.32, bag.h * 0.5 + 3, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Alça superior
+        ctx.strokeStyle = bag.colors.trim;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(-20, -bag.h * 0.5 - 9, 40, 11, [5, 5, 0, 0]);
+        ctx.stroke();
+
+        // Corpo externo da bagagem
+        ctx.fillStyle = bag.colors.shell;
+        ctx.strokeStyle = bag.colors.trim;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(-bag.w * 0.5, -bag.h * 0.5, bag.w, bag.h, bag.type === 'briefcase' ? 6 : 14);
+        ctx.fill();
+        ctx.stroke();
+
+        // Detalhes externos conforme tipo de mala
+        if (bag.type === 'hardshell') {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.lineWidth = 2;
+          for (let rx = -bag.w * 0.34; rx <= bag.w * 0.34; rx += 22) {
+            ctx.beginPath();
+            ctx.moveTo(rx, -bag.h * 0.42);
+            ctx.lineTo(rx, bag.h * 0.42);
+            ctx.stroke();
+          }
+        } else if (bag.type === 'briefcase') {
+          // Fechos dourados
+          ctx.fillStyle = bag.colors.accent;
+          ctx.fillRect(-26, -4, 10, 8);
+          ctx.fillRect(16, -4, 10, 8);
+        } else if (bag.type === 'backpack') {
+          // Bolso frontal e fivelas
+          ctx.strokeStyle = bag.colors.accent;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-bag.w * 0.28, -bag.h * 0.1, bag.w * 0.56, bag.h * 0.36);
+        }
+
+        // Etiqueta de voo
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(bag.w * 0.16, -bag.h * 0.5 - 4, 24, 9);
+
+        // Visão interna em Raio-X recortada dentro do túnel do scanner
+        const clipLeft = Math.max(bag.x, tunnelRect.x) - centerX;
+        const clipRight = Math.min(bag.x + bag.w, tunnelRect.x + tunnelRect.w) - centerX;
+        const clipTop = tunnelRect.y - centerY;
+        const clipBottom = tunnelRect.y + tunnelRect.h - centerY;
+
+        if (clipRight > clipLeft) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(clipLeft, clipTop, clipRight - clipLeft, clipBottom - clipTop);
+          ctx.clip();
+
+          // Fundo interno de raio-X dentro da mala
+          ctx.fillStyle = focusActive ? 'rgba(6, 78, 112, 0.48)' : 'rgba(8, 36, 64, 0.38)';
+          ctx.beginPath();
+          ctx.roundRect(-bag.w * 0.5 + 5, -bag.h * 0.5 + 5, bag.w - 10, bag.h - 10, 10);
+          ctx.fill();
+
+          ctx.strokeStyle = focusActive ? 'rgba(165, 243, 252, 0.95)' : 'rgba(56, 189, 248, 0.82)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Camada 1: Itens marcados como "embaixo" (isUnderBase)
+          for (const item of bag.items) {
+            if (!item.seized && item.isUnderBase) {
+              this._drawXRayItem(ctx, item, time, focusActive, bannedSet.has(item.itemId));
+            }
+          }
+
+          // Camada 2: Itens principais/superiores com semi-transparência para permitir ver itens por baixo
+          for (const item of bag.items) {
+            if (!item.seized && !item.isUnderBase) {
+              ctx.save();
+              ctx.globalAlpha = item.meta.size === 'large' ? 0.68 : 0.94;
+              this._drawXRayItem(ctx, item, time, focusActive, bannedSet.has(item.itemId));
+              ctx.restore();
+            }
+          }
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      /**
+       * Desenha cada objeto em estilo Raio-X multi-camadas com componentes internos.
+       */
+      _drawXRayItem(ctx, item, time, focusActive, isBannedNow) {
+        ctx.save();
+        ctx.translate(item.relX, item.relY);
+        ctx.rotate(item.rot);
+        ctx.scale(item.scale, item.scale);
+
+        const contrastBoost = focusActive ? 1.35 : 1.0;
+        ctx.lineWidth = 1.8 * contrastBoost;
+        ctx.shadowColor = isBannedNow ? 'rgba(248,113,113,0.8)' : 'rgba(103,232,249,0.42)';
+        ctx.shadowBlur = focusActive ? 9 : 5;
+
+        switch (item.itemId) {
+          case 'knife': {
+            // Lâmina metálica brilhante + cabo detalhado
+            ctx.fillStyle = isBannedNow ? 'rgba(248, 113, 113, 0.55)' : 'rgba(226, 232, 240, 0.45)';
+            ctx.strokeStyle = isBannedNow ? '#fca5a5' : '#e2e8f0';
+            ctx.beginPath();
+            ctx.moveTo(-22, 0);
+            ctx.lineTo(6, -6);
+            ctx.lineTo(8, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Guarda e cabo
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(6, -8, 4, 16);
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(10, -4, 16, 8);
+            break;
+          }
+
+          case 'explosive': {
+            // Cilindros, visor digital piscando e fios coloridos
+            ctx.fillStyle = 'rgba(251, 113, 133, 0.45)';
+            ctx.strokeStyle = '#fda4af';
+            ctx.beginPath();
+            ctx.roundRect(-18, -11, 24, 9, 3);
+            ctx.roundRect(-18, 2, 24, 9, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            // Visor digital piscando
+            const blink = Math.sin(time * 12) > 0;
+            ctx.fillStyle = blink ? '#ef4444' : '#7f1d1d';
+            ctx.fillRect(8, -10, 14, 11);
+            ctx.strokeStyle = '#fecaca';
+            ctx.strokeRect(8, -10, 14, 11);
+
+            // Fios conectados
+            ctx.strokeStyle = '#facc15';
+            ctx.beginPath();
+            ctx.moveTo(6, -6);
+            ctx.quadraticCurveTo(14, 8, 8, 8);
+            ctx.stroke();
+            break;
+          }
+
+          case 'taser': {
+            // Corpo da arma de choque + eletrodos frontais
+            ctx.fillStyle = 'rgba(192, 132, 252, 0.45)';
+            ctx.strokeStyle = '#e9d5ff';
+            ctx.beginPath();
+            ctx.roundRect(-10, -8, 24, 16, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Eletrodos
+            ctx.strokeStyle = '#f8fafc';
+            ctx.beginPath();
+            ctx.moveTo(-10, -4);
+            ctx.lineTo(-22, -4);
+            ctx.moveTo(-10, 4);
+            ctx.lineTo(-22, 4);
+            ctx.stroke();
+
+            // Faísca elétrica
+            if (Math.sin(time * 18) > 0.2) {
+              ctx.strokeStyle = '#67e8f9';
+              ctx.beginPath();
+              ctx.moveTo(-22, -4);
+              ctx.lineTo(-26, 0);
+              ctx.lineTo(-22, 4);
+              ctx.stroke();
+            }
+            break;
+          }
+
+          case 'chemical': {
+            // Frasco com símbolo de perigo químico
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.45)';
+            ctx.strokeStyle = '#fed7aa';
+            ctx.beginPath();
+            ctx.roundRect(-11, -10, 22, 24, 5);
+            ctx.fill();
+            ctx.stroke();
+
+            // Gargalo e tampa
+            ctx.fillRect(-5, -15, 10, 5);
+
+            // Triângulo de alerta interno
+            ctx.strokeStyle = '#fef08a';
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(0, -3);
+            ctx.lineTo(6, 7);
+            ctx.lineTo(-6, 7);
+            ctx.closePath();
+            ctx.stroke();
+            break;
+          }
+
+          case 'crowbar': {
+            // Pé-de-cabra metálico curvo
+            ctx.strokeStyle = isBannedNow ? '#fda4af' : '#cbd5e1';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-20, -10);
+            ctx.quadraticCurveTo(-24, 4, -12, 5);
+            ctx.lineTo(20, 5);
+            ctx.stroke();
+            break;
+          }
+
+          case 'scissors': {
+            // Tesoura articulada com lâminas e alças
+            ctx.strokeStyle = isBannedNow ? '#fde047' : '#e2e8f0';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.moveTo(-20, -5);
+            ctx.lineTo(6, 4);
+            ctx.moveTo(-20, 5);
+            ctx.lineTo(6, -4);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(12, -6, 5, 0, Math.PI * 2);
+            ctx.arc(12, 6, 5, 0, Math.PI * 2);
+            ctx.stroke();
+            break;
+          }
+
+          case 'laptop': {
+            // Notebook exibindo placa-mãe, bateria e cooler por dentro
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.beginPath();
+            ctx.roundRect(-24, -16, 48, 32, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Bateria retangular
+            ctx.fillStyle = 'rgba(125, 211, 252, 0.45)';
+            ctx.fillRect(-19, -11, 14, 22);
+
+            // Cooler circular
+            ctx.beginPath();
+            ctx.arc(8, -4, 7, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Chip da placa-mãe
+            ctx.strokeRect(1, 5, 13, 7);
+            break;
+          }
+
+          case 'camera': {
+            // Câmera fotográfica mostrando lentes e engrenagens internas
+            ctx.fillStyle = 'rgba(96, 165, 250, 0.32)';
+            ctx.strokeStyle = '#93c5fd';
+            ctx.beginPath();
+            ctx.roundRect(-18, -12, 36, 24, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Elementos da lente
+            ctx.beginPath();
+            ctx.arc(-2, 0, 8.5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(-2, 0, 4.5, 0, Math.PI * 2);
+            ctx.stroke();
+            break;
+          }
+
+          case 'bottle': {
+            // Garrafa com nível de líquido animado balançando
+            ctx.fillStyle = 'rgba(45, 212, 191, 0.22)';
+            ctx.strokeStyle = '#99f6e4';
+            ctx.beginPath();
+            ctx.roundRect(-8, -16, 16, 32, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            // Líquido interno oscilando
+            const slosh = Math.sin(time * 6 + item.relX) * 2.5;
+            ctx.fillStyle = 'rgba(45, 212, 191, 0.62)';
+            ctx.beginPath();
+            ctx.moveTo(-6.5, -2 + slosh);
+            ctx.lineTo(6.5, -2 - slosh);
+            ctx.lineTo(6.5, 14);
+            ctx.lineTo(-6.5, 14);
+            ctx.closePath();
+            ctx.fill();
+            break;
+          }
+
+          case 'clothes': {
+            // Roupas dobradas com textura de tecido
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.beginPath();
+            ctx.roundRect(-24, -14, 48, 28, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(226, 232, 240, 0.45)';
+            ctx.lineWidth = 1.2;
+            for (let ly = -8; ly <= 8; ly += 5.5) {
+              ctx.beginPath();
+              ctx.moveTo(-18, ly);
+              ctx.lineTo(18, ly);
+              ctx.stroke();
+            }
+            break;
+          }
+
+          case 'sneakers': {
+            // Tênis com sola e cadarços
+            ctx.fillStyle = 'rgba(163, 230, 53, 0.28)';
+            ctx.strokeStyle = '#d9f99d';
+            ctx.beginPath();
+            ctx.roundRect(-20, -10, 40, 20, 7);
+            ctx.fill();
+            ctx.stroke();
+
+            // Sola
+            ctx.strokeStyle = '#f8fafc';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(-18, 9);
+            ctx.lineTo(18, 9);
+            ctx.stroke();
+            break;
+          }
+
+          case 'book':
+          default: {
+            // Livro com páginas e marcador
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.26)';
+            ctx.strokeStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.roundRect(-18, -13, 36, 26, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, -13);
+            ctx.lineTo(0, 13);
+            ctx.stroke();
+            break;
+          }
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. SIMULAÇÃO, FÍSICA DA ESTEIRA, FOCO/ZOOM E LOOP PRINCIPAL
+    // --------------------------------------------------------------------------
+    class XRayGameSimulation {
+      constructor(canvas, uiController, audioEngine) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.ui = uiController;
+        this.audio = audioEngine;
+        this.scenery = new SceneryAndCharacters();
+        this.bagRenderer = new BagAndXRayRenderer();
+
+        // Estado do jogo: 'START' | 'PLAYING' | 'SHIFT_COMPLETE' | 'GAME_OVER'
+        this.state = 'START';
+
+        // Estatísticas e progressão
+        this.shiftNumber = 1;
+        this.bagsRequiredInShift = 10;
+        this.bagsInspectedInShift = 0;
+        this.totalBagsInspected = 0;
+        this.totalSeizures = 0;
+        this.score = 0;
+        this.combo = 1;
+        this.shields = 3;
+        this.maxShields = 3;
+        this.focus = 100; // 0..100
+        this.isFocusHeld = false;
+
+        // Diretrizes do turno atual
+        this.directives = getShiftDirectives(1);
+
+        // Esteira e bagagens
+        this.bags = [];
+        this.spawnCooldown = 0.6;
+        this.beltOffset = 0;
+        this.elapsedTime = 0;
+        this.alarmFlash = 0;
+        this.screenShake = 0;
+        // Eventos de adrenalina e sequência de apreensões.
+        this.rushTimer = 0;
+        this.rushCooldown = 11;
+        this.comboTimer = 0;
+
+        // Juiciness: braço/feixe de captura, carimbos "APREENDIDO", textos flutuantes e partículas
+        this.captureBeam = null; // { startX, startY, endX, endY, timer, color }
+        this.stamps = []; // { x, y, text, subtext, color, life, maxLife }
+        this.floatingTexts = []; // { x, y, text, color, life }
+        this.particles = []; // { x, y, vx, vy, size, color, life }
+
+        // Mouse / Ponteiro
+        this.pointer = { x: 0, y: 0, inside: false };
+
+        // Layout geométrico calculado dinamicamente
+        this.layout = {
+          w: 800,
+          h: 500,
+          dpr: 1,
+          beltRect: { x: 0, y: 0, w: 600, h: 34 },
+          tunnelRect: { x: 180, y: 120, w: 360, h: 170 }
+        };
+
+        this.resize();
+        this._bindEvents();
+      }
+
+      // Salvamento resiliente: inclui o estado lógico da simulação e a fila visual.
+      // O layout/canvas/áudio são reconstruídos pelo navegador e não são serializados.
+      saveSession() {
+        if (!['PLAYING', 'SHIFT_COMPLETE'].includes(this.state)) return;
+        const fields = [
+          'state', 'shiftNumber', 'bagsRequiredInShift', 'bagsInspectedInShift',
+          'totalBagsInspected', 'totalSeizures', 'score', 'combo', 'shields',
+          'maxShields', 'focus', 'bags', 'spawnCooldown', 'beltOffset',
+          'elapsedTime', 'alarmFlash', 'screenShake', 'rushTimer',
+          'rushCooldown', 'comboTimer', 'captureBeam', 'stamps',
+          'floatingTexts', 'particles', 'lastShiftBonus'
+        ];
+        const snapshot = { version: 1, savedAt: Date.now(), simulation: {} };
+        for (const key of fields) snapshot.simulation[key] = this[key];
+        snapshot.scenery = {};
+        for (const key of [
+          'passengers', 'spawnTimer', 'inspectorArmAngle', 'inspectorArmTarget',
+          'inspectorPointTimer', 'entryCurtainAngle', 'entryCurtainVel',
+          'exitCurtainAngle', 'exitCurtainVel', 'beaconPhase'
+        ]) snapshot.scenery[key] = this.scenery[key];
+        try {
+          localStorage.setItem('inspetor_raiox_session_v2', JSON.stringify(snapshot));
+        } catch (err) {
+          console.warn('Não foi possível salvar a sessão:', err);
+        }
+      }
+
+      restoreSession() {
+        try {
+          const raw = localStorage.getItem('inspetor_raiox_session_v2');
+          if (!raw) return false;
+          const snapshot = JSON.parse(raw);
+          if (snapshot?.version !== 1 || !snapshot.simulation ||
+              !['PLAYING', 'SHIFT_COMPLETE'].includes(snapshot.simulation.state)) return false;
+          Object.assign(this, snapshot.simulation);
+          if (!this.bagsRequiredInShift || !Array.isArray(this.bags) ||
+              !Number.isFinite(this.score) || !Number.isFinite(this.shiftNumber)) {
+            throw new Error('Dados de sessão inválidos');
+          }
+          if (snapshot.scenery) Object.assign(this.scenery, snapshot.scenery);
+          this.isFocusHeld = false;
+          this.pointer = { x: 0, y: 0, inside: false };
+          this.directives = getShiftDirectives(this.shiftNumber);
+          this.ui.updateHud(this);
+          this.ui.updateFocusBar(this.focus, false);
+          this.ui.renderDirectives(this.directives, false);
+          this.ui.hideAllOverlays();
+          if (this.state === 'PLAYING') {
+            this.audio.startAmbientGroove(this.shiftNumber);
+            this.ui.showToast('SESSÃO RECUPERADA — CONTINUE DE ONDE PAROU!', 'info');
+          } else {
+            this.audio.stopAmbientGroove();
+            this.ui.showShiftComplete(this, this.lastShiftBonus || 0);
+          }
+          return true;
+        } catch (err) {
+          console.warn('Sessão salva inválida; iniciando uma nova:', err);
+          this.clearSavedSession();
+          return false;
+        }
+      }
+
+      clearSavedSession() {
+        try { localStorage.removeItem('inspetor_raiox_session_v2'); } catch (_) {}
+      }
+
+      resize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = Math.max(320, Math.floor(rect.width));
+        const h = Math.max(280, Math.floor(rect.height));
+
+        this.canvas.width = Math.floor(w * dpr);
+        this.canvas.height = Math.floor(h * dpr);
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const beltW = Math.min(w * 0.84, w - 130);
+        const beltX = Math.max(24, (w - beltW) * 0.5 - 16);
+        const beltY = h * 0.78;
+        const beltH = Math.max(24, Math.min(36, h * 0.055));
+
+        const tunnelW = Math.min(beltW * 0.62, 460);
+        const tunnelH = Math.min(185, Math.max(125, h * 0.28));
+        const tunnelX = beltX + (beltW - tunnelW) * 0.5;
+        const tunnelY = beltY - tunnelH - 4;
+
+        this.layout = {
+          w,
+          h,
+          dpr,
+          beltRect: { x: beltX, y: beltY, w: beltW, h: beltH },
+          tunnelRect: { x: tunnelX, y: tunnelY, w: tunnelW, h: tunnelH }
+        };
+      }
+
+      _bindEvents() {
+        window.addEventListener('resize', () => this.resize());
+
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space' && this.state === 'PLAYING') {
+            e.preventDefault();
+            this.isFocusHeld = true;
+          }
+        });
+
+        window.addEventListener('keyup', (e) => {
+          if (e.code === 'Space') this.isFocusHeld = false;
+        });
+        window.addEventListener('blur', () => { this.isFocusHeld = false; });
+
+        this.canvas.addEventListener('pointermove', (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          this.pointer.x = e.clientX - rect.left;
+          this.pointer.y = e.clientY - rect.top;
+          this.pointer.inside = true;
+        });
+
+        this.canvas.addEventListener('pointerleave', () => {
+          this.pointer.inside = false;
+        });
+
+        this.canvas.addEventListener('pointerdown', (e) => {
+          if (this.state !== 'PLAYING') return;
+          if (e.pointerType === 'touch') e.preventDefault();
+          this.audio.ensureContext();
+          const rect = this.canvas.getBoundingClientRect();
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          this.pointer.x = px;
+          this.pointer.y = py;
+          this.pointer.inside = true;
+          this._handleInspectionClick(px, py);
+        });
+      }
+
+      startNewCareer() {
+        this.clearSavedSession();
+        this.audio.ensureContext();
+        this.shiftNumber = 1;
+        this.score = 0;
+        this.combo = 1;
+        this.shields = this.maxShields;
+        this.focus = 100;
+        this.isFocusHeld = false;
+        this.pointer.inside = false;
+        this.totalBagsInspected = 0;
+        this.totalSeizures = 0;
+        this.stamps = [];
+        this.floatingTexts = [];
+        this.particles = [];
+        this.captureBeam = null;
+        this.alarmFlash = 0;
+        this.screenShake = 0;
+        this.rushTimer = 0;
+        this.rushCooldown = 8;
+        this.comboTimer = 0;
+
+        this._setupShift(1);
+        this.state = 'PLAYING';
+        this.audio.startAmbientGroove(1);
+        this.ui.hideAllOverlays();
+        this.ui.updateHud(this);
+        this.ui.renderDirectives(this.directives, this.shiftNumber === 1);
+        this.ui.showToast('TURNO 1 INICIADO — APREENDA OS ITENS PROIBIDOS!', 'info');
+      }
+
+      _setupShift(shiftNum) {
+        this.shiftNumber = shiftNum;
+        this.bagsRequiredInShift = 10 + (shiftNum - 1) * 4;
+        this.bagsInspectedInShift = 0;
+        this.directives = getShiftDirectives(shiftNum);
+        this.bags = [];
+        this.spawnCooldown = 0.10;
+        this.rushTimer = 0;
+        this.rushCooldown = Math.max(7, 15 - shiftNum * 0.7);
+        this.comboTimer = 0;
+
+        // Coloca uma bagagem inicial já se aproximando para ritmo imediato
+        const firstBag = this.bagRenderer.createBag(shiftNum, this.directives.bannedSet);
+        firstBag.x = this.layout.beltRect.x + 25;
+        this.bags.push(firstBag);
+      }
+
+      advanceToNextShift() {
+        this.audio.ensureContext();
+        const nextShift = this.shiftNumber + 1;
+        this._setupShift(nextShift);
+        this.focus = Math.min(100, this.focus + 35);
+        this.state = 'PLAYING';
+        this.audio.startAmbientGroove(nextShift);
+        this.ui.hideAllOverlays();
+        this.ui.updateHud(this);
+        this.ui.renderDirectives(this.directives, true);
+        this.ui.showToast(`TURNO ${nextShift} — NOVA DIRETRIZ ATIVA!`, 'warn');
+        this.saveSession();
+      }
+
+      _getBaseBeltSpeed() {
+        return Math.min(230, 92 + (this.shiftNumber - 1) * 17);
+      }
+
+      _handleInspectionClick(px, py) {
+        this.scenery.triggerInspectorPoint();
+        const { tunnelRect, beltRect } = this.layout;
+
+        // Verifica se o clique ocorreu dentro da área visível do túnel de Raio-X
+        const inTunnel =
+          px >= tunnelRect.x &&
+          px <= tunnelRect.x + tunnelRect.w &&
+          py >= tunnelRect.y &&
+          py <= tunnelRect.y + tunnelRect.h;
+
+        if (!inTunnel) {
+          this.audio.playScanBeep(false);
+          return;
+        }
+
+        // Busca de cima para baixo (itens superiores primeiro) dentro das malas visíveis no túnel
+        let hitItem = null;
+        let hitWorldPos = null;
+
+        for (let bIdx = this.bags.length - 1; bIdx >= 0; bIdx--) {
+          const bag = this.bags[bIdx];
+          const centerX = bag.x + bag.w * 0.5;
+          const centerY = beltRect.y - bag.h * 0.5 - 4;
+
+          // Avalia do último item (topo) para o primeiro (base)
+          for (let iIdx = bag.items.length - 1; iIdx >= 0; iIdx--) {
+            const item = bag.items[iIdx];
+            if (item.seized) continue;
+
+            const ix = centerX + item.relX;
+            const iy = centerY + item.relY;
+            // Hitbox follows the rendered object's dimensions for reliable selection.
+            const hitRadius = item.meta.size === 'large' ? 29 : item.meta.size === 'medium' ? 24 : 20;
+
+            const dist = Math.hypot(px - ix, py - iy);
+            if (dist <= hitRadius) {
+              hitItem = item;
+              hitWorldPos = { x: ix, y: iy };
+              break;
+            }
+          }
+          if (hitItem) break;
+        }
+
+        if (!hitItem) {
+          this.audio.playScanBeep(false);
+          return;
+        }
+
+        const isProhibited = this.directives.bannedSet.has(hitItem.itemId);
+
+        if (isProhibited) {
+          // ACERTO: Apreensão de item proibido!
+          hitItem.seized = true;
+          this.totalSeizures++;
+          this.combo = Math.min(15, this.combo + 1);
+          this.comboTimer = 5.5;
+          const bonusPrioridade = hitItem.bagPriority ? 2 : 1;
+          const gained = Math.round(hitItem.meta.basePoints * this.combo * bonusPrioridade);
+          this.score += gained;
+
+          this.audio.playSeizureStamp(this.combo);
+          this.scenery.notifyPassengerReaction('happy');
+
+          // Feixe de captura do topo do scanner até o item
+          this.captureBeam = {
+            startX: tunnelRect.x + tunnelRect.w * 0.5,
+            startY: tunnelRect.y + 6,
+            endX: hitWorldPos.x,
+            endY: hitWorldPos.y,
+            timer: 0.24,
+            color: '#22d3ee'
+          };
+
+          this.stamps.push({
+            x: hitWorldPos.x,
+            y: hitWorldPos.y,
+            text: 'APREENDIDO',
+            subtext: hitItem.meta.shortLabel,
+            color: '#4ade80',
+            life: 0.95,
+            maxLife: 0.95
+          });
+
+          this.floatingTexts.push({
+            x: hitWorldPos.x,
+            y: hitWorldPos.y - 24,
+            text: `+${gained} (x${this.combo})`,
+            color: '#facc15',
+            life: 0.9
+          });
+
+          this._spawnParticles(hitWorldPos.x, hitWorldPos.y, '#22d3ee', 16);
+          this.ui.pulseCombo();
+          this.ui.updateHud(this);
+        } else {
+          // ERRO: Clicou em item permitido!
+          this._registerMistake(
+            hitWorldPos.x,
+            hitWorldPos.y,
+            `ITEM PERMITIDO (${hitItem.meta.shortLabel})!`,
+            'FALSO ALARME'
+          );
+        }
+      }
+
+      _registerMistake(x, y, reasonText, stampLabel = 'ERRO') {
+        this.combo = 1;
+        this.comboTimer = 0;
+        this.shields = Math.max(0, this.shields - 1);
+        this.alarmFlash = 0.85;
+        this.screenShake = 11;
+
+        this.audio.playAlarmError();
+        this.scenery.notifyPassengerReaction('angry');
+
+        this.stamps.push({
+          x,
+          y,
+          text: stampLabel,
+          subtext: reasonText,
+          color: '#f87171',
+          life: 1.05,
+          maxLife: 1.05
+        });
+
+        this.floatingTexts.push({
+          x,
+          y: y - 24,
+          text: reasonText,
+          color: '#fca5a5',
+          life: 1.15
+        });
+
+        this._spawnParticles(x, y, '#ef4444', 18);
+        this.ui.updateHud(this);
+
+        if (this.shields <= 0) {
+          this._triggerGameOver(reasonText);
+        }
+      }
+
+      _triggerGameOver(reason) {
+        this.state = 'GAME_OVER';
+        this.clearSavedSession();
+        this.isFocusHeld = false;
+        this.audio.stopAmbientGroove();
+        this.audio.updateMotor(0, false);
+        this.ui.showGameOver(this, reason);
+      }
+
+      _completeShift() {
+        this.state = 'SHIFT_COMPLETE';
+        this.isFocusHeld = false;
+        this.audio.stopAmbientGroove();
+        this.audio.updateMotor(0, false);
+        this.audio.playShiftFanfare();
+
+        const bonus = this.shiftNumber * 300 + this.shields * 100;
+        this.lastShiftBonus = bonus;
+        this.score += bonus;
+        this.ui.updateHud(this);
+        this.ui.showShiftComplete(this, bonus);
+        this.saveSession();
+      }
+
+      _spawnParticles(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+          const speed = 55 + Math.random() * 140;
+          this.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 30,
+            size: 2.5 + Math.random() * 3.5,
+            color,
+            life: 0.45 + Math.random() * 0.35
+          });
+        }
+      }
+
+      update(dt) {
+        this.elapsedTime += dt;
+
+        // Decaimento de efeitos visuais
+        if (this.alarmFlash > 0) this.alarmFlash = Math.max(0, this.alarmFlash - dt * 1.9);
+        if (this.screenShake > 0) this.screenShake = Math.max(0, this.screenShake - dt * 36);
+        if (this.captureBeam) {
+          this.captureBeam.timer -= dt;
+          if (this.captureBeam.timer <= 0) this.captureBeam = null;
+        }
+
+        // Atualiza carimbos, textos flutuantes e partículas
+        for (let i = this.stamps.length - 1; i >= 0; i--) {
+          this.stamps[i].life -= dt;
+          if (this.stamps[i].life <= 0) this.stamps.splice(i, 1);
+        }
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+          this.floatingTexts[i].life -= dt;
+          this.floatingTexts[i].y -= dt * 36;
+          if (this.floatingTexts[i].life <= 0) this.floatingTexts[i].life = 0;
+          if (this.floatingTexts[i].life <= 0) this.floatingTexts.splice(i, 1);
+        }
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const pt = this.particles[i];
+          pt.x += pt.vx * dt;
+          pt.y += pt.vy * dt;
+          pt.vy += 260 * dt;
+          pt.life -= dt;
+          if (pt.life <= 0) this.particles.splice(i, 1);
+        }
+
+        // Combo expira se o jogador não mantiver a sequência de apreensões.
+        if (this.state === 'PLAYING' && this.comboTimer > 0) {
+          this.comboTimer -= dt;
+          if (this.comboTimer <= 0 && this.combo > 1) {
+            this.combo = 1;
+            this.ui.updateHud(this);
+            this.ui.showToast('SEQUÊNCIA ENCERRADA! APREENDA MAIS RÁPIDO!', 'warn');
+          }
+        }
+
+        // Picos de fluxo: aceleração inesperada que exige decisões rápidas.
+        if (this.state === 'PLAYING') {
+          this.rushCooldown -= dt;
+          if (this.rushTimer > 0) {
+            this.rushTimer = Math.max(0, this.rushTimer - dt);
+          } else if (this.rushCooldown <= 0) {
+            this.rushTimer = 5.5 + Math.random() * 2;
+            this.rushCooldown = 17 + Math.random() * 12;
+            this.alarmFlash = Math.max(this.alarmFlash, 0.35);
+            this.screenShake = Math.max(this.screenShake, 4);
+            this.ui.showToast('⚠ PICO DE MOVIMENTO! ESTEIRA ACELERADA!', 'warn');
+          }
+        }
+
+        // Modo de demonstração na tela inicial
+        if (this.state === 'START') {
+          this.beltOffset += 38 * dt;
+          this.scenery.update(dt, 38, 0);
+          this.audio.updateMotor(0, false);
+          if (this.bags.length === 0) {
+            const demoBag = this.bagRenderer.createBag(1, this.directives.bannedSet);
+            demoBag.x = this.layout.tunnelRect.x + 60;
+            this.bags.push(demoBag);
+          }
+          for (const bag of this.bags) {
+            bag.x += 38 * dt;
+            if (bag.x > this.layout.w + 80) {
+              bag.x = this.layout.beltRect.x - bag.w - 30;
+            }
+          }
+          return;
+        }
+
+        if (this.state !== 'PLAYING') {
+          this.scenery.update(dt, 0, 0);
+          this.audio.updateMotor(0, false);
+          return;
+        }
+
+        // Foco / Desaceleração com Barra de Espaço
+        const canFocus = this.isFocusHeld && this.focus > 2;
+        if (canFocus) {
+          this.focus = Math.max(0, this.focus - dt * 34);
+        } else {
+          this.focus = Math.min(100, this.focus + dt * 18);
+        }
+        this.ui.updateFocusBar(this.focus, canFocus);
+
+        const baseSpeed = this._getBaseBeltSpeed();
+        const rushMultiplier = this.rushTimer > 0 ? 1.52 : 1;
+        const currentSpeed = (canFocus ? baseSpeed * 0.40 : baseSpeed) * rushMultiplier;
+        this.beltOffset += currentSpeed * dt;
+        this.scenery.update(dt, currentSpeed, this.alarmFlash);
+        this.audio.updateMotor(currentSpeed / 180, true);
+
+        // Spawn de novas malas enquanto faltar malas para concluir o turno
+        const remainingToSpawn = Math.max(0, this.bagsRequiredInShift - this.bagsInspectedInShift - this.bags.length);
+        this.spawnCooldown -= dt;
+        if (remainingToSpawn > 0 && this.spawnCooldown <= 0) {
+          const lastBag = this.bags[this.bags.length - 1];
+          const minGap = Math.max(150, 218 - this.shiftNumber * 7);
+          if (!lastBag || lastBag.x > this.layout.beltRect.x + minGap) {
+            const newBag = this.bagRenderer.createBag(this.shiftNumber, this.directives.bannedSet);
+            newBag.x = this.layout.beltRect.x - newBag.w - 16;
+            // Bagagem especial: maior risco visual, mas recompensa dobrada.
+            newBag.isPriority = Math.random() < Math.min(0.38, 0.18 + this.shiftNumber * 0.02);
+            if (newBag.isPriority) {
+              newBag.priorityPhase = Math.random() * Math.PI * 2;
+              newBag.items.forEach((item) => { item.bagPriority = true; });
+              this.ui.showToast('★ BAGAGEM PRIORITÁRIA! PONTUAÇÃO EM DOBRO!', 'info');
+            }
+            this.bags.push(newBag);
+            this.scenery.advancePassengerForBag();
+            this.spawnCooldown = Math.max(0.68, 1.5 - this.shiftNumber * 0.075);
+          }
+        }
+
+        // Movimento das bagagens e checagem de entrada/saída do túnel
+        const { tunnelRect, beltRect } = this.layout;
+        for (let i = this.bags.length - 1; i >= 0; i--) {
+          const bag = this.bags[i];
+          bag.x += currentSpeed * dt;
+
+          // Entrada na cortina do túnel
+          if (!bag.enteredTunnel && bag.x + bag.w > tunnelRect.x + 12) {
+            bag.enteredTunnel = true;
+            this.scenery.triggerCurtainSwing('entry', 0.48);
+            this.audio.playCurtainSwish();
+            const hasBanned = bag.items.some((it) => !it.seized && this.directives.bannedSet.has(it.itemId));
+            this.audio.playScanBeep(hasBanned);
+          }
+
+          // Saída pela cortina direita do túnel
+          if (!bag.exitedTunnel && bag.x > tunnelRect.x + tunnelRect.w - 14) {
+            bag.exitedTunnel = true;
+            this.scenery.triggerCurtainSwing('exit', 0.45);
+            this.audio.playCurtainSwish();
+
+            // Verifica se algum item proibido escapou sem ser apreendido
+            const leakedItem = bag.items.find(
+              (it) => !it.seized && this.directives.bannedSet.has(it.itemId)
+            );
+
+            this.bagsInspectedInShift++;
+            this.totalBagsInspected++;
+            this.ui.updateHud(this);
+
+            if (leakedItem) {
+              const leakX = tunnelRect.x + tunnelRect.w + 10;
+              const leakY = beltRect.y - bag.h * 0.5;
+              this._registerMistake(
+                leakX,
+                leakY,
+                `CONTRABANDO ESCAPOU (${leakedItem.meta.shortLabel})!`,
+                'VAZOU'
+              );
+              if (this.state === 'GAME_OVER') return;
+            }
+
+            // Verifica conclusão do turno após a saída completa da mala
+            if (this.bagsInspectedInShift >= this.bagsRequiredInShift) {
+              this._completeShift();
+              return;
+            }
+          }
+
+          // Remove bagagem que saiu totalmente da esteira
+          if (bag.x > beltRect.x + beltRect.w + 60) {
+            this.bags.splice(i, 1);
+          }
+        }
+      }
+
+      draw() {
+        const { w, h, beltRect, tunnelRect } = this.layout;
+        const ctx = this.ctx;
+        const focusActive = this.state === 'PLAYING' && this.isFocusHeld && this.focus > 2;
+
+        ctx.save();
+        if (this.screenShake > 0.2) {
+          const sx = (Math.random() - 0.5) * this.screenShake * 1.6;
+          const sy = (Math.random() - 0.5) * this.screenShake * 1.6;
+          ctx.translate(sx, sy);
+        }
+
+        // 1. Cenário do terminal, céu dinâmico, passageiros e piso
+        this.scenery.drawBackgroundAndTerminal(
+          ctx,
+          w,
+          h,
+          this.shiftNumber,
+          this.alarmFlash,
+          tunnelRect
+        );
+
+        // 2. Esteira e roletes
+        this.scenery.drawConveyorBackAndRollers(
+          ctx,
+          beltRect,
+          this.beltOffset,
+          this.alarmFlash
+        );
+
+        // 3. Fundo/iluminação do scanner primeiro. Se fosse desenhado depois das malas,
+        // o preenchimento opaco do túnel cobriria os objetos internos em raio-X.
+        this.scenery.drawTunnelHousingAndInspector(
+          ctx,
+          w,
+          h,
+          tunnelRect,
+          beltRect,
+          this.elapsedTime,
+          this.alarmFlash,
+          focusActive
+        );
+
+        // 4. Bagagens e conteúdo radiográfico por cima do fundo do túnel.
+        for (const bag of this.bags) {
+          this.bagRenderer.drawBag(
+            ctx,
+            bag,
+            beltRect.y,
+            tunnelRect,
+            this.elapsedTime,
+            focusActive,
+            this.directives.bannedSet
+          );
+        }
+
+        // Malas prioritárias pulsam em amarelo para chamar a atenção do inspetor.
+        for (const bag of this.bags) {
+          if (!bag.isPriority) continue;
+          const pulse = 0.55 + 0.45 * Math.sin(this.elapsedTime * 8 + (bag.priorityPhase || 0));
+          const cx = bag.x + bag.w / 2;
+          const cy = beltRect.y - bag.h / 2 - 4;
+          ctx.save();
+          ctx.globalAlpha = 0.55 + pulse * 0.4;
+          ctx.strokeStyle = '#facc15';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 10 + pulse * 12;
+          ctx.beginPath();
+          ctx.roundRect(bag.x - 4, cy - bag.h / 2 - 4, bag.w + 8, bag.h + 8, 12);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(120, 53, 15, .96)';
+          ctx.beginPath();
+          ctx.roundRect(cx - 49, cy - bag.h / 2 - 24, 98, 18, 5);
+          ctx.fill();
+          ctx.fillStyle = '#fef08a';
+          ctx.font = '900 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('★ PRIORIDADE', cx, cy - bag.h / 2 - 11);
+          ctx.restore();
+        }
+
+        // Reforça apenas os elementos frontais do túnel para manter profundidade visual.
+        ctx.save();
+        ctx.strokeStyle = focusActive ? '#22d3ee' : '#64748b';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(tunnelRect.x, tunnelRect.y, tunnelRect.w, tunnelRect.h);
+        this.scenery._drawLeadCurtain(ctx, tunnelRect.x, tunnelRect.y + 4, tunnelRect.h - 8, this.scenery.entryCurtainAngle);
+        this.scenery._drawLeadCurtain(ctx, tunnelRect.x + tunnelRect.w, tunnelRect.y + 4, tunnelRect.h - 8, this.scenery.exitCurtainAngle);
+        ctx.restore();
+
+        // Alerta pulsante na tela durante os picos de fluxo.
+        if (this.state === 'PLAYING' && this.rushTimer > 0) {
+          const pulse = 0.45 + 0.35 * Math.sin(this.elapsedTime * 19);
+          ctx.save();
+          ctx.globalAlpha = pulse;
+          ctx.strokeStyle = '#fb923c';
+          ctx.lineWidth = 5;
+          ctx.strokeRect(5, 5, w - 10, h - 10);
+          ctx.fillStyle = 'rgba(124, 45, 18, .88)';
+          ctx.beginPath();
+          ctx.roundRect(w / 2 - 92, 12, 184, 26, 7);
+          ctx.fill();
+          ctx.fillStyle = '#fed7aa';
+          ctx.font = '900 12px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚠ FLUXO INTENSO', w / 2, 30);
+          ctx.restore();
+        }
+
+        // 5. Lupa / Efeito de Análise Detalhada ao segurar ESPAÇO dentro do túnel
+        if (focusActive && this.pointer.inside) {
+          const px = this.pointer.x;
+          const py = this.pointer.y;
+          const loupeR = 68;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(px, py, loupeR, 0, Math.PI * 2);
+          ctx.strokeStyle = '#22d3ee';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(165, 243, 252, 0.35)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px - loupeR - 6, py);
+          ctx.lineTo(px + loupeR + 6, py);
+          ctx.moveTo(px, py - loupeR - 6);
+          ctx.lineTo(px, py + loupeR + 6);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(34, 211, 238, 0.08)';
+          ctx.beginPath();
+          ctx.arc(px, py, loupeR, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 6. Feixe mecânico de captura
+        if (this.captureBeam) {
+          const alpha = Math.max(0, this.captureBeam.timer / 0.24);
+          ctx.save();
+          ctx.strokeStyle = this.captureBeam.color;
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(this.captureBeam.startX, this.captureBeam.startY);
+          ctx.lineTo(this.captureBeam.endX, this.captureBeam.endY);
+          ctx.stroke();
+
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(this.captureBeam.endX, this.captureBeam.endY, 8 * alpha + 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 7. Carimbos ("APREENDIDO" / "ERRO" / "VAZOU")
+        for (const st of this.stamps) {
+          const alpha = Math.min(1, (st.life / st.maxLife) * 1.4);
+          ctx.save();
+          ctx.translate(st.x, st.y);
+          ctx.rotate(-0.14);
+          ctx.globalAlpha = alpha;
+
+          ctx.strokeStyle = st.color;
+          ctx.fillStyle = 'rgba(2, 6, 23, 0.82)';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.roundRect(-52, -16, 104, 30, 5);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = st.color;
+          ctx.font = '900 13px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(st.text, 0, 3);
+          ctx.restore();
+        }
+
+        // 8. Textos flutuantes de pontuação/aviso
+        for (const ft of this.floatingTexts) {
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, ft.life * 1.3);
+          ctx.fillStyle = ft.color;
+          ctx.font = '800 13px "JetBrains Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.restore();
+        }
+
+        // 9. Partículas brilhantes
+        for (const pt of this.particles) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, pt.life * 1.5);
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. CONTROLADOR DE INTERFACE (HUD, DIRETRIZES, OVERLAYS E LOCALSTORAGE)
+    // --------------------------------------------------------------------------
+    class UIController {
+      constructor(audioEngine) {
+        this.audio = audioEngine;
+        this.highScoreKey = 'inspetor_raiox_highscore_v1';
+        this.toastTimer = null;
+
+        // Elementos do HUD superior
+        this.hudShift = document.getElementById('hudShift');
+        this.hudBags = document.getElementById('hudBags');
+        this.hudScore = document.getElementById('hudScore');
+        this.hudCombo = document.getElementById('hudCombo');
+        this.comboBadge = document.getElementById('comboBadge');
+        this.hudFocusPct = document.getElementById('hudFocusPct');
+        this.hudFocusBar = document.getElementById('hudFocusBar');
+        this.hudShields = document.getElementById('hudShields');
+
+        // Áudio
+        this.btnSoundToggle = document.getElementById('btnSoundToggle');
+        this.btnHelp = document.getElementById('btnHelp');
+        this.helpOverlay = document.getElementById('helpOverlay');
+        this.btnCloseHelp = document.getElementById('btnCloseHelp');
+        this.btnHelpOk = document.getElementById('btnHelpOk');
+        this.iconSoundOn = document.getElementById('iconSoundOn');
+        this.iconSoundOff = document.getElementById('iconSoundOff');
+
+        // Diretrizes inferiores
+        this.directivesList = document.getElementById('directivesList');
+
+        // Toast
+        this.alertBanner = document.getElementById('alertBanner');
+
+        // Overlays
+        this.startOverlay = document.getElementById('startOverlay');
+        this.shiftCompleteOverlay = document.getElementById('shiftCompleteOverlay');
+        this.gameOverOverlay = document.getElementById('gameOverOverlay');
+
+        // Botões
+        this.btnStartShift = document.getElementById('btnStartShift');
+        this.btnNextShift = document.getElementById('btnNextShift');
+        this.btnRestartShift = document.getElementById('btnRestartShift');
+
+        // Estatísticas
+        this.startHighScore = document.getElementById('startHighScore');
+        this.shiftCompleteTitle = document.getElementById('shiftCompleteTitle');
+        this.shiftCompleteSubtitle = document.getElementById('shiftCompleteSubtitle');
+        this.shiftBonusText = document.getElementById('shiftBonusText');
+        this.newDirectivesContainer = document.getElementById('newDirectivesContainer');
+
+        this.statFinalScore = document.getElementById('statFinalScore');
+        this.statHighScore = document.getElementById('statHighScore');
+        this.statShiftsSurvived = document.getElementById('statShiftsSurvived');
+        this.statBagsSeizures = document.getElementById('statBagsSeizures');
+        this.gameOverReason = document.getElementById('gameOverReason');
+
+        this._initSoundButton();
+        this._initHelpButton();
+        this.refreshHighScoreDisplay();
+      }
+
+      getHighScore() {
+        try {
+          const val = localStorage.getItem(this.highScoreKey);
+          return val ? parseInt(val, 10) || 0 : 0;
+        } catch (_) {
+          return 0;
+        }
+      }
+
+      saveHighScore(score) {
+        const current = this.getHighScore();
+        const best = Math.max(current, score);
+        try {
+          localStorage.setItem(this.highScoreKey, String(best));
+        } catch (_) {}
+        return best;
+      }
+
+      refreshHighScoreDisplay() {
+        const best = this.getHighScore();
+        this.startHighScore.textContent = best.toLocaleString('pt-BR');
+        this.statHighScore.textContent = best.toLocaleString('pt-BR');
+      }
+
+      _initHelpButton() {
+        const closeHelp = () => this.helpOverlay.classList.add('hidden');
+        this.btnHelp.addEventListener('click', () => this.helpOverlay.classList.remove('hidden'));
+        this.btnCloseHelp.addEventListener('click', closeHelp);
+        this.btnHelpOk.addEventListener('click', closeHelp);
+        this.helpOverlay.addEventListener('click', (event) => {
+          if (event.target === this.helpOverlay) closeHelp();
+        });
+        window.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') closeHelp();
+        });
+      }
+
+      _initSoundButton() {
+        this.btnSoundToggle.addEventListener('click', () => {
+          this.audio.ensureContext();
+          const nextMuted = !this.audio.muted;
+          this.audio.setMuted(nextMuted);
+          if (nextMuted) {
+            this.iconSoundOn.classList.add('hidden');
+            this.iconSoundOff.classList.remove('hidden');
+          } else {
+            this.iconSoundOn.classList.remove('hidden');
+            this.iconSoundOff.classList.add('hidden');
+          }
+        });
+      }
+
+      showToast(message, tone = 'info') {
+        this.alertBanner.textContent = message;
+        this.alertBanner.classList.remove('opacity-0');
+        this.alertBanner.classList.add('opacity-100');
+
+        if (tone === 'warn') {
+          this.alertBanner.className =
+            'pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full bg-amber-950/95 border border-amber-400 text-xs sm:text-sm font-mono-tech font-bold text-amber-200 shadow-xl opacity-100 transition-opacity duration-200 whitespace-nowrap';
+        } else {
+          this.alertBanner.className =
+            'pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full bg-slate-900/95 border border-cyan-400/60 text-xs sm:text-sm font-mono-tech font-bold text-cyan-200 shadow-xl opacity-100 transition-opacity duration-200 whitespace-nowrap';
+        }
+
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          this.alertBanner.classList.remove('opacity-100');
+          this.alertBanner.classList.add('opacity-0');
+        }, 2800);
+      }
+
+      updateHud(sim) {
+        this.hudShift.textContent = String(sim.shiftNumber);
+        this.hudBags.textContent = `${sim.bagsInspectedInShift}/${sim.bagsRequiredInShift}`;
+        this.hudScore.textContent = sim.score.toLocaleString('pt-BR');
+        this.hudCombo.textContent = `x${sim.combo}`;
+
+        // Escudos de integridade
+        this.hudShields.innerHTML = '';
+        for (let i = 0; i < sim.maxShields; i++) {
+          const active = i < sim.shields;
+          const shield = document.createElement('span');
+          shield.className = active
+            ? 'inline-block w-4 h-4 rounded-sm bg-emerald-400 border border-emerald-200 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+            : 'inline-block w-4 h-4 rounded-sm bg-slate-900 border border-rose-500/40 opacity-45';
+          this.hudShields.appendChild(shield);
+        }
+      }
+
+      updateFocusBar(focusVal, isActive) {
+        const pct = Math.round(focusVal);
+        this.hudFocusPct.textContent = `${pct}%`;
+        this.hudFocusBar.style.width = `${pct}%`;
+        if (isActive) {
+          this.hudFocusBar.className = 'h-full bg-gradient-to-r from-amber-300 to-cyan-300 transition-none';
+        } else {
+          this.hudFocusBar.className = 'h-full bg-gradient-to-r from-cyan-400 to-sky-300 transition-all duration-75';
+        }
+      }
+
+      pulseCombo() {
+        this.comboBadge.classList.add('scale-110');
+        setTimeout(() => {
+          this.comboBadge.classList.remove('scale-110');
+        }, 140);
+      }
+
+      renderDirectives(directives, highlightNew = false) {
+        this.directivesList.innerHTML = '';
+        const list = Array.from(directives.bannedSet);
+
+        list.forEach((itemId) => {
+          const meta = ITEM_CATALOG[itemId];
+          if (!meta) return;
+          const isNew = highlightNew && directives.newlyAddedSet.has(itemId);
+
+          const chip = document.createElement('div');
+          chip.className =
+            'flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-800/95 border border-rose-500/40 shrink-0 transition ' +
+            (isNew ? 'directive-new-pulse' : '');
+
+          const dot = document.createElement('span');
+          dot.className = 'w-2.5 h-2.5 rounded-full shrink-0';
+          dot.style.backgroundColor = meta.color;
+
+          const label = document.createElement('span');
+          label.className = 'font-mono-tech text-xs font-bold text-slate-100';
+          label.textContent = meta.name;
+
+          chip.appendChild(dot);
+          chip.appendChild(label);
+
+          if (isNew) {
+            const tag = document.createElement('span');
+            tag.className = 'px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 font-mono-tech text-[10px] font-black uppercase';
+            tag.textContent = 'NOVO';
+            chip.appendChild(tag);
+          }
+
+          this.directivesList.appendChild(chip);
+        });
+      }
+
+      hideAllOverlays() {
+        this.startOverlay.classList.add('hidden');
+        this.shiftCompleteOverlay.classList.add('hidden');
+        this.gameOverOverlay.classList.add('hidden');
+      }
+
+      showShiftComplete(sim, bonus) {
+        const nextShift = sim.shiftNumber + 1;
+        const nextDirectives = getShiftDirectives(nextShift);
+
+        this.shiftCompleteTitle.textContent = `TURNO ${sim.shiftNumber} CONCLUÍDO`;
+        this.shiftCompleteSubtitle.textContent = `TURNO CONCLUÍDO — NOVA DIRETRIZ ADICIONADA PARA O TURNO ${nextShift}!`;
+        this.shiftBonusText.textContent = `+${bonus.toLocaleString('pt-BR')} PTS BÔNUS`;
+
+        this.newDirectivesContainer.innerHTML = '';
+        nextDirectives.newlyAddedList.forEach((itemId) => {
+          const meta = ITEM_CATALOG[itemId];
+          if (!meta) return;
+          const row = document.createElement('div');
+          row.className = 'flex items-center justify-between px-3 py-2 rounded-lg bg-amber-500/15 border border-amber-400/50';
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full" style="background:${meta.color}"></span>
+              <span class="font-mono-tech text-xs sm:text-sm font-extrabold text-amber-200">${meta.name}</span>
+            </div>
+            <span class="text-[11px] font-mono-tech font-bold px-2 py-0.5 rounded bg-amber-400 text-slate-950">PROIBIDO</span>
+          `;
+          this.newDirectivesContainer.appendChild(row);
+        });
+
+        this.shiftCompleteOverlay.classList.remove('hidden');
+      }
+
+      showGameOver(sim, reason) {
+        const best = this.saveHighScore(sim.score);
+        this.gameOverReason.textContent = reason || 'A integridade do posto de inspeção chegou a zero.';
+        this.statFinalScore.textContent = sim.score.toLocaleString('pt-BR');
+        this.statHighScore.textContent = best.toLocaleString('pt-BR');
+        this.statShiftsSurvived.textContent = String(Math.max(0, sim.shiftNumber - 1));
+        this.statBagsSeizures.textContent = `${sim.totalBagsInspected} / ${sim.totalSeizures}`;
+        this.refreshHighScoreDisplay();
+        this.gameOverOverlay.classList.remove('hidden');
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // INICIALIZAÇÃO E LOOP PRINCIPAL (REQUESTANIMATIONFRAME)
+    // --------------------------------------------------------------------------
+    (function bootstrap() {
+      const canvas = document.getElementById('gameCanvas');
+      const audioEngine = new AudioEngine();
+      const uiController = new UIController(audioEngine);
+      const simulation = new XRayGameSimulation(canvas, uiController, audioEngine);
+
+      // Recupera a carreira antes de exibir a tela inicial.
+      const recovered = simulation.restoreSession();
+
+      // Renderiza diretrizes iniciais somente quando não há sessão recuperada.
+      if (!recovered) {
+        uiController.updateHud(simulation);
+        uiController.renderDirectives(simulation.directives, false);
+      } else {
+        uiController.btnStartShift.textContent = 'CONTINUAR PLANTÃO';
+      }
+
+      uiController.btnStartShift.addEventListener('click', () => {
+        simulation.startNewCareer();
+      });
+
+      uiController.btnNextShift.addEventListener('click', () => {
+        simulation.advanceToNextShift();
+      });
+
+      uiController.btnRestartShift.addEventListener('click', () => {
+        simulation.startNewCareer();
+      });
+
+      let lastTime = performance.now();
+      let lastSave = 0;
+      function frame(now) {
+        const rawDt = (now - lastTime) / 1000;
+        lastTime = now;
+        const dt = Math.min(0.05, Math.max(0.001, rawDt));
+
+        simulation.update(dt);
+        simulation.draw();
+
+        // Persistência periódica para limitar perdas em recargas inesperadas.
+        if (now - lastSave >= 750) {
+          simulation.saveSession();
+          lastSave = now;
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      window.addEventListener('pagehide', () => simulation.saveSession());
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') simulation.saveSession();
+      });
+
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
