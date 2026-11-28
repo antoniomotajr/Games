@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ABISMO INFINITO: Roguelike</title>
+    <title>ABISMO INFINITO: Roguelike v2</title>
     <style>
         /* ==========================================================================
            ESTILOS GERAIS E RESET (CSS3 PURO)
@@ -709,17 +709,19 @@ const TILE_VOID = 0;
 const TILE_FLOOR = 1;
 const TILE_WALL = 2;
 
-// Biomas: mudam a cada 3 andares e ciclam infinitamente. Chefe a cada 5 andares.
-const BIOMES = [
-    { name: 'Catacumbas Esquecidas', fl: ['#161d2e', '#192134'], wl: '#293548', wt: '#3b4c68', edge: '#64748b', front: '#1b2433', accent: '#38bdf8', torch: '#fbbf24', mote: '#94a3b8', dark: 0.80 },
-    { name: 'Caverna Fúngica',       fl: ['#14241d', '#172a21'], wl: '#243b30', wt: '#356451', edge: '#4ade80', front: '#13241c', accent: '#4ade80', torch: '#86efac', mote: '#bef264', dark: 0.82 },
-    { name: 'Forja Infernal',        fl: ['#2a1713', '#311b15'], wl: '#4a2a22', wt: '#6b3a2c', edge: '#f97316', front: '#2a1510', accent: '#f97316', torch: '#fb923c', mote: '#fdba74', dark: 0.74 },
-    { name: 'Templo Glacial',        fl: ['#16283a', '#192e43'], wl: '#2f4d6b', wt: '#4c7ba3', edge: '#a5f3fc', front: '#1a3047', accent: '#67e8f9', torch: '#a5f3fc', mote: '#e0f2fe', dark: 0.76 },
-    { name: 'Vazio Cósmico',         fl: ['#1d1530', '#221838'], wl: '#3b2a5c', wt: '#5b3f8f', edge: '#c084fc', front: '#20153a', accent: '#c084fc', torch: '#e879f9', mote: '#f0abfc', dark: 0.86 }
-];
-const biomeIdx = (f) => Math.floor((f - 1) / 3) % BIOMES.length;
-const getBiome = (f) => BIOMES[biomeIdx(f)];
-const isBossFloor = (f) => f % 5 === 0;
+
+// ===== V2: helpers cartoon e biomas infinitos =====
+const INK='#141824';
+function setInk(c){c.lineWidth=3;c.strokeStyle=INK;c.lineJoin='round';c.lineCap='round';}
+function rr(c,x,y,w,h,r,f){c.beginPath();c.roundRect(x,y,w,h,r);c.fillStyle=f;c.fill();c.stroke();}
+function ci(c,x,y,r,f){c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=f;c.fill();c.stroke();}
+function poly(c,pts,f){c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();c.fillStyle=f;c.fill();c.stroke();}
+function eyes(c,x,y,gap,sz,ex,ey){for(const s of[-1,1]){c.beginPath();c.ellipse(x+s*gap,y,sz,sz*1.25,0,0,7);c.fillStyle='#fff';c.fill();c.lineWidth=2;c.stroke();c.beginPath();c.arc(x+s*gap+ex,y+ey,sz*.55,0,7);c.fillStyle=INK;c.fill();}c.lineWidth=3;}
+const SKIN='#fcd9b6';
+const BIOMES=[{n:'Catacumbas',h:222,s:28,d:'bone'},{n:'Floresta Sombria',h:130,s:30,d:'tuft'},{n:'Cavernas de Cristal',h:275,s:35,d:'crystal'},{n:'Fornalha Infernal',h:8,s:45,d:'ember'},{n:'Gruta Gélida',h:195,s:35,d:'ice'},{n:'Pântano Tóxico',h:80,s:35,d:'tuft'}];
+function makeBiome(fl){const i=Math.floor((fl-1)/3),b=BIOMES[i%BIOMES.length],h=(b.h+Math.floor(i/BIOMES.length)*25)%360,s=b.s;
+ const c=l=>`hsl(${h} ${s}% ${l}%)`;
+ return{name:b.n+(i>=BIOMES.length?' '+(Math.floor(i/BIOMES.length)+1):''),d:b.d,f1:c(13),f2:c(15.5),top:c(30),face:c(19),line:c(42),acc:`hsl(${h} 85% 62%)`,h};}
 
 // Definições de Raridade de Itens
 const RARITIES = {
@@ -758,6 +760,22 @@ class SeededRandom {
 class SaveManager {
     static STORAGE_KEY = 'abismo_infinito_roguelike_save_v1';
 
+    // Armazenamento resiliente: tenta localStorage, sessionStorage e window.name (sobrevive a reloads da aba)
+    static _set(v) { let ok = false;
+        for (const n of ['localStorage', 'sessionStorage']) { try { window[n].setItem(this.STORAGE_KEY, v); ok = true; } catch (e) {} }
+        try { window.name = 'ABISMO::' + v; ok = true; } catch (e) {}
+        return ok; }
+    static _get() {
+        for (const n of ['localStorage', 'sessionStorage']) { try { const r = window[n].getItem(this.STORAGE_KEY); if (r) return r; } catch (e) {} }
+        try { if (typeof window.name === 'string' && window.name.startsWith('ABISMO::')) return window.name.slice(8); } catch (e) {}
+        return null; }
+    static _del() {
+        for (const n of ['localStorage', 'sessionStorage']) { try { window[n].removeItem(this.STORAGE_KEY); window[n].removeItem('abismo_session'); } catch (e) {} }
+        try { if (String(window.name).startsWith('ABISMO::')) window.name = ''; } catch (e) {} }
+    static inSession() {
+        try { if (sessionStorage.getItem('abismo_session') === '1') return true; } catch (e) {}
+        try { return String(window.name).startsWith('ABISMO::'); } catch (e) { return false; } }
+
     static save(data) {
         try {
             const payload = {
@@ -777,8 +795,7 @@ class SaveManager {
                     inventory: data.player.inventory
                 }
             };
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
-            return true;
+            return this._set(JSON.stringify(payload));
         } catch (err) {
             console.warn('Erro ao salvar no localStorage:', err);
             return false;
@@ -787,7 +804,7 @@ class SaveManager {
 
     static load() {
         try {
-            const raw = localStorage.getItem(this.STORAGE_KEY);
+            const raw = this._get();
             if (!raw) return null;
             const parsed = JSON.parse(raw);
             if (!parsed || !parsed.player || typeof parsed.floor !== 'number') return null;
@@ -800,7 +817,7 @@ class SaveManager {
 
     static clear() {
         try {
-            localStorage.removeItem(this.STORAGE_KEY);
+            this._del();
         } catch (err) {
             console.warn('Erro ao limpar save:', err);
         }
@@ -820,15 +837,14 @@ class DungeonGenerator {
         const explored = Array.from({ length: MAP_HEIGHT }, () => Array(MAP_WIDTH).fill(false));
 
         const rooms = [];
-        const targetRooms = rng.rangeInt(5 + Math.min(3, Math.floor(floor / 3)), 8 + Math.min(5, Math.floor(floor / 2)));
-        const bIdx = biomeIdx(floor);
+        const targetRooms = rng.rangeInt(5, 8);
         let attempts = 0;
 
         // Gera de 5 a 8 salas retangulares sem sobreposição
         while (rooms.length < targetRooms && attempts < 200) {
             attempts++;
-            const w = rng.rangeInt(6, 12);
-            const h = rng.rangeInt(6, 12);
+            const w = rng.rangeInt(6, 11);
+            const h = rng.rangeInt(6, 11);
             const x = rng.rangeInt(3, MAP_WIDTH - w - 4);
             const y = rng.rangeInt(3, MAP_HEIGHT - h - 4);
 
@@ -876,43 +892,6 @@ class DungeonGenerator {
             }
         }
 
-        // Corredores extras (loops) para rotas alternativas em andares altos
-        const loops = Math.min(3, Math.floor(floor / 2));
-        for (let k = 0; k < loops && rooms.length > 3; k++) {
-            const a = rooms[rng.rangeInt(0, rooms.length - 1)];
-            const b = rooms[rng.rangeInt(0, rooms.length - 1)];
-            if (a === b) continue;
-            this.carveHorizontalTunnel(grid, floorDetails, rng, a.cx, b.cx, a.cy);
-            this.carveVerticalTunnel(grid, floorDetails, rng, a.cy, b.cy, b.cx);
-        }
-
-        // Biomas orgânicos (Caverna / Vazio): bordas irregulares nas salas
-        if (bIdx === 1 || bIdx === 4) {
-            for (const r of rooms) {
-                for (let k = 0; k < 7; k++) {
-                    const side = rng.rangeInt(0, 3);
-                    const bx = side < 2 ? rng.rangeInt(r.x, r.x + r.w - 1) : (side === 2 ? r.x : r.x + r.w - 1);
-                    const by = side < 2 ? (side === 0 ? r.y : r.y + r.h - 1) : rng.rangeInt(r.y, r.y + r.h - 1);
-                    const rad = rng.rangeInt(1, 3);
-                    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-                        const gx = bx + dx, gy = by + dy;
-                        if (dx * dx + dy * dy <= rad * rad && gx > 2 && gy > 2 && gx < MAP_WIDTH - 3 && gy < MAP_HEIGHT - 3) {
-                            grid[gy][gx] = TILE_FLOOR; floorDetails[gy][gx] = rng.next();
-                        }
-                    }
-                }
-            }
-        }
-
-        // Pilares de cobertura em salas grandes (exceto a inicial)
-        for (let i = 1; i < rooms.length; i++) {
-            const r = rooms[i];
-            if (r.w < 8 || r.h < 8) continue;
-            for (const [px, py] of [[r.x + 2, r.y + 2], [r.x + r.w - 3, r.y + 2], [r.x + 2, r.y + r.h - 3], [r.x + r.w - 3, r.y + r.h - 3]]) {
-                if (grid[py][px] === TILE_FLOOR) grid[py][px] = TILE_WALL;
-            }
-        }
-
         // Constrói paredes ao redor de todos os pisos válidos
         for (let y = 1; y < MAP_HEIGHT - 1; y++) {
             for (let x = 1; x < MAP_WIDTH - 1; x++) {
@@ -934,19 +913,8 @@ class DungeonGenerator {
             }
         }
 
-        // Tochas nas paredes voltadas para pisos
-        const torches = [];
-        for (let y = 1; y < MAP_HEIGHT - 2; y++) {
-            for (let x = 1; x < MAP_WIDTH - 1; x++) {
-                if (grid[y][x] === TILE_WALL && grid[y + 1][x] === TILE_FLOOR && rng.next() < 0.1) {
-                    torches.push({ x, y, ph: rng.next() * 6.28 });
-                }
-            }
-        }
-
         return {
             grid,
-            torches,
             floorDetails,
             explored,
             rooms,
@@ -1333,7 +1301,7 @@ class Chest {
  * ============================================================================
  */
 class Enemy {
-    constructor(x, y, type, floor, elite = false) {
+    constructor(x, y, type, floor) {
         this.x = x;
         this.y = y;
         this.type = type; // 'slime', 'mage', 'brute'
@@ -1341,7 +1309,7 @@ class Enemy {
         this.dead = false;
 
         // Multiplicador de escalonamento progressivo por andar
-        const scale = 1 + (floor - 1) * 0.24 + Math.pow(floor, 1.5) * 0.012;
+        const scale = 1 + (floor - 1) * 0.28;
 
         if (type === 'slime') {
             this.name = 'Slime Ácido';
@@ -1366,39 +1334,14 @@ class Enemy {
             this.attackRange = 250;
             this.attackCooldown = 1.9;
         } else if (type === 'bat') {
-            this.name = 'Morcego Voraz';
-            this.icon = '🦇';
-            this.color = '#a78bfa';
-            this.radius = 13;
-            this.maxHp = Math.round(18 * scale);
-            this.damage = Math.round(7 * scale);
-            this.speed = 185 + Math.min(60, floor * 3);
-            this.aggroRange = 380;
-            this.attackRange = 26;
-            this.attackCooldown = 0.8;
-        } else if (type === 'archer') {
-            this.name = 'Arqueiro Espectral';
-            this.icon = '🏹';
-            this.color = '#fbbf24';
-            this.radius = 16;
-            this.maxHp = Math.round(30 * scale);
-            this.damage = Math.round(8 * scale);
-            this.speed = 100 + Math.min(35, floor * 2);
-            this.aggroRange = 430;
-            this.attackRange = 280;
-            this.attackCooldown = 2.2;
+            this.name = 'Morcego Voraz'; this.color = '#8b5cf6'; this.radius = 13;
+            this.maxHp = Math.round(20 * scale); this.damage = Math.round(8 * scale);
+            this.speed = 170 + Math.min(60, floor * 3); this.aggroRange = 380;
+            this.attackRange = 26; this.attackCooldown = 0.8;
         } else if (type === 'boss') {
-            const bi = biomeIdx(floor);
-            this.name = ['Rei Esquelético', 'Colosso Fúngico', 'Senhor da Forja', 'Rainha do Gelo', 'Devorador do Vazio'][bi];
-            this.icon = ['💀', '🍄', '🔥', '❄️', '👁️'][bi];
-            this.color = BIOMES[bi].accent;
-            this.radius = 34;
-            this.maxHp = Math.round(420 * scale);
-            this.damage = Math.round(18 * scale);
-            this.speed = 95 + Math.min(40, floor * 1.5);
-            this.aggroRange = 760;
-            this.attackRange = 56;
-            this.attackCooldown = 1.2;
+            this.name = 'Senhor do Abismo'; this.color = '#a78bfa'; this.radius = 44;
+            this.maxHp = Math.round(520 * scale); this.damage = Math.round(22 * scale);
+            this.speed = 95; this.aggroRange = 900; this.attackRange = 70; this.attackCooldown = 1.2;
         } else {
             // 'brute' - Guardião pesado
             this.name = 'Guardião Abissal';
@@ -1413,14 +1356,6 @@ class Enemy {
             this.attackCooldown = 1.35;
         }
 
-        this.isBoss = type === 'boss';
-        this.elite = elite;
-        if (elite) {
-            this.maxHp = Math.round(this.maxHp * 1.9);
-            this.damage = Math.round(this.damage * 1.35);
-            this.radius += 3;
-            this.name = 'Elite ' + this.name;
-        }
         this.hp = this.maxHp;
         this.atkTimer = 0.5;
         this.hitFlash = 0;
@@ -1434,7 +1369,7 @@ class Enemy {
         this.hp -= amount;
         this.hitFlash = 0.14;
         // Knockback proporcional (Bruto tem resistência a knockback)
-        const kbForce = this.isBoss ? 35 : (this.type === 'brute' ? 160 : 290);
+        const kbForce = this.type === 'boss' ? 40 : this.type === 'brute' ? 160 : 290;
         this.kbX = dirX * kbForce;
         this.kbY = dirY * kbForce;
 
@@ -1449,20 +1384,10 @@ class Enemy {
             game.triggerShake(4, 0.12);
 
             // Drop de ouro garantido + chance de item
-            const gold = Math.round((6 + this.floor * 4) * (this.type === 'brute' ? 1.8 : 1));
+            const gold = Math.round((6 + this.floor * 4) * (this.type === 'boss' ? 8 : this.type === 'brute' ? 1.8 : 1));
             game.drops.push(new ItemDrop(this.x, this.y, null, gold));
 
-            game.player.gainXp(game, Math.round((8 + this.floor * 3) * (this.isBoss ? 10 : (this.elite ? 2.5 : 1))));
-            if (this.isBoss) {
-                game.triggerShake(14, 0.5);
-                game.spawnParticles(this.x, this.y, this.color, 60);
-                game.addFloatingText(this.x, this.y - 50, '☠ CHEFE DERROTADO!', '#fbbf24', 22);
-                for (let i = 0; i < 3; i++) {
-                    game.drops.push(new ItemDrop(this.x + (i - 1) * 30, this.y + 20, ItemFactory.createRandomItem(this.floor + 5), 0));
-                    game.drops.push(new ItemDrop(this.x + (i - 1) * 24, this.y - 20, null, gold));
-                }
-            }
-            const dropChance = (this.type === 'brute' || this.elite) ? 0.6 : 0.28;
+            const dropChance = this.type === 'boss' ? 1 : this.type === 'brute' ? 0.55 : 0.28;
             if (Math.random() < dropChance) {
                 const item = ItemFactory.createRandomItem(this.floor);
                 game.drops.push(new ItemDrop(this.x + 12, this.y - 8, item, 0));
@@ -1478,6 +1403,7 @@ class Enemy {
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const dist = Math.hypot(dx, dy);
+        this.face = dx >= 0 ? 1 : -1; this.t = (this.t || 0) + dt;
 
         let moveX = 0;
         let moveY = 0;
@@ -1486,8 +1412,8 @@ class Enemy {
             const nx = dx / (dist || 1);
             const ny = dy / (dist || 1);
 
-            if (this.type === 'mage' || this.type === 'archer') {
-                // Mago/Arqueiro mantém distância ideal e atira projéteis
+            if (this.type === 'mage') {
+                // Mago mantém distância ideal e atira projéteis
                 if (dist > this.attackRange) {
                     moveX = nx * this.speed;
                     moveY = ny * this.speed;
@@ -1500,23 +1426,16 @@ class Enemy {
                 if (dist <= this.attackRange + 30 && this.atkTimer <= 0) {
                     this.atkTimer = this.attackCooldown;
                     const projSpeed = 240 + Math.min(90, this.floor * 6);
-                    const base = Math.atan2(ny, nx);
-                    for (const off of (this.type === 'archer' ? [-0.26, 0, 0.26] : [0])) {
-                        game.projectiles.push(new Projectile(this.x, this.y, Math.cos(base + off) * projSpeed, Math.sin(base + off) * projSpeed, this.damage, true, this.type === 'archer' ? '#fbbf24' : '#c084fc'));
-                    }
+                    game.projectiles.push(
+                        new Projectile(this.x, this.y, nx * projSpeed, ny * projSpeed, this.damage, true, '#c084fc')
+                    );
                 }
             } else {
-                // Perseguidores corpo-a-corpo (Slime, Guardião, Morcego, Chefe)
+                // Perseguidores corpo-a-corpo (Slime e Guardião)
                 if (dist > this.attackRange - 6) {
-                    let mx = nx, my = ny;
-                    if (this.type === 'bat') {
-                        const wv = Math.sin(performance.now() / 160 + this.wanderAngle * 5) * 0.9;
-                        mx = nx - ny * wv; my = ny + nx * wv;
-                    }
-                    moveX = mx * this.speed;
-                    moveY = my * this.speed;
+                    moveX = nx * this.speed;
+                    moveY = ny * this.speed;
                 }
-                if (this.isBoss) this.bossLogic(dt, game);
                 if (dist <= this.attackRange && this.atkTimer <= 0) {
                     this.atkTimer = this.attackCooldown;
                     player.takeDamage(this.damage, nx * 240, ny * 240, game);
@@ -1533,6 +1452,20 @@ class Enemy {
             moveY = Math.sin(this.wanderAngle) * (this.speed * 0.35);
         }
 
+        if (dist < this.aggroRange) {
+            const nx = dx / (dist || 1), ny = dy / (dist || 1);
+            if (this.type === 'bat') { const z = Math.sin(this.t * 7) * this.speed * 0.7; moveX += -ny * z; moveY += nx * z; }
+            if (this.type === 'boss') {
+                this.bossT = (this.bossT === undefined ? 2 : this.bossT) - dt;
+                if (this.bossT <= 0) {
+                    this.bossT = 2.6;
+                    const n = 10 + Math.min(14, Math.floor(this.floor / 5) * 2), off = Math.random() * 6.28;
+                    for (let i = 0; i < n; i++) { const a = off + i * Math.PI * 2 / n;
+                        game.projectiles.push(new Projectile(this.x, this.y, Math.cos(a) * 200, Math.sin(a) * 200, Math.round(this.damage * 0.6), true, '#fb923c')); }
+                    game.triggerShake(6, 0.2);
+                }
+            }
+        }
         // Aplica knockback e reduz atrito
         const totalVx = moveX + this.kbX;
         const totalVy = moveY + this.kbY;
@@ -1541,26 +1474,6 @@ class Enemy {
 
         // Colisão deslizante em X e Y separadamente
         this.moveWithCollision(totalVx * dt, totalVy * dt, grid);
-    }
-
-    bossLogic(dt, game) {
-        this.ringTimer = (this.ringTimer ?? 2) - dt;
-        const enraged = this.hp < this.maxHp * 0.5;
-        if (this.ringTimer <= 0) {
-            this.ringTimer = enraged ? 1.8 : 2.8;
-            const n = 10 + Math.min(14, Math.floor(this.floor / 5) * 2) + (enraged ? 4 : 0);
-            const off = Math.random() * 6.28;
-            for (let i = 0; i < n; i++) {
-                const a = off + i * 6.2832 / n;
-                game.projectiles.push(new Projectile(this.x, this.y, Math.cos(a) * 190, Math.sin(a) * 190, Math.round(this.damage * 0.6), true, this.color));
-            }
-            game.triggerShake(6, 0.2);
-        }
-        if (!this.summoned && enraged) {
-            this.summoned = true;
-            for (let i = 0; i < 3; i++) game.enemies.push(new Enemy(this.x + (i - 1) * 50, this.y + 45, 'slime', this.floor));
-            game.addFloatingText(this.x, this.y - 60, 'Servos invocados!', '#fb7185', 16);
-        }
     }
 
     moveWithCollision(dx, dy, grid) {
@@ -1591,53 +1504,52 @@ class Enemy {
     }
 
     draw(ctx) {
-        ctx.save();
-        // Sombra no chão
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-        ctx.beginPath();
-        ctx.ellipse(this.x, this.y + this.radius * 0.75, this.radius * 0.85, this.radius * 0.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Aura de contraste
-        ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.color;
-        ctx.globalAlpha = this.hitFlash > 0 ? 0.85 : 0.25;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (this.elite || this.isBoss) {
-            ctx.globalAlpha = 0.9;
-            ctx.strokeStyle = this.isBoss ? '#fbbf24' : '#f472b6';
-            ctx.lineWidth = 2.5;
-            ctx.setLineDash([6, 4]);
-            ctx.lineDashOffset = -performance.now() / 60;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius + 6, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-        // Emoji representativo
-        ctx.globalAlpha = 1;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 12;
-        const fontSize = this.isBoss ? 58 : (this.type === 'brute' ? 34 : 26);
-        ctx.font = `${fontSize}px "Segoe UI Emoji", "Apple Color Emoji", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.icon, this.x, this.y);
-
-        // Barra de HP sobre inimigos feridos
-        if (this.hp < this.maxHp) {
-            const barW = this.isBoss ? 90 : 36;
-            const barH = 5;
-            const bx = this.x - barW / 2;
-            const by = this.y - this.radius - 12;
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-            ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
-            ctx.fillStyle = '#ef4444';
-            ctx.fillRect(bx, by, barW * (this.hp / this.maxHp), barH);
+        const t = this.t || 0, f = this.face || 1, fl = this.hitFlash > 0, C = c => fl ? '#fff' : c;
+        const mv = Math.sin(t * 10), sc = this.type === 'boss' ? 2.3 : 1, R = this.radius;
+        const feet = { slime: 16, mage: 21, brute: 25, bat: 24, boss: 25 }[this.type] * sc;
+        ctx.save(); ctx.translate(this.x, this.y);
+        ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0, feet, R * 0.95, R * 0.32, 0, 0, 7); ctx.fill();
+        setInk(ctx); ctx.scale(f * sc, sc);
+        if (this.type === 'slime') {
+            const s = 1 + Math.sin(t * 6) * 0.09;
+            ctx.beginPath(); ctx.ellipse(0, 4, 18 * s, 15 / s, 0, 0, 7); ctx.fillStyle = C('#4ade80'); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#bbf7d0'; ctx.beginPath(); ctx.ellipse(-7, -3, 5, 3, -0.5, 0, 7); ctx.fill();
+            eyes(ctx, 3, 0, 6, 4, 1.5, 1); ctx.beginPath(); ctx.arc(3, 8, 4, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+        } else if (this.type === 'mage') {
+            for (const s of [-1, 1]) rr(ctx, s * 5 - 3, 14, 7, 6, 3, C('#4c1d95'));
+            poly(ctx, [[-13, 16], [-8, -8], [8, -8], [13, 16]], C('#7c3aed'));
+            rr(ctx, -9, 2, 18, 3, 1, '#fbbf24');
+            ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(15, 20); ctx.lineTo(15, -22); ctx.strokeStyle = '#78350f'; ctx.stroke(); setInk(ctx);
+            ctx.save(); ctx.shadowColor = '#e879f9'; ctx.shadowBlur = 14; ci(ctx, 15, -26, 5 + Math.sin(t * 5), '#e879f9'); ctx.restore();
+            ci(ctx, 10, 0, 4, SKIN); ci(ctx, 0, -15, 10, C(SKIN));
+            poly(ctx, [[-8, -12], [8, -12], [0, 0]], C('#e5e7eb')); eyes(ctx, 0, -17, 4, 2.8, 1, 0);
+            poly(ctx, [[-14, -21], [0, -46 + Math.sin(t * 3) * 2], [14, -21]], C('#5b21b6')); rr(ctx, -17, -24, 34, 5, 2, C('#4c1d95'));
+        } else if (this.type === 'bat') {
+            const fl2 = Math.sin(t * 18) * 12, y0 = -8 + Math.sin(t * 4) * 3; ctx.translate(0, y0);
+            for (const s of [-1, 1]) poly(ctx, [[s * 6, -2], [s * 30, -12 + fl2], [s * 24, 2], [s * 16, 10], [s * 6, 8]], C('#6d28d9'));
+            poly(ctx, [[-8, -8], [-6, -18], [-1, -10]], C('#4c1d95')); poly(ctx, [[8, -8], [6, -18], [1, -10]], C('#4c1d95'));
+            ci(ctx, 0, 0, 11, C('#5b21b6')); eyes(ctx, 0, -2, 4, 2.6, 1, 0.5);
+            poly(ctx, [[-4, 5], [-2, 10], [0, 5]], '#fff'); poly(ctx, [[1, 5], [3, 10], [5, 5]], '#fff');
+        } else {
+            const b = this.type === 'boss', P = b ? { body: '#7c3aed', head: '#a78bfa', leg: '#3b0764', club: '#fb923c' } : { body: '#ef4444', head: '#f87171', leg: '#7f1d1d', club: '#78350f' };
+            if (b) { ctx.save(); ctx.shadowColor = '#f97316'; ctx.shadowBlur = 24; ci(ctx, 0, -2, 2, 'rgba(0,0,0,0)'); ctx.restore(); }
+            for (const s of [-1, 1]) rr(ctx, s * 8 - 5, 12 - Math.max(0, s * mv) * 2, 11, 13, 4, C(P.leg));
+            rr(ctx, -21, -14, 42, 30, 13, C(P.body)); ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(0, 4, 11, 8, 0, 0, 7); ctx.fill();
+            rr(ctx, -31, -12 + mv * 2, 11, 24, 5, C(P.head)); ci(ctx, -25, 14 + mv * 2, 7, C(P.head));
+            ctx.save(); ctx.translate(26, 10); ctx.rotate(-0.9 + mv * 0.25); rr(ctx, -4, -36, 9, 42, 3, P.club); ci(ctx, 0, -34, 7, P.club); ctx.restore();
+            rr(ctx, 20, -12, 11, 24, 5, C(P.head)); ci(ctx, 26, 12, 7, C(P.head));
+            ci(ctx, 0, -22, 13, C(P.head));
+            poly(ctx, [[-12, -28], [-17, -42], [-5, -33]], b ? '#fde68a' : '#e5e7eb'); poly(ctx, [[12, -28], [17, -42], [5, -33]], b ? '#fde68a' : '#e5e7eb');
+            eyes(ctx, 0, -24, 5, 3.5, 1, 0.5); ctx.beginPath(); ctx.moveTo(-9, -31); ctx.lineTo(-2, -28); ctx.moveTo(9, -31); ctx.lineTo(2, -28); ctx.stroke();
+            poly(ctx, [[-6, -15], [-4, -9], [-2, -15]], '#fff'); poly(ctx, [[2, -15], [4, -9], [6, -15]], '#fff');
+            if (b) poly(ctx, [[-10, -35], [-10, -46], [-5, -40], [0, -48], [5, -40], [10, -46], [10, -35]], '#fbbf24');
         }
         ctx.restore();
+        if (this.hp < this.maxHp || this.type === 'boss') {
+            const barW = this.type === 'boss' ? 120 : 36, barH = this.type === 'boss' ? 9 : 5, bx = this.x - barW / 2, by = this.y - R * sc - 34;
+            ctx.fillStyle = 'rgba(15,23,42,.9)'; ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+            ctx.fillStyle = this.type === 'boss' ? '#f97316' : '#ef4444'; ctx.fillRect(bx, by, barW * (this.hp / this.maxHp), barH);
+        }
     }
 }
 
@@ -1671,51 +1583,24 @@ class Player {
         this.slashAnimTimer = 0;
         this.slashAngle = 0;
 
-        this.level = 1;
-        this.xp = 0;
-        this.dashTimer = 0;
-        this.dashCd = 1.1;
-        this.dashTime = 0;
-        this.dashDirX = 0;
-        this.dashDirY = 0;
-
         // Invulnerabilidade pós-dano e knockback
         this.invulnTimer = 0;
+        this.walkT = 0; this.moving = false; this.dashTimer = 0; this.dashCd = 0; this.dashX = 1; this.dashY = 0; this.trail = [];
         this.hitFlash = 0;
         this.kbX = 0;
         this.kbY = 0;
     }
 
-    xpNeeded() { return 30 + this.level * 22; }
-
-    gainXp(game, amount) {
-        this.xp += amount;
-        while (this.xp >= this.xpNeeded()) {
-            this.xp -= this.xpNeeded();
-            this.level++;
-            const max = this.getEffectiveMaxHp();
-            this.hp = Math.min(max, this.hp + Math.round(max * 0.4));
-            game.addFloatingText(this.x, this.y - 50, `⬆ NÍVEL ${this.level}!  +ATK +HP`, '#fbbf24', 20);
-            game.spawnParticles(this.x, this.y, '#fbbf24', 30);
-        }
-        game.updateHUD();
-    }
-
-    dash(game, dir) {
-        if (this.dashTimer > 0) return;
-        let dx = dir.x, dy = dir.y;
-        if (dx === 0 && dy === 0) { dx = Math.cos(this.facingAngle); dy = Math.sin(this.facingAngle); }
-        const m = Math.hypot(dx, dy) || 1;
-        this.dashDirX = dx / m; this.dashDirY = dy / m;
-        this.dashTime = 0.16;
-        this.dashTimer = this.dashCd;
-        this.invulnTimer = Math.max(this.invulnTimer, 0.24);
-        game.spawnParticles(this.x, this.y, '#7dd3fc', 14);
-        game.triggerShake(2, 0.06);
+    dash(inp) {
+        if (this.dashCd > 0) return;
+        let x = inp.x, y = inp.y;
+        if (!x && !y) { x = Math.cos(this.facingAngle); y = Math.sin(this.facingAngle); }
+        const l = Math.hypot(x, y) || 1; this.dashX = x / l; this.dashY = y / l;
+        this.dashTimer = 0.16; this.dashCd = 0.9;
     }
 
     getTotalAtk() {
-        return this.baseAtk + (this.level - 1) * 2 + (this.weapon ? this.weapon.atk : 0);
+        return this.baseAtk + (this.weapon ? this.weapon.atk : 0);
     }
 
     getTotalDef() {
@@ -1723,7 +1608,7 @@ class Player {
     }
 
     getEffectiveMaxHp() {
-        return this.maxHp + (this.level - 1) * 8 + (this.armor ? this.armor.maxHp : 0);
+        return this.maxHp + (this.armor ? this.armor.maxHp : 0);
     }
 
     addItemToInventory(item) {
@@ -1832,20 +1717,24 @@ class Player {
         if (this.slashAnimTimer > 0) this.slashAnimTimer -= dt;
         if (this.invulnTimer > 0) this.invulnTimer -= dt;
         if (this.hitFlash > 0) this.hitFlash -= dt;
-        if (this.dashTimer > 0) this.dashTimer -= dt;
 
         // Atualiza orientação ao mover
         if (inputDir.x !== 0 || inputDir.y !== 0) {
             this.facingAngle = Math.atan2(inputDir.y, inputDir.x);
         }
 
-        let vx = inputDir.x * this.baseSpeed + this.kbX;
-        let vy = inputDir.y * this.baseSpeed + this.kbY;
-        if (this.dashTime > 0) {
-            this.dashTime -= dt;
-            vx = this.dashDirX * 720; vy = this.dashDirY * 720;
-            if (Math.random() < 0.8) this.game_ref && this.game_ref.spawnParticles(this.x, this.y, '#7dd3fc', 2);
+        this.moving = inputDir.x !== 0 || inputDir.y !== 0;
+        if (this.moving) this.walkT += dt;
+        if (this.dashCd > 0) this.dashCd -= dt;
+        let dir = inputDir, sp = this.baseSpeed;
+        if (this.dashTimer > 0) {
+            this.dashTimer -= dt; sp = 760; dir = { x: this.dashX, y: this.dashY };
+            this.invulnTimer = Math.max(this.invulnTimer, 0.06); this.trail.push({ x: this.x, y: this.y, l: 0.25 });
         }
+        for (const tr of this.trail) tr.l -= dt;
+        this.trail = this.trail.filter(tr => tr.l > 0);
+        const vx = dir.x * sp + this.kbX;
+        const vy = dir.y * sp + this.kbY;
 
         this.kbX *= Math.pow(0.02, dt);
         this.kbY *= Math.pow(0.02, dt);
@@ -1878,71 +1767,42 @@ class Player {
     }
 
     draw(ctx) {
-        ctx.save();
-
-        // Arco visual do corte de espada brilhante
-        if (this.slashAnimTimer > 0) {
-            const progress = 1 - (this.slashAnimTimer / 0.18);
-            const reach = 72;
-            const startAng = this.slashAngle - Math.PI * 0.45;
-            const endAng = this.slashAngle + Math.PI * 0.45;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.arc(this.x, this.y, reach, startAng, endAng);
-            ctx.closePath();
-
-            const grad = ctx.createRadialGradient(this.x, this.y, 14, this.x, this.y, reach);
-            grad.addColorStop(0, 'rgba(56, 189, 248, 0.05)');
-            grad.addColorStop(0.7, `rgba(56, 189, 248, ${0.45 * (1 - progress)})`);
-            grad.addColorStop(1, `rgba(255, 255, 255, ${0.85 * (1 - progress)})`);
-            ctx.fillStyle = grad;
-            ctx.fill();
-
-            // Borda luminosa externa
-            ctx.strokeStyle = `rgba(224, 242, 254, ${1 - progress})`;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, reach, startAng, endAng);
-            ctx.stroke();
-            ctx.restore();
-        }
-
-        // Sombra do herói
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.beginPath();
-        ctx.ellipse(this.x, this.y + this.radius * 0.78, this.radius * 0.85, this.radius * 0.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Indicador sutil de direção (ponteiro)
-        const ptrX = this.x + Math.cos(this.facingAngle) * (this.radius + 7);
-        const ptrY = this.y + Math.sin(this.facingAngle) * (this.radius + 7);
-        ctx.fillStyle = '#38bdf8';
-        ctx.beginPath();
-        ctx.arc(ptrX, ptrY, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Piscar ao receber dano
-        if (this.invulnTimer > 0 && Math.floor(this.invulnTimer * 18) % 2 === 0) {
-            ctx.globalAlpha = 0.5;
-        }
-
-        // Halo do personagem
-        ctx.fillStyle = this.hitFlash > 0 ? '#ef4444' : '#38bdf8';
-        ctx.globalAlpha *= 0.3;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Emoji do Herói
-        ctx.globalAlpha = (this.invulnTimer > 0 && Math.floor(this.invulnTimer * 18) % 2 === 0) ? 0.6 : 1;
-        ctx.font = '28px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🧙‍♂️', this.x, this.y);
-
+        const t = this.walkT, mv = this.moving, bob = mv ? Math.abs(Math.sin(t * 12)) * 2.5 : Math.sin(performance.now() / 260) * 1.2;
+        const a = this.facingAngle, dir = Math.cos(a) >= 0 ? 1 : -1, fl = this.hitFlash > 0, C = c => fl ? '#fff' : c;
+        for (const tr of this.trail) { ctx.globalAlpha = tr.l * 1.8; ctx.fillStyle = '#7dd3fc'; ctx.beginPath(); ctx.ellipse(tr.x, tr.y, 13, 19, 0, 0, 7); ctx.fill(); }
+        ctx.globalAlpha = 1;
+        const sl = this.slashAnimTimer > 0, p = sl ? 1 - this.slashAnimTimer / 0.18 : 0;
+        if (sl) { ctx.save(); ctx.strokeStyle = `rgba(224,242,254,${1 - p})`; ctx.lineWidth = 10 * (1 - p) + 2; ctx.lineCap = 'round';
+            ctx.beginPath(); const e = this.slashAngle - 1.3 + 2.6 * p; ctx.arc(this.x, this.y, 64, e - 0.9, e); ctx.stroke(); ctx.restore(); }
+        ctx.save(); ctx.translate(this.x, this.y); setInk(ctx);
+        if (this.invulnTimer > 0 && this.dashTimer <= 0 && Math.floor(this.invulnTimer * 18) % 2 === 0) ctx.globalAlpha = 0.55;
+        ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0, 23, 15, 6, 0, 0, 7); ctx.fill();
+        const sword = () => {
+            const sa = sl ? this.slashAngle - 1.3 + 2.6 * p : a, hx = Math.cos(sa) * 11, hy = Math.sin(sa) * 9 - 4;
+            ctx.beginPath(); ctx.moveTo(dir * 8, -5); ctx.lineTo(hx, hy); ctx.lineWidth = 9; ctx.strokeStyle = INK; ctx.stroke();
+            ctx.lineWidth = 5; ctx.strokeStyle = C(SKIN); ctx.stroke(); setInk(ctx);
+            ctx.save(); ctx.translate(hx, hy); ctx.rotate(sa);
+            rr(ctx, -5, -2, 9, 4, 1, '#78350f'); rr(ctx, 3, -6, 4, 12, 2, '#fbbf24');
+            rr(ctx, 7, -3.5, 24, 7, 3, '#e2e8f0'); poly(ctx, [[30, -3.5], [38, 0], [30, 3.5]], '#e2e8f0');
+            ctx.restore(); ci(ctx, hx, hy, 4, C(SKIN));
+        };
+        const back = Math.sin(a) < -0.3; if (back) sword();
+        ctx.save(); ctx.scale(dir, 1);
+        const sw = mv ? Math.sin(t * 12) * 6 : 0;
+        for (const s of [-1, 1]) { const lift = Math.max(0, s * sw) * 0.6; rr(ctx, s * 6 - 4, 8 - lift, 8, 12, 3, C('#334155')); rr(ctx, s * 6 - 5.5, 16 - lift, 11, 6, 3, C('#7c4a2d')); }
+        ctx.translate(0, -bob * 0.5);
+        poly(ctx, [[-9, -8], [9, -8], [13 + sw * 0.4, 18], [-13 + sw * 0.4, 18]], C('#991b1b'));
+        rr(ctx, -10, -9, 20, 19, 7, C('#2563eb')); rr(ctx, -10, 3, 20, 4, 1, C('#fbbf24'));
+        rr(ctx, -15, -6, 6, 12, 3, C(SKIN));
+        ci(ctx, 0, -21, 14, C(SKIN));
+        ctx.beginPath(); ctx.arc(0, -24, 14.5, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fillStyle = C('#dc2626'); ctx.fill(); ctx.stroke();
+        rr(ctx, -15, -26, 30, 5, 2, C('#b91c1c')); poly(ctx, [[4, -37], [16, -44], [10, -32]], C('#fde68a'));
+        eyes(ctx, 0, -19, 5, 3.2, Math.abs(Math.cos(a)) * 1.6, Math.sin(a) * 1.3);
+        ctx.beginPath(); ctx.arc(0, -14, 4, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
         ctx.restore();
+        if (!back) sword();
+        ctx.restore();
+        if (this.dashCd > 0) { ctx.fillStyle = 'rgba(15,23,42,.8)'; ctx.fillRect(this.x - 14, this.y + 31, 28, 4); ctx.fillStyle = '#38bdf8'; ctx.fillRect(this.x - 14, this.y + 31, 28 * (1 - this.dashCd / 0.9), 4); }
     }
 }
 
@@ -2009,8 +1869,8 @@ class Game {
             if (e.code === 'Space') {
                 e.preventDefault();
                 this.player.attack(this.player.facingAngle, this);
-            } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyQ') {
-                this.player.dash(this, this.getMovementVector());
+            } else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                this.player.dash(this.getMovementVector());
             } else if (e.code === 'KeyE') {
                 this.interactNearby();
             } else if (e.code >= 'Digit1' && e.code <= 'Digit5') {
@@ -2036,12 +1896,6 @@ class Game {
             const worldY = this.mouse.y + this.camera.y - this.canvas.height / 2;
             const angle = Math.atan2(worldY - this.player.y, worldX - this.player.x);
             this.player.attack(angle, this);
-        });
-
-        // Botão direito = dash
-        this.canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (this.state === 'PLAYING') this.player.dash(this, this.getMovementVector());
         });
 
         // Botões do Menu Inicial
@@ -2221,6 +2075,8 @@ class Game {
 
     enterPlayingState() {
         this.state = 'PLAYING';
+        try { sessionStorage.setItem('abismo_session', '1'); } catch (e) {}
+        this.autoSave(true);
         document.getElementById('menu-screen').classList.add('hidden');
         document.getElementById('gameover-screen').classList.add('hidden');
         document.getElementById('hud').classList.remove('hidden');
@@ -2229,10 +2085,6 @@ class Game {
 
     generateFloor(floorNumber) {
         this.dungeon = DungeonGenerator.generate(floorNumber, this.seed);
-        this.biome = getBiome(floorNumber);
-        this.player.game_ref = this;
-        this.motes = Array.from({ length: 70 }, () => ({ x: Math.random() * 3000, y: Math.random() * 3000, vx: (Math.random() - 0.5) * 14, vy: -4 - Math.random() * 10, s: 1 + Math.random() * 2, ph: Math.random() * 6.28 }));
-        this.banner = { t: 3.4, title: `Andar ${floorNumber}`, sub: this.biome.name + (isBossFloor(floorNumber) ? '  —  ⚠ CHEFE' : '') };
         this.enemies = [];
         this.projectiles = [];
         this.drops = [];
@@ -2258,7 +2110,7 @@ class Game {
         };
 
         // Gera inimigos nas salas intermediárias e final
-        const totalEnemiesTarget = Math.floor(Math.min(48, 5 + floorNumber * 2.2) * (isBossFloor(floorNumber) ? 0.6 : 1));
+        const totalEnemiesTarget = 5 + floorNumber * 2;
         let spawned = 0;
 
         for (let i = 1; i < rooms.length; i++) {
@@ -2272,25 +2124,22 @@ class Game {
                 // Evita spawnar exatamente em cima do portal
                 if (Math.hypot(ex - this.portal.x, ey - this.portal.y) < 40) continue;
 
-                if (this.dungeon.grid[Math.floor(ey / TILE_SIZE)][Math.floor(ex / TILE_SIZE)] !== TILE_FLOOR) continue;
+                const typeRoll = rng.next();
+                let type = 'slime';
+                if (floorNumber >= 2 && typeRoll > 0.78) type = 'brute';
+                else if (floorNumber >= 3 && typeRoll > 0.6) type = 'bat';
+                else if (typeRoll > 0.42) type = 'mage';
 
-                const pool = ['slime', 'mage'];
-                if (floorNumber >= 2) pool.push('brute');
-                if (floorNumber >= 3) pool.push('bat', 'bat');
-                if (floorNumber >= 4) pool.push('archer');
-                const type = pool[Math.floor(rng.next() * pool.length)];
-                const elite = floorNumber >= 3 && rng.next() < Math.min(0.3, 0.06 + floorNumber * 0.01);
-
-                this.enemies.push(new Enemy(ex, ey, type, floorNumber, elite));
+                this.enemies.push(new Enemy(ex, ey, type, floorNumber));
                 spawned++;
             }
         }
 
-        // Chefe a cada 5 andares, guardando o portal
-        if (isBossFloor(floorNumber)) {
-            this.enemies.push(new Enemy((exitRoom.cx + 0.5) * TILE_SIZE, (exitRoom.cy - 0.5) * TILE_SIZE, 'boss', floorNumber));
-        }
-
+        this.biome = makeBiome(floorNumber);
+        const isBoss = floorNumber % 5 === 0;
+        if (isBoss) this.enemies.push(new Enemy((exitRoom.cx + 0.5) * TILE_SIZE - 80, (exitRoom.cy + 0.5) * TILE_SIZE, 'boss', floorNumber));
+        this.bannerT = 3.4; this.bannerText = 'ANDAR ' + floorNumber;
+        this.bannerSub = this.biome.name + (isBoss ? '  •  CHEFE!' : floorNumber === 1 ? '  •  Shift = Dash' : '');
         // Gera 1 a 2 baús por andar em salas aleatórias (exceto a inicial)
         const chestCount = rng.rangeInt(1, 2);
         for (let i = 0; i < chestCount; i++) {
@@ -2300,6 +2149,7 @@ class Game {
             this.chests.push(new Chest(cx, cy));
         }
 
+        this.addFloatingText(this.player.x, this.player.y - 36, `Andar ${floorNumber}`, '#38bdf8', 22);
         this.updateHUD();
     }
 
@@ -2327,7 +2177,7 @@ class Game {
         this.floor++;
         // Pequena recuperação de HP ao descer de andar
         const maxHp = this.player.getEffectiveMaxHp();
-        const recover = Math.round(maxHp * (isBossFloor(this.floor - 1) ? 0.5 : 0.2));
+        const recover = Math.round(maxHp * 0.2);
         this.player.hp = Math.min(maxHp, this.player.hp + recover);
 
         this.generateFloor(this.floor);
@@ -2346,7 +2196,7 @@ class Game {
         document.getElementById('go-gold').textContent = this.player.gold;
     }
 
-    autoSave() {
+    autoSave(silent = false) {
         const ok = SaveManager.save({
             floor: this.floor,
             seed: this.seed,
@@ -2354,7 +2204,7 @@ class Game {
             player: this.player
         });
 
-        if (ok) {
+        if (ok && !silent) {
             const toast = document.getElementById('save-toast');
             toast.classList.add('show');
             clearTimeout(this.toastTimeout);
@@ -2494,6 +2344,9 @@ class Game {
         this.camera.x += (this.player.x - this.camera.x) * lerpFactor;
         this.camera.y += (this.player.y - this.camera.y) * lerpFactor;
 
+        if (this.bannerT > 0) this.bannerT -= dt;
+        this._saveT = (this._saveT || 0) + dt;
+        if (this._saveT > 4) { this._saveT = 0; this.autoSave(true); }
         if (this.shakeTime > 0) {
             this.shakeTime -= dt;
             if (this.shakeTime <= 0) this.shakeIntensity = 0;
@@ -2514,8 +2367,6 @@ class Game {
             this.updateHUD();
         }
         this.portal.pulse += dt * 3;
-        this.time = (this.time || 0) + dt;
-        if (this.banner && this.banner.t > 0) this.banner.t -= dt;
 
         // Interação automática por proximidade com Baús e Portal ativo
         for (const chest of this.chests) {
@@ -2574,10 +2425,7 @@ class Game {
         const camTop = this.camera.y - h / 2 + shakeY;
         ctx.translate(-camLeft, -camTop);
 
-        const B = this.biome;
-        const grid = this.dungeon.grid;
-        const time = this.time || 0;
-
+        this._torch = [];
         // Culling: renderiza apenas tiles visíveis na tela
         const startCol = Math.max(0, Math.floor(camLeft / TILE_SIZE) - 1);
         const endCol = Math.min(MAP_WIDTH - 1, Math.ceil((camLeft + w) / TILE_SIZE) + 1);
@@ -2592,83 +2440,16 @@ class Game {
                 const px = x * TILE_SIZE;
                 const py = y * TILE_SIZE;
 
-                const TS = TILE_SIZE;
-                if (tile === TILE_FLOOR) {
-                    const detail = this.dungeon.floorDetails[y][x];
-                    ctx.fillStyle = B.fl[(x + y) % 2];
-                    ctx.fillRect(px, py, TS, TS);
-                    if (detail > 0.85) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.045)';
-                        ctx.fillRect(px + 6, py + 8, 16, 10);
-                    } else if (detail < 0.12) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                        ctx.fillRect(px + 20, py + 22, 12, 12);
-                    } else if (detail > 0.6 && detail < 0.66) {
-                        ctx.strokeStyle = 'rgba(0,0,0,0.32)';
-                        ctx.lineWidth = 1.2;
-                        ctx.beginPath();
-                        ctx.moveTo(px + 10, py + 12); ctx.lineTo(px + 22, py + 20); ctx.lineTo(px + 20, py + 34);
-                        ctx.stroke();
-                    } else if (detail > 0.4 && detail < 0.43) {
-                        ctx.fillStyle = B.accent;
-                        ctx.globalAlpha = 0.2;
-                        ctx.beginPath(); ctx.arc(px + 24, py + 24, 5, 0, 6.2832); ctx.fill();
-                        ctx.globalAlpha = 1;
-                    }
-                    if (y > 0 && grid[y - 1][x] === TILE_WALL) {
-                        ctx.fillStyle = 'rgba(0,0,0,0.24)'; ctx.fillRect(px, py, TS, 7);
-                        ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(px, py + 7, TS, 7);
-                    }
-                    ctx.strokeStyle = 'rgba(148,163,184,0.05)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(px, py, TS, TS);
-                } else if (tile === TILE_WALL) {
-                    const below = y + 1 < MAP_HEIGHT && grid[y + 1][x] === TILE_FLOOR;
-                    ctx.fillStyle = B.wl;
-                    ctx.fillRect(px, py, TS, TS);
-                    ctx.fillStyle = B.wt;
-                    ctx.fillRect(px + 2, py + 2, TS - 4, TS - (below ? 18 : 10));
-                    if (below) {
-                        ctx.fillStyle = B.front;
-                        ctx.fillRect(px, py + TS - 16, TS, 16);
-                        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-                        ctx.lineWidth = 1;
-                        const o = x % 2 ? 12 : 30;
-                        ctx.beginPath();
-                        ctx.moveTo(px, py + TS - 8); ctx.lineTo(px + TS, py + TS - 8);
-                        ctx.moveTo(px + o, py + TS - 16); ctx.lineTo(px + o, py + TS - 8);
-                        ctx.moveTo(px + 44 - o, py + TS - 8); ctx.lineTo(px + 44 - o, py + TS);
-                        ctx.stroke();
-                        ctx.fillStyle = B.edge;
-                        ctx.globalAlpha = 0.5;
-                        ctx.fillRect(px, py + TS - 16, TS, 1.5);
-                        ctx.globalAlpha = 1;
-                    }
-                    ctx.strokeStyle = B.edge;
-                    ctx.globalAlpha = 0.5;
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(px + 0.5, py + 0.5, TS - 1, TS - 1);
-                    ctx.globalAlpha = 1;
-                }
+                this.drawTile(ctx, tile, x, y, px, py);
             }
         }
 
-        // Tochas animadas nas paredes
-        for (const t of this.dungeon.torches) {
-            if (t.x < startCol || t.x > endCol || t.y < startRow || t.y > endRow) continue;
-            const tx = t.x * TILE_SIZE + TILE_SIZE / 2;
-            const ty = t.y * TILE_SIZE + TILE_SIZE - 6;
-            const fl = 1 + Math.sin(time * 9 + t.ph) * 0.2 + Math.sin(time * 23 + t.ph * 2) * 0.1;
-            ctx.fillStyle = '#3f2d1c';
-            ctx.fillRect(tx - 2, ty - 2, 4, 10);
-            ctx.save();
-            ctx.shadowColor = B.torch; ctx.shadowBlur = 14;
-            ctx.fillStyle = B.torch;
-            ctx.beginPath(); ctx.ellipse(tx, ty - 5, 4 * fl, 7 * fl, 0, 0, 6.2832); ctx.fill();
-            ctx.fillStyle = '#fff7d6';
-            ctx.beginPath(); ctx.ellipse(tx, ty - 3, 2 * fl, 3.5 * fl, 0, 0, 6.2832); ctx.fill();
-            ctx.restore();
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (const tc of this._torch) {
+            const fk = 0.2 + Math.sin(performance.now() / 120 + tc.x) * 0.04, g = ctx.createRadialGradient(tc.x, tc.y, 4, tc.x, tc.y, 90);
+            g.addColorStop(0, `rgba(255,170,60,${fk})`); g.addColorStop(1, 'rgba(255,120,20,0)'); ctx.fillStyle = g; ctx.fillRect(tc.x - 90, tc.y - 90, 180, 180);
         }
+        ctx.restore();
 
         // Desenha Portal de Saída na última sala
         this.drawPortal(ctx);
@@ -2676,36 +2457,22 @@ class Game {
         // Desenha Baús, Drops, Inimigos, Jogador, Projéteis e Partículas
         for (const chest of this.chests) chest.draw(ctx);
         for (const drop of this.drops) drop.draw(ctx);
-        for (const enemy of this.enemies) enemy.draw(ctx);
-        this.player.draw(ctx);
-        if (this.player.dashTimer > 0) {
-            const p = 1 - this.player.dashTimer / this.player.dashCd;
-            ctx.strokeStyle = 'rgba(125,211,252,0.7)';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(this.player.x, this.player.y, this.player.radius + 7, -Math.PI / 2, -Math.PI / 2 + p * 6.2832);
-            ctx.stroke();
-        }
+        [...this.enemies, this.player].sort((a, b) => a.y - b.y).forEach(o => o.draw(ctx));
         for (const proj of this.projectiles) proj.draw(ctx);
         for (const part of this.particles) part.draw(ctx);
-        // Partículas ambientais do bioma
-        ctx.fillStyle = B.mote;
-        for (const m of this.motes) {
-            const ox = m.x + Math.sin(time * 0.6 + m.ph) * 22 + time * m.vx;
-            const oy = m.y + time * m.vy;
-            const wx = camLeft + (((ox - camLeft) % w) + w) % w;
-            const wy = camTop + (((oy - camTop) % h) + h) % h;
-            ctx.globalAlpha = 0.25 + 0.25 * Math.sin(time * 2 + m.ph);
-            ctx.beginPath(); ctx.arc(wx, wy, m.s, 0, 6.2832); ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-
         for (const ft of this.floatingTexts) ft.draw(ctx);
 
         ctx.restore();
 
-        this.drawLighting(ctx, w, h, camLeft, camTop);
-        this.drawOverlay(ctx, w, h);
+        const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
+        vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.65)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+        if (this.bannerT > 0 && this.state === 'PLAYING') {
+            ctx.save(); ctx.globalAlpha = Math.min(1, this.bannerT); ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+            ctx.font = '900 46px "Segoe UI", sans-serif'; ctx.lineWidth = 8; ctx.strokeStyle = '#0b0d13'; ctx.fillStyle = '#f8fafc';
+            ctx.strokeText(this.bannerText, w / 2, h * 0.27); ctx.fillText(this.bannerText, w / 2, h * 0.27);
+            ctx.font = '700 20px "Segoe UI", sans-serif'; ctx.lineWidth = 5; ctx.fillStyle = this.biome.acc;
+            ctx.strokeText(this.bannerSub, w / 2, h * 0.27 + 32); ctx.fillText(this.bannerSub, w / 2, h * 0.27 + 32); ctx.restore();
+        }
 
         // Desenha Minimapa no canto superior direito quando jogando
         if (this.state === 'PLAYING') {
@@ -2713,106 +2480,44 @@ class Game {
         }
     }
 
-    drawLighting(ctx, w, h, camLeft, camTop) {
-        const B = this.biome;
-        const t = this.time || 0;
-        let lc = this.lightCanvas;
-        if (!lc) lc = this.lightCanvas = document.createElement('canvas');
-        if (lc.width !== w || lc.height !== h) { lc.width = w; lc.height = h; }
-        const l = lc.getContext('2d');
-        l.globalCompositeOperation = 'source-over';
-        l.clearRect(0, 0, w, h);
-        l.fillStyle = `rgba(3,4,10,${B.dark})`;
-        l.fillRect(0, 0, w, h);
-        l.globalCompositeOperation = 'destination-out';
-        const light = (x, y, r, a) => {
-            const sx = x - camLeft, sy = y - camTop;
-            if (sx < -r || sx > w + r || sy < -r || sy > h + r) return;
-            const g = l.createRadialGradient(sx, sy, r * 0.08, sx, sy, r);
-            g.addColorStop(0, `rgba(0,0,0,${a})`);
-            g.addColorStop(0.55, `rgba(0,0,0,${a * 0.55})`);
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            l.fillStyle = g;
-            l.fillRect(sx - r, sy - r, r * 2, r * 2);
-        };
-        light(this.player.x, this.player.y, 330, 1);
-        const torchPos = [];
-        for (const tc of this.dungeon.torches) {
-            const tx = tc.x * TILE_SIZE + TILE_SIZE / 2, ty = tc.y * TILE_SIZE + TILE_SIZE + 6;
-            const r = 190 + Math.sin(t * 9 + tc.ph) * 12;
-            light(tx, ty, r, 0.9);
-            torchPos.push([tx, ty, r]);
+    drawTile(ctx, tile, x, y, px, py) {
+        const b = this.biome, g = this.dungeon.grid, T = TILE_SIZE, d = this.dungeon.floorDetails[y][x];
+        if (tile === TILE_FLOOR) {
+            ctx.fillStyle = (x + y) % 2 ? b.f1 : b.f2; ctx.fillRect(px, py, T, T);
+            ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1; ctx.strokeRect(px + .5, py + .5, T - 1, T - 1);
+            if (g[y - 1] && g[y - 1][x] === TILE_WALL) {
+                const gr = ctx.createLinearGradient(0, py, 0, py + 18); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = gr; ctx.fillRect(px, py, T, 18);
+            }
+            const cx = px + 12 + ((d * 997) % 1) * 24, cy = py + 12 + ((d * 313) % 1) * 24;
+            if (d > 0.86) {
+                ctx.save(); setInk(ctx); ctx.lineWidth = 2;
+                if (b.d === 'tuft') { ctx.strokeStyle = b.acc; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(cx + k * 4, cy + 5); ctx.lineTo(cx + k * 6, cy - 5); ctx.stroke(); } }
+                else if (b.d === 'ember') { ctx.fillStyle = `rgba(255,${120 + (Math.sin(performance.now() / 200 + d * 50) * 60 | 0)},30,.9)`; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 7); ctx.fill(); }
+                else if (b.d === 'bone') { rr(ctx, cx - 7, cy - 2, 14, 4, 2, '#e5e7eb'); }
+                else { poly(ctx, [[cx, cy - 8], [cx + 5, cy], [cx, cy + 6], [cx - 5, cy]], b.d === 'ice' ? '#e0f2fe' : b.acc); }
+                ctx.restore();
+            } else if (d < 0.1) {
+                ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 8, cy - 4); ctx.lineTo(cx, cy); ctx.lineTo(cx + 6, cy + 7); ctx.stroke();
+            }
+        } else {
+            const open = g[y + 1] && g[y + 1][x] === TILE_FLOOR;
+            ctx.fillStyle = b.top; ctx.fillRect(px, py, T, T);
+            ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(px + 6, py + 6, 16, 10);
+            if (open) {
+                ctx.fillStyle = b.face; ctx.fillRect(px, py + T - 18, T, 18);
+                ctx.fillStyle = b.line; ctx.fillRect(px, py + T - 20, T, 3);
+                ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 1.5; ctx.beginPath();
+                ctx.moveTo(px, py + T - 9); ctx.lineTo(px + T, py + T - 9);
+                const o = y % 2 ? 12 : 30; ctx.moveTo(px + o, py + T - 18); ctx.lineTo(px + o, py + T - 9); ctx.moveTo(px + 48 - o, py + T - 9); ctx.lineTo(px + 48 - o, py + T); ctx.stroke();
+                if (d > 0.92) {
+                    const fx = px + T / 2, fy = py + T - 14; this._torch.push({ x: fx, y: fy });
+                    ctx.save(); setInk(ctx); rr(ctx, fx - 2, fy - 2, 4, 12, 1, '#78350f');
+                    ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.ellipse(fx, fy - 6, 5, 7 + Math.sin(performance.now() / 90 + px) * 1.5, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore();
+                }
+            }
+            ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.strokeRect(px + .5, py + .5, T - 1, T - 1);
         }
-        for (const p of this.projectiles) light(p.x, p.y, 80, 0.8);
-        for (const c of this.chests) if (!c.opened) light(c.x, c.y, 70, 0.7);
-        for (const d of this.drops) light(d.x, d.y, 50, 0.6);
-        light(this.portal.x, this.portal.y, this.portal.active ? 170 : 90, 0.8);
-        ctx.drawImage(lc, 0, 0);
-
-        // Brilho colorido aditivo
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        const glow = (x, y, r, color, a) => {
-            const sx = x - camLeft, sy = y - camTop;
-            if (sx < -r || sx > w + r || sy < -r || sy > h + r) return;
-            const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r);
-            g.addColorStop(0, color);
-            g.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.globalAlpha = a;
-            ctx.fillStyle = g;
-            ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
-        };
-        for (const [tx, ty, r] of torchPos) glow(tx, ty, r * 0.8, B.torch, 0.15);
-        glow(this.player.x, this.player.y, 200, B.accent, 0.06);
-        if (this.portal.active) glow(this.portal.x, this.portal.y, 150, '#38bdf8', 0.28);
-        ctx.restore();
-    }
-
-    drawOverlay(ctx, w, h) {
-        if (this.state !== 'PLAYING') return;
-        const B = this.biome;
-        ctx.save();
-        ctx.textAlign = 'center';
-
-        // Banner do andar / bioma
-        if (this.banner && this.banner.t > 0) {
-            const a = Math.min(1, this.banner.t, (3.4 - this.banner.t) * 2);
-            ctx.globalAlpha = Math.max(0, a);
-            ctx.shadowColor = B.accent; ctx.shadowBlur = 18;
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '800 38px "Segoe UI", system-ui, sans-serif';
-            ctx.fillText(this.banner.title, w / 2, h * 0.28);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = B.accent;
-            ctx.font = '600 17px "Segoe UI", system-ui, sans-serif';
-            ctx.fillText(this.banner.sub, w / 2, h * 0.28 + 30);
-            ctx.globalAlpha = 1;
-        }
-
-        // Barra de vida do chefe
-        const boss = this.enemies.find(e => e.isBoss);
-        if (boss) {
-            const bw = Math.min(520, w * 0.6), bx = (w - bw) / 2, by = 96;
-            ctx.fillStyle = 'rgba(8,10,18,0.85)';
-            ctx.fillRect(bx - 3, by - 3, bw + 6, 20);
-            ctx.fillStyle = boss.hp < boss.maxHp * 0.5 ? '#f97316' : '#dc2626';
-            ctx.fillRect(bx, by, bw * (boss.hp / boss.maxHp), 14);
-            ctx.fillStyle = '#fff';
-            ctx.font = '700 12px "Segoe UI", system-ui, sans-serif';
-            ctx.fillText(`${boss.icon} ${boss.name}`, w / 2, by - 8);
-        }
-
-        // Barra de XP na base da tela + nível
-        const p = this.player;
-        ctx.fillStyle = 'rgba(8,10,18,0.7)';
-        ctx.fillRect(0, h - 7, w, 7);
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(0, h - 7, w * (p.xp / p.xpNeeded()), 7);
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#fde68a';
-        ctx.font = '700 12px "Segoe UI", system-ui, sans-serif';
-        ctx.fillText(`NV ${p.level}`, 10, h - 14);
-        ctx.restore();
     }
 
     drawPortal(ctx) {
@@ -2906,8 +2611,7 @@ class Game {
         // Clamp do deltaTime para garantir estabilidade em qualquer taxa de atualização
         const dt = Math.min(rawDt, 0.05);
 
-        this.update(dt);
-        this.draw();
+        try { this.update(dt); this.draw(); } catch (err) { console.error('Erro no loop (ignorado):', err); }
 
         requestAnimationFrame((t) => this.loop(t));
     }
@@ -2916,7 +2620,13 @@ class Game {
 // Inicialização após carregamento completo do DOM
 window.addEventListener('DOMContentLoaded', () => {
     window.game = new Game();
+    // Se a aba foi recarregada no meio de uma partida (ex.: extensão), retoma automaticamente
+    if (SaveManager.inSession() && SaveManager.load()) window.game.continueSavedGame();
 });
+// Salva ao esconder/fechar a aba
+const _flush = () => { const g = window.game; if (g && g.state === 'PLAYING') g.autoSave(true); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) _flush(); });
+window.addEventListener('pagehide', _flush);
 </script>
 </body>
 </html>

@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Detetive de Cores — Modo Genius</title>
+  <style>
+    :root {
+      --bg-color: #090d16;
+      --panel-bg: #111827;
+      --border-color: #1f2937;
+      --text-primary: #f3f4f6;
+      --text-muted: #9ca3af;
+      --neon-cyan: #00f0ff;
+      --neon-cyan-glow: rgba(0, 240, 255, 0.45);
+      --neon-red: #ef4444;
+      --neon-red-glow: rgba(239, 68, 68, 0.5);
+
+      /* Cores Clássicas do Genius */
+      --green-base: #064e3b;
+      --green-active: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.75);
+
+      --yellow-base: #713f12;
+      --yellow-active: #facc15;
+      --yellow-glow: rgba(250, 204, 21, 0.75);
+
+      --red-base: #7f1d1d;
+      --red-active: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.75);
+
+      --blue-base: #1e3a8a;
+      --blue-active: #3b82f6;
+      --blue-glow: rgba(59, 130, 246, 0.75);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-color);
+      background-image: 
+        radial-gradient(circle at 50% 10%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
+        linear-gradient(to bottom, #090d16, #05080f);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .game-wrapper {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Cabeçalho */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .title-group h1 {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-group span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 1.15rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 12px var(--neon-cyan-glow);
+    }
+
+    /* HUD Superior */
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 12px 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .hud-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .hud-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hud-value.highlight {
+      color: var(--neon-cyan);
+      text-shadow: 0 0 8px var(--neon-cyan-glow);
+    }
+
+    .lives-container {
+      display: flex;
+      gap: 4px;
+      font-size: 1rem;
+    }
+
+    .heart {
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .heart.lost {
+      opacity: 0.2;
+      transform: scale(0.8);
+      filter: grayscale(1);
+    }
+
+    /* Indicador de Turno e Progresso */
+    .status-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    #status-text {
+      letter-spacing: 0.3px;
+      transition: color 0.2s ease;
+    }
+
+    #sequence-counter {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: #090d16;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px var(--neon-cyan);
+      border-radius: 999px;
+      transition: width 0.2s ease;
+    }
+
+    /* Tabuleiro Circular estilo Genius */
+    .genius-stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-width: 420px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .genius-body {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #141822;
+      border-radius: 50%;
+      padding: 18px;
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.75),
+        inset 0 2px 6px rgba(255, 255, 255, 0.08),
+        0 0 0 4px #1f2636;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 14px;
+      transition: transform 0.3s ease;
+    }
+
+    .genius-body.locked {
+      pointer-events: none;
+    }
+
+    .genius-body.shake {
+      animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    /* Os 4 Quadrantes Coloridos */
+    .pad {
+      border: none;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+      outline: none;
+    }
+
+    .pad:active {
+      transform: scale(0.97);
+    }
+
+    /* Verde (Superior Esquerdo) */
+    .pad-green {
+      background: var(--green-base);
+      border-top-left-radius: 100%;
+      border-top-right-radius: 14px;
+      border-bottom-left-radius: 14px;
+      box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .pad-green.lit {
+      background: var(--green-active);
+      box-shadow: 0 0 35px var(--green-glow), inset 0 0 20px rgba(255, 255, 255, 0.65);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+
+    /* Amarelo (Superior Direito) */
+    .pad-yellow {
+      background: var(--yellow-base);
+      border-top-right-radius: 100%;
+      border-top-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .pad-yellow.lit {
+      background: var(--yellow-active);
+      box-shadow: 0 0 35px var(--yellow-glow), inset 0 0 20px rgba(255, 255, 255, 0.65);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+
+    /* Vermelho (Inferior Esquerdo) */
+    .pad-red {
+      background: var(--red-base);
+      border-bottom-left-radius: 100%;
+      border-top-left-radius: 14px;
+      border-bottom-right-radius: 14px;
+      box-shadow: inset 0 -4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .pad-red.lit {
+      background: var(--red-active);
+      box-shadow: 0 0 35px var(--red-glow), inset 0 0 20px rgba(255, 255, 255, 0.65);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+
+    /* Azul (Inferior Direito) */
+    .pad-blue {
+      background: var(--blue-base);
+      border-bottom-right-radius: 100%;
+      border-top-right-radius: 14px;
+      border-bottom-left-radius: 14px;
+      box-shadow: inset 0 -4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .pad-blue.lit {
+      background: var(--blue-active);
+      box-shadow: 0 0 35px var(--blue-glow), inset 0 0 20px rgba(255, 255, 255, 0.65);
+      transform: scale(1.02);
+      z-index: 2;
+    }
+
+    /* Miolo Central Metálico estilo Genius */
+    .genius-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 42%;
+      height: 42%;
+      background: radial-gradient(circle at 30% 30%, #2b3242, #11151f);
+      border-radius: 50%;
+      border: 10px solid #141822;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      z-index: 10;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .center-brand {
+      font-weight: 900;
+      font-size: clamp(0.85rem, 3.2vw, 1.15rem);
+      letter-spacing: 2px;
+      color: #e5e7eb;
+      text-transform: uppercase;
+      text-shadow: 0 1px 2px #000;
+    }
+
+    .center-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .mini-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .mini-btn-cap {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #090d16;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+      transition: transform 0.1s ease;
+    }
+
+    .mini-btn:active .mini-btn-cap {
+      transform: scale(0.9);
+    }
+
+    .cap-yellow { background: #eab308; }
+    .cap-red { background: #ef4444; }
+
+    .center-display {
+      background: #070a10;
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      letter-spacing: 1px;
+    }
+
+    @keyframes shake {
+      10%, 90% { transform: translateX(-4px); }
+      20%, 80% { transform: translateX(5px); }
+      30%, 50%, 70% { transform: translateX(-6px); }
+      40%, 60% { transform: translateX(6px); }
+    }
+
+    /* Modais */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 15, 0.88);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .modal {
+      background: var(--panel-bg);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.12);
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .modal-badge {
+      display: inline-block;
+      margin: 0 auto;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+    }
+
+    .modal h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .modal p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .stats-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      background: var(--bg-color);
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-box span {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .stat-box strong {
+      font-size: 1.25rem;
+      color: var(--neon-cyan);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00d2ff 0%, #0080ff 100%);
+      color: #05080f;
+      border: none;
+      border-radius: 12px;
+      padding: 15px 24px;
+      font-size: 1rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(0, 210, 255, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 210, 255, 0.55);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="game-wrapper">
+    <!-- Cabeçalho -->
+    <header>
+      <div class="title-group">
+        <h1>Detetive de Cores</h1>
+        <span>Edição Clássica Genius</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-mute" class="btn-icon" aria-label="Alternar Som" title="Mutar / Ativar Som">🔊</button>
+      </div>
+    </header>
+
+    <!-- HUD Superior -->
+    <section class="hud" aria-label="Status da Partida">
+      <div class="hud-item">
+        <span class="hud-label">Sequência</span>
+        <span id="hud-level" class="hud-value highlight">1</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Pontos</span>
+        <span id="hud-score" class="hud-value">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Recorde</span>
+        <span id="hud-highscore" class="hud-value">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Vidas</span>
+        <div id="hud-lives" class="lives-container">
+          <span class="heart">❤️</span>
+          <span class="heart">❤️</span>
+          <span class="heart">❤️</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Indicador de Turno e Progresso -->
+    <section class="status-panel">
+      <div class="status-header">
+        <span id="status-text">Aguardando início...</span>
+        <span id="sequence-counter">0 / 0</span>
+      </div>
+      <div class="progress-track">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+    </section>
+
+    <!-- Console Genius -->
+    <section class="genius-stage">
+      <div id="genius-body" class="genius-body locked">
+        <button class="pad pad-green" data-color="0" aria-label="Verde (Tecla 1 ou Q)"></button>
+        <button class="pad pad-yellow" data-color="1" aria-label="Amarelo (Tecla 2 ou W)"></button>
+        <button class="pad pad-red" data-color="2" aria-label="Vermelho (Tecla 3 ou A)"></button>
+        <button class="pad pad-blue" data-color="3" aria-label="Azul (Tecla 4 ou S)"></button>
+
+        <!-- Miolo Central com funções autênticas do Genius -->
+        <div class="genius-center">
+          <div class="center-brand">GENIUS</div>
+          <div class="center-controls">
+            <button id="btn-repeat" class="mini-btn" title="Repetir a última sequência (1x por fase)">
+              <span class="mini-btn-cap cap-yellow"></span>
+              <span>Repete</span>
+            </button>
+            <button id="btn-center-start" class="mini-btn" title="Reiniciar Partida">
+              <span class="mini-btn-cap cap-red"></span>
+              <span>Partida</span>
+            </button>
+          </div>
+          <div id="center-display" class="center-display">01</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Tela Inicial -->
+  <div id="start-overlay" class="overlay">
+    <div class="modal">
+      <span class="modal-badge">Mecânica Original Genius</span>
+      <h2>Detetive de Cores</h2>
+      <p>Observe e ouça a sequência de luzes e notas musicais. Repita a ordem exata — a cada rodada, uma nova cor é adicionada ao final da sequência e o ritmo acelera!</p>
+      <button id="btn-start" class="btn-primary">Iniciar Investigação</button>
+    </div>
+  </div>
+
+  <!-- Modal de Game Over -->
+  <div id="gameover-overlay" class="overlay hidden">
+    <div class="modal">
+      <span class="modal-badge" style="color: var(--neon-red); border-color: var(--neon-red);">Sequência Interrompida</span>
+      <h2>Fim de Jogo</h2>
+      <p id="gameover-message">Você perdeu todas as vidas. Confira o resumo da sua investigação:</p>
+      <div class="stats-summary">
+        <div class="stat-box">
+          <span>Sequência</span>
+          <strong id="final-level">1</strong>
+        </div>
+        <div class="stat-box">
+          <span>Pontuação</span>
+          <strong id="final-score">0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Recorde</span>
+          <strong id="final-highscore">0</strong>
+        </div>
+      </div>
+      <button id="btn-restart" class="btn-primary">Jogar Novamente</button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * =========================================================================
+     * MOTOR DE ÁUDIO DO GENIUS (Web Audio API)
+     * Cada um dos 4 quadrantes possui sua nota musical característica.
+     * =========================================================================
+     */
+    class GeniusAudio {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        // Frequências clássicas inspiradas no Genius/Simon:
+        // 0: Verde (Mi4 - 329.63Hz), 1: Amarelo (Dó#4 - 277.18Hz),
+        // 2: Vermelho (Lá3 - 220.00Hz), 3: Azul (Mi3 - 164.81Hz)
+        this.padFrequencies = [329.63, 277.18, 220.00, 164.81];
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+
+      playPadTone(colorIndex, durationSec = 0.35) {
+        if (this.muted) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(this.padFrequencies[colorIndex], now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.22, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + durationSec);
+      }
+
+      playError() {
+        if (this.muted) return;
+        this.init();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.linearRampToValueAtTime(75, now + 0.45);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.48);
+      }
+
+      playVictoryChime() {
+        if (this.muted) return;
+        this.init();
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const now = this.ctx.currentTime + i * 0.08;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        });
+      }
+    }
+
+    /**
+     * =========================================================================
+     * LÓGICA PRINCIPAL: MECÂNICA GENIUS ACUMULATIVA
+     * =========================================================================
+     */
+    class GeniusGame {
+      constructor() {
+        this.audio = new GeniusAudio();
+
+        this.STORAGE_SCORE_KEY = 'genius_detetive_highscore';
+        this.highScore = Number(localStorage.getItem(this.STORAGE_SCORE_KEY)) || 0;
+
+        // Estado da Partida
+        this.sequence = [];        // Lista acumulativa de cores [0..3]
+        this.playerStep = 0;       // Índice atual que o jogador está reproduzindo
+        this.score = 0;
+        this.lives = 3;
+        this.maxLives = 3;
+        this.isPlayerTurn = false;
+        this.isPlayingSequence = false;
+        this.repeatUsedInRound = false;
+        this.timeouts = [];
+
+        // Referências DOM
+        this.dom = {
+          body: document.getElementById('genius-body'),
+          pads: Array.from(document.querySelectorAll('.pad')),
+          level: document.getElementById('hud-level'),
+          score: document.getElementById('hud-score'),
+          highScore: document.getElementById('hud-highscore'),
+          lives: document.getElementById('hud-lives'),
+          centerDisplay: document.getElementById('center-display'),
+          statusText: document.getElementById('status-text'),
+          sequenceCounter: document.getElementById('sequence-counter'),
+          progressFill: document.getElementById('progress-fill'),
+          startOverlay: document.getElementById('start-overlay'),
+          gameoverOverlay: document.getElementById('gameover-overlay'),
+          finalLevel: document.getElementById('final-level'),
+          finalScore: document.getElementById('final-score'),
+          finalHighScore: document.getElementById('final-highscore'),
+          gameoverMessage: document.getElementById('gameover-message'),
+          btnStart: document.getElementById('btn-start'),
+          btnRestart: document.getElementById('btn-restart'),
+          btnMute: document.getElementById('btn-mute'),
+          btnRepeat: document.getElementById('btn-repeat'),
+          btnCenterStart: document.getElementById('btn-center-start')
+        };
+
+        this.bindEvents();
+        this.updateHUD();
+      }
+
+      bindEvents() {
+        this.dom.btnStart.addEventListener('click', () => {
+          this.audio.init();
+          this.dom.startOverlay.classList.add('hidden');
+          this.startNewGame();
+        });
+
+        this.dom.btnRestart.addEventListener('click', () => {
+          this.dom.gameoverOverlay.classList.add('hidden');
+          this.startNewGame();
+        });
+
+        this.dom.btnCenterStart.addEventListener('click', () => {
+          this.audio.init();
+          this.startNewGame();
+        });
+
+        // Botão "Repete" clássico do Genius (permite rever a sequência 1x por rodada)
+        this.dom.btnRepeat.addEventListener('click', () => {
+          if (!this.isPlayerTurn || this.isPlayingSequence || this.repeatUsedInRound) return;
+          this.repeatUsedInRound = true;
+          this.playerStep = 0;
+          this.updateProgress();
+          this.playSequence();
+        });
+
+        this.dom.btnMute.addEventListener('click', () => {
+          const muted = this.audio.toggleMute();
+          this.dom.btnMute.textContent = muted ? '🔇' : '🔊';
+        });
+
+        // Cliques / Toques nos 4 quadrantes
+        this.dom.pads.forEach((pad, idx) => {
+          pad.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            this.handlePadPress(idx);
+          });
+        });
+
+        // Suporte a teclado (1,2,3,4 ou Q,W,A,S)
+        window.addEventListener('keydown', (e) => {
+          const keyMap = { '1': 0, 'q': 0, '2': 1, 'w': 1, '3': 2, 'a': 2, '4': 3, 's': 3 };
+          const key = e.key.toLowerCase();
+          if (key in keyMap) {
+            this.handlePadPress(keyMap[key]);
+          }
+        });
+      }
+
+      clearScheduledTimers() {
+        this.timeouts.forEach(id => clearTimeout(id));
+        this.timeouts = [];
+      }
+
+      schedule(fn, delay) {
+        const id = setTimeout(fn, delay);
+        this.timeouts.push(id);
+        return id;
+      }
+
+      startNewGame() {
+        this.clearScheduledTimers();
+        this.sequence = [];
+        this.score = 0;
+        this.lives = this.maxLives;
+        this.updateHUD();
+        this.nextRound();
+      }
+
+      /**
+       * Adiciona uma nova cor aleatória à sequência existente (mecânica central do Genius).
+       */
+      nextRound() {
+        const nextColor = Math.floor(Math.random() * 4);
+        this.sequence.push(nextColor);
+        this.playerStep = 0;
+        this.repeatUsedInRound = false;
+        this.updateHUD();
+        this.updateProgress();
+
+        this.schedule(() => {
+          this.playSequence();
+        }, 500);
+      }
+
+      /**
+       * Calcula a velocidade de reprodução conforme o tamanho da sequência cresce.
+       */
+      getPlaybackSpeed() {
+        const len = this.sequence.length;
+        // Começa confortável (550ms entre notas) e acelera até 260ms
+        const stepInterval = Math.max(260, 560 - (len - 1) * 22);
+        const litDuration = Math.round(stepInterval * 0.65);
+        return { stepInterval, litDuration };
+      }
+
+      /**
+       * Reproduz toda a sequência acumulada bloqueando a entrada do jogador.
+       */
+      playSequence() {
+        this.isPlayerTurn = false;
+        this.isPlayingSequence = true;
+        this.dom.body.classList.add('locked');
+        this.setStatus('Memorize o padrão!', 'var(--neon-cyan)');
+
+        const { stepInterval, litDuration } = this.getPlaybackSpeed();
+
+        this.sequence.forEach((colorIndex, stepIdx) => {
+          this.schedule(() => {
+            this.flashPad(colorIndex, litDuration);
+          }, stepIdx * stepInterval);
+        });
+
+        // Libera o turno do jogador após a última nota apagar
+        const totalDuration = this.sequence.length * stepInterval + 120;
+        this.schedule(() => {
+          this.isPlayingSequence = false;
+          this.isPlayerTurn = true;
+          this.dom.body.classList.remove('locked');
+          this.setStatus('Sua vez!', '#10b981');
+        }, totalDuration);
+      }
+
+      /**
+       * Ilumina um quadrante específico e toca sua nota musical.
+       */
+      flashPad(colorIndex, duration = 300) {
+        const pad = this.dom.pads[colorIndex];
+        pad.classList.add('lit');
+        this.audio.playPadTone(colorIndex, duration / 1000);
+
+        this.schedule(() => {
+          pad.classList.remove('lit');
+        }, duration);
+      }
+
+      /**
+       * Valida cada toque do jogador na ordem exata da sequência.
+       */
+      handlePadPress(colorIndex) {
+        if (!this.isPlayerTurn || this.isPlayingSequence) return;
+
+        const expectedColor = this.sequence[this.playerStep];
+
+        if (colorIndex === expectedColor) {
+          // ACERTOU O PASSO ATUAL
+          this.flashPad(colorIndex, 240);
+          this.playerStep++;
+          this.score += 10 * this.sequence.length;
+          this.checkHighScore();
+          this.updateHUD();
+          this.updateProgress();
+
+          // Verifica se completou toda a sequência da rodada
+          if (this.playerStep === this.sequence.length) {
+            this.isPlayerTurn = false;
+            this.dom.body.classList.add('locked');
+            this.score += 25 * this.sequence.length;
+            this.checkHighScore();
+            this.updateHUD();
+
+            this.setStatus('Sequência correta! Próxima...', '#10b981');
+            this.schedule(() => this.audio.playVictoryChime(), 220);
+            this.schedule(() => this.nextRound(), 950);
+          }
+        } else {
+          // ERROU A SEQUÊNCIA
+          this.handleMistake(expectedColor);
+        }
+      }
+
+      handleMistake(expectedColor) {
+        this.isPlayerTurn = false;
+        this.dom.body.classList.add('locked');
+        this.dom.body.classList.add('shake');
+        this.audio.playError();
+
+        this.lives--;
+        this.updateHUD();
+
+        // Pisca qual era a cor correta para feedback visual
+        this.schedule(() => {
+          this.dom.body.classList.remove('shake');
+          this.dom.pads[expectedColor].classList.add('lit');
+          this.schedule(() => this.dom.pads[expectedColor].classList.remove('lit'), 450);
+        }, 350);
+
+        if (this.lives <= 0) {
+          this.setStatus('Vidas esgotadas!', 'var(--neon-red)');
+          this.schedule(() => this.triggerGameOver(), 1100);
+        } else {
+          this.setStatus('Cor errada! Observe novamente...', 'var(--neon-red)');
+          this.playerStep = 0;
+          this.updateProgress();
+          this.schedule(() => this.playSequence(), 1300);
+        }
+      }
+
+      triggerGameOver() {
+        this.checkHighScore();
+        const maxSequence = Math.max(1, this.sequence.length);
+        this.dom.finalLevel.textContent = maxSequence;
+        this.dom.finalScore.textContent = this.score;
+        this.dom.finalHighScore.textContent = this.highScore;
+
+        if (this.score > 0 && this.score >= this.highScore) {
+          this.dom.gameoverMessage.textContent = 'Novo recorde estabelecido! Memória digna de um Genius.';
+        } else {
+          this.dom.gameoverMessage.textContent = 'Você perdeu todas as vidas. Confira o resumo da sua investigação:';
+        }
+
+        this.dom.gameoverOverlay.classList.remove('hidden');
+      }
+
+      checkHighScore() {
+        if (this.score > this.highScore) {
+          this.highScore = this.score;
+          localStorage.setItem(this.STORAGE_SCORE_KEY, this.highScore);
+        }
+      }
+
+      setStatus(text, color) {
+        this.dom.statusText.textContent = text;
+        this.dom.statusText.style.color = color;
+      }
+
+      updateProgress() {
+        const total = this.sequence.length;
+        this.dom.sequenceCounter.textContent = `${this.playerStep} / ${total}`;
+        const pct = total > 0 ? (this.playerStep / total) * 100 : 0;
+        this.dom.progressFill.style.width = `${pct}%`;
+      }
+
+      updateHUD() {
+        const currentRound = Math.max(1, this.sequence.length);
+        this.dom.level.textContent = currentRound;
+        this.dom.score.textContent = this.score;
+        this.dom.highScore.textContent = this.highScore;
+        this.dom.centerDisplay.textContent = String(currentRound).padStart(2, '0');
+
+        const hearts = this.dom.lives.querySelectorAll('.heart');
+        hearts.forEach((heart, idx) => {
+          heart.classList.toggle('lost', idx >= this.lives);
+        });
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      new GeniusGame();
+    });
+  </script>
+</body>
+</html>
