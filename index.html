@@ -2307,6 +2307,328 @@
 
     </main>
 
+    <!-- ========================================== -->
+    <!-- SEÇÃO DE DOAÇÃO VIA PIX                    -->
+    <!-- Troque: qrcode-pix.png e o texto do #pix-code -->
+    <!-- ========================================== -->
+    <style>
+        .pix-donation {
+            --pix-card: rgba(30, 41, 59, 0.7);
+            --pix-border: rgba(255, 255, 255, 0.1);
+            --pix-text: #f8fafc;
+            --pix-muted: #94a3b8;
+            --pix-field: #0f172a;
+            --pix-teal: #32bcad;
+            --pix-btn-a: #0284c7;
+            --pix-btn-b: #4f46e5;
+            --pix-ok: #16a34a;
+
+            width: 100%;
+            max-width: 860px;
+            padding: 0 20px;
+            margin: 0 auto 32px;
+            color: var(--pix-text);
+            font-family: inherit;
+        }
+
+        .pix-donation *,
+        .pix-donation *::before,
+        .pix-donation *::after {
+            box-sizing: border-box;
+        }
+
+        .pix-card {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 28px;
+            align-items: center;
+            padding: 24px;
+            background: var(--pix-card);
+            border: 1px solid var(--pix-border);
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* QR Code */
+        .pix-qr {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pix-qr-frame {
+            width: 100%;
+            max-width: 200px;
+            aspect-ratio: 1 / 1;
+            padding: 6px;
+            background: #ffffff;
+            border-radius: 14px;
+            border: 2px solid var(--pix-teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .pix-qr-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .pix-qr-fallback {
+            display: none;
+            text-align: center;
+            color: #475569;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            padding: 12px;
+        }
+
+        .pix-qr-frame.is-empty img { display: none; }
+        .pix-qr-frame.is-empty .pix-qr-fallback { display: block; }
+
+        .pix-qr-caption {
+            font-size: 0.8rem;
+            color: var(--pix-muted);
+            text-align: center;
+        }
+
+        /* Texto e ação */
+        .pix-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .pix-text {
+            color: var(--pix-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            max-width: 60ch;
+            margin-bottom: 16px;
+        }
+
+        .pix-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .pix-field {
+            display: block;
+            width: 100%;
+            min-height: 70px;
+            resize: none;
+            padding: 10px 14px;
+            background: var(--pix-field);
+            color: #e2e8f0;
+            border: 1px solid var(--pix-border);
+            border-radius: 12px;
+            font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            word-break: break-all;
+            cursor: text;
+        }
+
+        .pix-field:focus-visible {
+            outline: 3px solid rgba(56, 189, 248, 0.6);
+            outline-offset: 2px;
+            border-color: #38bdf8;
+        }
+
+        .pix-copy-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            margin-top: 10px;
+            padding: 12px 20px;
+            border: 0;
+            border-radius: 12px;
+            background: linear-gradient(90deg, var(--pix-btn-a), var(--pix-btn-b));
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.35);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+        }
+
+        .pix-copy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 22px rgba(79, 70, 229, 0.45);
+        }
+
+        .pix-copy-btn:active { transform: translateY(0); }
+
+        .pix-copy-btn:focus-visible {
+            outline: 3px solid #ffffff;
+            outline-offset: 3px;
+        }
+
+        .pix-copy-btn.is-copied {
+            background: var(--pix-ok);
+            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.4);
+        }
+
+        .pix-copy-btn svg {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .pix-copy-btn .pix-icon-check { display: none; }
+        .pix-copy-btn.is-copied .pix-icon-copy { display: none; }
+        .pix-copy-btn.is-copied .pix-icon-check { display: block; }
+
+        .pix-hint {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: var(--pix-muted);
+            line-height: 1.5;
+        }
+
+        .pix-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            white-space: nowrap;
+        }
+
+        /* Mobile */
+        @media (max-width: 760px) {
+            .pix-card {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 20px 16px;
+            }
+
+            .pix-title { font-size: 1.3rem; }
+            .pix-text { font-size: 0.92rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pix-copy-btn { transition: none; }
+            .pix-copy-btn:hover { transform: none; }
+        }
+    </style>
+
+    <section class="pix-donation" id="apoie" aria-labelledby="pix-title">
+        <div class="pix-card">
+
+            <!-- QR Code -->
+            <div class="pix-qr">
+                <div class="pix-qr-frame" id="pix-qr-frame">
+                    <img src="qrcode-pix.png" alt="QR Code do Pix para apoiar o projeto"
+                         onerror="this.parentElement.classList.add('is-empty')">
+                    <p class="pix-qr-fallback">Coloque aqui a imagem do seu QR Code<br>(arquivo <strong>qrcode-pix.png</strong>)</p>
+                </div>
+                <p class="pix-qr-caption">Pix de R$ 5,00</p>
+            </div>
+
+            <!-- Conteúdo -->
+            <div class="pix-content">
+                <h2 class="pix-title" id="pix-title">Gostou dos jogos? Pague um cafezinho</h2>
+                <p class="pix-text">
+                    Todos os jogos do hub são gratuitos e experimentais. Sua contribuição ajuda a manter o projeto no ar, testar novas mecânicas em 2D/3D e criar novos jogos para a comunidade.
+                </p>
+
+                <label class="pix-label" for="pix-code">Pix Copia e Cola</label>
+                <textarea class="pix-field" id="pix-code" readonly rows="3" spellcheck="false">00020126580014br.gov.bcb.pix0136d5a75d14-cc49-49cf-939e-ad2c3bc200e452040000530398654045.005802BR5919Antonio Mota Junior6009Sao Paulo62220518daqr1687977812135863041BED</textarea>
+
+                <button type="button" class="pix-copy-btn" id="pix-copy-btn">
+                    <svg class="pix-icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                        <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path>
+                    </svg>
+                    <svg class="pix-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 6 9 17l-5-5"></path>
+                    </svg>
+                    <span class="pix-btn-label">Copiar Código Pix</span>
+                </button>
+
+                <p class="pix-hint">Confira se o recebedor é Antonio Mota Junior antes de confirmar.</p>
+
+                <span class="pix-sr-only" id="pix-status" role="status" aria-live="polite"></span>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        (function () {
+            var field = document.getElementById('pix-code');
+            var btn = document.getElementById('pix-copy-btn');
+            var label = btn.querySelector('.pix-btn-label');
+            var status = document.getElementById('pix-status');
+
+            var DEFAULT_TEXT = 'Copiar Código Pix';
+            var COPIED_TEXT = 'Código Copiado!';
+            var FAIL_TEXT = 'Selecionado: use Ctrl+C';
+            var RESET_AFTER_MS = 3000;
+            var resetTimer = null;
+
+            // Copia usando a API moderna; se não houver, usa o método antigo.
+            function copyText(text) {
+                if (navigator.clipboard && window.isSecureContext) {
+                    return navigator.clipboard.writeText(text).then(function () { return true; })
+                        .catch(function () { return legacyCopy(text); });
+                }
+                return Promise.resolve(legacyCopy(text));
+            }
+
+            function legacyCopy(text) {
+                try {
+                    field.focus();
+                    field.select();
+                    field.setSelectionRange(0, text.length);
+                    return document.execCommand('copy');
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            function showState(copied, message) {
+                btn.classList.toggle('is-copied', copied);
+                label.textContent = message;
+                status.textContent = message;
+
+                clearTimeout(resetTimer);
+                resetTimer = setTimeout(function () {
+                    btn.classList.remove('is-copied');
+                    label.textContent = DEFAULT_TEXT;
+                    status.textContent = '';
+                }, RESET_AFTER_MS);
+            }
+
+            btn.addEventListener('click', function () {
+                var code = field.value.trim();
+                copyText(code).then(function (ok) {
+                    if (ok) {
+                        showState(true, COPIED_TEXT);
+                    } else {
+                        field.focus();
+                        field.select();
+                        showState(false, FAIL_TEXT);
+                    }
+                });
+            });
+
+            // Um clique no campo já seleciona o código inteiro.
+            field.addEventListener('focus', function () { field.select(); });
+            field.addEventListener('click', function () { field.select(); });
+        })();
+    </script>
+
     <footer>
         <div class="footer-container">
 
